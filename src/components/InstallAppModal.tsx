@@ -107,7 +107,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </div>
                   <button
                     onClick={handleInstallClick}
-                    className="flex-shrink-0 flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-white font-bold text-sm shadow-lg shadow-emerald-500/30 transition-transform active:scale-95"
+                    className="flex-shrink-0 flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm shadow-lg shadow-emerald-500/30 transition-transform active:scale-95"
                   >
                     <Download className="w-4 h-4" />
                     <span>Install Now</span>
@@ -159,7 +159,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {activeTab === 'android' && (
               <div className="space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                 <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black text-white font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     1
                   </div>
                   <div>
@@ -173,7 +173,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black text-white font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     2
                   </div>
                   <div>
@@ -187,7 +187,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="flex items-start space-x-3 p-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/30 dark:border-emerald-500/30">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black text-white font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     3
                   </div>
                   <div>
@@ -203,7 +203,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 {canInstall && (
                   <button
                     onClick={handleInstallClick}
-                    className="w-full mt-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-white font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition-transform active:scale-98"
+                    className="w-full mt-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition-transform active:scale-98"
                   >
                     <Download className="w-4 h-4" />
                     <span>Click Here to Trigger Chrome Install</span>
@@ -216,7 +216,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {activeTab === 'ios' && (
               <div className="space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                 <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black text-white font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     1
                   </div>
                   <div>
@@ -230,7 +230,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black text-white font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     2
                   </div>
                   <div>
@@ -244,7 +244,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="flex items-start space-x-3 p-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/30 dark:border-emerald-500/30">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black text-white font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     3
                   </div>
                   <div>
@@ -263,7 +263,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {activeTab === 'pc' && (
               <div className="space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                 <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black text-white font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     1
                   </div>
                   <div>
@@ -277,7 +277,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="flex items-start space-x-3 p-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/30 dark:border-emerald-500/30">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black text-white font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     2
                   </div>
                   <div>
@@ -293,7 +293,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 {canInstall && (
                   <button
                     onClick={handleInstallClick}
-                    className="w-full mt-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-white font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition-transform active:scale-98"
+                    className="w-full mt-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition-transform active:scale-98"
                   >
                     <Download className="w-4 h-4" />
                     <span>Install on This Computer</span>
