@@ -106,13 +106,13 @@ export const UnitConverterView: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Category Grid */}
-      <div className="bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm space-y-4">
+      <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 shadow-sm space-y-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center space-x-2">
             <Scale className="w-5 h-5 text-emerald-500" />
             <span>Unit Converter</span>
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-[#A1A1AA] mt-1">
             Convert across 16 scientific & Nigerian/JAMB units with live formulas and conversion multipliers.
           </p>
         </div>
@@ -128,8 +128,8 @@ export const UnitConverterView: React.FC = () => {
                 onClick={() => handleSelectCategory(c.name)}
                 className={`flex items-center space-x-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
                   isSelected
-                    ? 'bg-emerald-500 text-black font-black text-white border-emerald-500 shadow-sm'
-                    : 'bg-slate-50 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold border-[#3B82F6] shadow-sm'
+                    : 'bg-[#0F1115] text-[#A1A1AA] border-[#252A34] hover:text-[#FFFFFF] hover:bg-[#252A34]'
                 }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
@@ -141,13 +141,13 @@ export const UnitConverterView: React.FC = () => {
       </div>
 
       {/* Main Conversion Control Card */}
-      <div className="bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+      <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-500 dark:text-emerald-400">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#3B82F6]">
             Converting: {currentCat.name}
           </span>
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            Base SI Unit: <strong className="text-slate-700 dark:text-slate-300">{currentCat.baseUnit}</strong>
+          <span className="text-xs text-[#A1A1AA]">
+            Base SI Unit: <strong className="text-[#FFFFFF]">{currentCat.baseUnit}</strong>
           </span>
         </div>
 
@@ -155,19 +155,19 @@ export const UnitConverterView: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-center">
           {/* From Value & Unit */}
           <div className="md:col-span-3 space-y-2">
-            <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
+            <label className="text-xs font-bold text-[#A1A1AA] uppercase tracking-wider block">
               From
             </label>
             <input
               type="number"
               value={inputValue}
               onChange={(e) => setInputValue(parseFloat(e.target.value) || 0)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white font-mono font-bold text-lg"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold text-lg"
             />
             <select
               value={fromUnitId}
               onChange={(e) => setFromUnitId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 text-sm font-semibold"
+              className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] text-sm font-semibold"
             >
               {currentCat.units.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -182,7 +182,7 @@ export const UnitConverterView: React.FC = () => {
             <button
               onClick={handleSwapUnits}
               title="Swap Units"
-              className="p-3 rounded-full bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-emerald-500 border border-slate-200 dark:border-slate-700 transition-transform active:rotate-180"
+              className="p-3 rounded-full bg-[#252A34] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#252A34] transition-transform active:rotate-180"
             >
               <ArrowLeftRight className="w-5 h-5" />
             </button>
@@ -190,16 +190,16 @@ export const UnitConverterView: React.FC = () => {
 
           {/* To Unit */}
           <div className="md:col-span-3 space-y-2">
-            <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
+            <label className="text-xs font-bold text-[#A1A1AA] uppercase tracking-wider block">
               To
             </label>
-            <div className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-zinc-900/60 text-slate-700 dark:text-slate-300 font-mono font-bold text-lg min-h-[46px] flex items-center">
+            <div className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold text-lg min-h-[46px] flex items-center">
               {solution ? solution.finalAnswer : '---'}
             </div>
             <select
               value={toUnitId}
               onChange={(e) => setToUnitId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 text-sm font-semibold"
+              className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] text-sm font-semibold"
             >
               {currentCat.units.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -224,7 +224,7 @@ export const UnitConverterView: React.FC = () => {
                   setInputValue(100);
                   setSolution(null);
                 }}
-                className="px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono transition-colors border border-slate-200 dark:border-slate-700"
+                className="px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-slate-700 text-[#FFFFFF] font-mono transition-colors border border-slate-200 dark:border-slate-700"
               >
                 {p.label}
               </button>
@@ -234,7 +234,7 @@ export const UnitConverterView: React.FC = () => {
 
         <button
           onClick={handleConvert}
-          className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black active:scale-[0.99] text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all"
+          className="w-full py-3.5 bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold active:scale-[0.99] rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all"
         >
           <Sparkles className="w-4 h-4" />
           <span>Convert & Show Formula Steps</span>

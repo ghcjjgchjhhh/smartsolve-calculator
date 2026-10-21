@@ -6,10 +6,7 @@ import {
   History,
   Trash2,
   X,
-  ExternalLink,
-  ChevronRight,
   Clock,
-  BookOpen,
 } from 'lucide-react';
 
 interface Props {
@@ -18,7 +15,7 @@ interface Props {
   onSelectSolution?: (item: HistoryItem) => void;
 }
 
-export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose, onSelectSolution }) => {
+export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
   const [activeItem, setActiveItem] = useState<HistoryItem | null>(null);
 
@@ -49,14 +46,14 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose, onSelectSoluti
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm flex justify-end">
-      <div className="w-full max-w-lg bg-white dark:bg-black h-full shadow-2xl flex flex-col border-l border-slate-200 dark:border-zinc-800 animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-black/80 backdrop-blur-sm flex justify-end">
+      <div className="w-full max-w-lg bg-[#181B22] h-full shadow-2xl flex flex-col border-l border-[#252A34] animate-in slide-in-from-right duration-200">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-[#252A34] flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <History className="w-5 h-5 text-emerald-500" />
-            <h3 className="font-bold text-slate-900 dark:text-white text-lg">Calculation History</h3>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-xs font-bold text-slate-600 dark:text-slate-400">
+            <History className="w-5 h-5 text-[#3B82F6]" />
+            <h3 className="font-bold text-[#FFFFFF] text-lg">Calculation History</h3>
+            <span className="px-2 py-0.5 rounded-full bg-[#252A34] text-xs font-bold text-[#A1A1AA]">
               {historyList.length}
             </span>
           </div>
@@ -66,14 +63,14 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose, onSelectSoluti
               <button
                 onClick={handleClearAll}
                 title="Clear All History"
-                className="p-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg text-rose-500 hover:text-rose-600"
+                className="p-2 hover:bg-[#EF4444]/20 rounded-lg text-[#EF4444] transition-colors cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              className="p-2 hover:bg-[#252A34] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -83,10 +80,10 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose, onSelectSoluti
         {/* List Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {historyList.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center text-center text-slate-400 space-y-2">
+            <div className="h-64 flex flex-col items-center justify-center text-center text-[#A1A1AA] space-y-2">
               <Clock className="w-10 h-10 opacity-30" />
-              <p className="text-sm font-semibold">No calculation history yet</p>
-              <p className="text-xs max-w-xs text-slate-500">
+              <p className="text-sm font-semibold text-[#FFFFFF]">No calculation history yet</p>
+              <p className="text-xs max-w-xs text-[#A1A1AA]">
                 Calculations from Mathematics, Physics, Scientific, and Smart Input are automatically saved here.
               </p>
             </div>
@@ -94,40 +91,40 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose, onSelectSoluti
             historyList.map((item) => (
               <div
                 key={item.id}
-                className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/40 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all space-y-2 group"
+                className="p-3.5 rounded-xl border border-[#252A34] bg-[#0F1115] hover:border-[#3B82F6]/60 transition-all space-y-2 group"
               >
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold uppercase tracking-wider text-emerald-500 dark:text-emerald-400">
+                  <span className="font-bold uppercase tracking-wider text-[#3B82F6]">
                     {item.category}
                   </span>
-                  <span className="text-[11px] text-slate-400">{formatDate(item.timestamp)}</span>
+                  <span className="text-[11px] text-[#A1A1AA]">{formatDate(item.timestamp)}</span>
                 </div>
 
-                <div className="font-semibold text-sm text-slate-900 dark:text-white line-clamp-1">
+                <div className="font-semibold text-sm text-[#FFFFFF] line-clamp-1">
                   {item.title}
                 </div>
 
                 {item.problemStatement && (
-                  <div className="text-xs font-mono text-slate-600 dark:text-slate-400 line-clamp-1">
+                  <div className="text-xs font-mono text-[#A1A1AA] line-clamp-1">
                     {item.problemStatement}
                   </div>
                 )}
 
                 <div className="flex items-center justify-between pt-1">
-                  <div className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  <div className="font-mono text-sm font-bold text-[#22C55E]">
                     = {item.finalAnswer} {item.unit || ''}
                   </div>
 
                   <div className="flex items-center space-x-1">
                     <button
                       onClick={() => setActiveItem(item)}
-                      className="px-2.5 py-1 rounded bg-emerald-500/20 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-500/30"
+                      className="px-2.5 py-1 rounded bg-[#252A34] text-[#FFFFFF] text-xs font-semibold hover:bg-[#3B82F6] hover:text-white transition-all cursor-pointer"
                     >
                       View Steps
                     </button>
                     <button
                       onClick={() => deleteHistoryItem(item.id)}
-                      className="p-1 text-slate-400 hover:text-rose-500 rounded"
+                      className="p-1 text-[#A1A1AA] hover:text-[#EF4444] rounded cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -140,12 +137,12 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose, onSelectSoluti
 
         {/* Modal for viewing selected historic item */}
         {activeItem && (
-          <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-60 bg-black/80 flex items-center justify-center p-4">
             <div className="max-w-xl w-full max-h-[90vh] overflow-y-auto">
               <div className="flex justify-end mb-2">
                 <button
                   onClick={() => setActiveItem(null)}
-                  className="p-1.5 bg-white/20 text-white rounded-full hover:bg-white/30"
+                  className="p-1.5 bg-[#252A34] text-[#FFFFFF] rounded-full hover:bg-[#3B82F6] cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>

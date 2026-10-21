@@ -89,7 +89,7 @@ export const PhysicsHub: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search physics formulas (e.g. velocity, Ohm's law, heat, waves, projectile)..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-black text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] border border-[#252A34] text-[#FFFFFF] text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
@@ -100,8 +100,8 @@ export const PhysicsHub: React.FC = () => {
               onClick={() => setSelectedCategory(c)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedCategory === c
-                  ? 'bg-emerald-500 text-black font-black text-white shadow-sm'
-                  : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-zinc-800'
+                  ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
+                  : 'bg-[#181B22] border border-[#252A34] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#252A34]'
               }`}
             >
               {c}
@@ -125,18 +125,18 @@ export const PhysicsHub: React.FC = () => {
                 onClick={() => handleSelectFormula(f)}
                 className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-start justify-between ${
                   isSelected
-                    ? 'bg-emerald-500/15 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-500 shadow-sm'
-                    : 'bg-white dark:bg-black border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    ? 'bg-[#0F1115] border-[#3B82F6] shadow-sm'
+                    : 'bg-[#181B22] border-[#252A34] hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
                 <div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-[#A1A1AA]">
                       {f.category}
                     </span>
                   </div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1">{f.name}</h4>
-                  <div className="text-xs font-mono font-semibold text-emerald-500 dark:text-emerald-400 mt-0.5">
+                  <h4 className="text-sm font-bold text-[#FFFFFF] mt-1">{f.name}</h4>
+                  <div className="text-xs font-mono font-semibold text-[#3B82F6] mt-0.5">
                     {f.baseFormula}
                   </div>
                 </div>
@@ -150,7 +150,7 @@ export const PhysicsHub: React.FC = () => {
           })}
 
           {filteredFormulas.length === 0 && (
-            <div className="p-8 text-center text-slate-500 text-sm bg-white dark:bg-black rounded-xl border border-slate-200 dark:border-zinc-800">
+            <div className="p-8 text-center text-slate-500 text-sm bg-[#0F1115] border border-[#252A34] text-[#FFFFFF] rounded-xl border border-[#252A34]">
               No formulas match "{searchQuery}"
             </div>
           )}
@@ -158,25 +158,25 @@ export const PhysicsHub: React.FC = () => {
 
         {/* Right: Active Formula Calculator */}
         <div className="lg:col-span-7 space-y-5">
-          <div className="bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+          <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
             {/* Header */}
             <div>
               <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-500 dark:text-emerald-400">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#3B82F6]">
                   {currentFormula.category}
                 </span>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-1">{currentFormula.name}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{currentFormula.description}</p>
+              <h3 className="text-xl font-bold text-[#FFFFFF] mt-1">{currentFormula.name}</h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">{currentFormula.description}</p>
             </div>
 
             {/* Base Formula Banner */}
-            <div className="p-3.5 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-xl border border-emerald-500/30 dark:border-emerald-500/30 flex items-center justify-between">
+            <div className="p-3.5 bg-[#0F1115] rounded-xl border border-[#252A34] flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-[#3B82F6] uppercase tracking-wider block">
                   Base Formula
                 </span>
-                <span className="text-lg font-black text-zinc-100 dark:text-emerald-300 math-display">
+                <span className="text-lg font-black text-[#FFFFFF] math-display">
                   {currentFormula.baseFormula}
                 </span>
               </div>
@@ -185,7 +185,7 @@ export const PhysicsHub: React.FC = () => {
 
             {/* Target Variable Chooser */}
             <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-2">
+              <label className="text-xs font-bold text-[#A1A1AA] uppercase tracking-wider block mb-2">
                 Quantity to Find (Unknown Variable)
               </label>
               <div className="flex flex-wrap gap-2">
@@ -202,8 +202,8 @@ export const PhysicsHub: React.FC = () => {
                       }}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
                         isTarget
-                          ? 'bg-emerald-500 text-black font-black text-white shadow-md shadow-emerald-500/30'
-                          : 'bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
+                          : 'bg-[#252A34] text-[#A1A1AA] hover:text-[#FFFFFF]'
                       }`}
                     >
                       <span>Find {sym}</span>
@@ -227,19 +227,19 @@ export const PhysicsHub: React.FC = () => {
                       key={v.symbol}
                       className={`p-3 rounded-xl border transition-all ${
                         isTarget
-                          ? 'bg-emerald-500/10 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-500 ring-2 ring-emerald-500/20'
-                          : 'bg-slate-50/60 dark:bg-zinc-900/40 border-slate-200 dark:border-zinc-800'
+                          ? 'bg-[#0F1115] border-[#3B82F6]'
+                          : 'bg-[#0F1115] border-[#252A34]'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <label className="text-xs font-semibold text-[#A1A1AA]">
                           {v.name} ({v.symbol})
                         </label>
-                        <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-400">{v.unit}</span>
+                        <span className="text-xs font-mono font-bold text-[#A1A1AA]">{v.unit}</span>
                       </div>
 
                       {isTarget ? (
-                        <div className="py-2 text-xs font-bold text-emerald-500 dark:text-emerald-400 italic">
+                        <div className="py-2 text-xs font-bold text-[#3B82F6] italic">
                           Unknown to calculate →
                         </div>
                       ) : (
@@ -248,7 +248,7 @@ export const PhysicsHub: React.FC = () => {
                           value={inputValues[v.symbol] !== undefined ? inputValues[v.symbol] : ''}
                           onChange={(e) => handleInputChange(v.symbol, e.target.value)}
                           placeholder={`Enter ${v.symbol}`}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-black font-mono text-sm font-bold text-slate-900 dark:text-white"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-[#0F1115] border border-[#252A34] text-[#FFFFFF] font-mono text-sm font-bold text-[#FFFFFF]"
                         />
                       )}
                     </div>
@@ -265,7 +265,7 @@ export const PhysicsHub: React.FC = () => {
 
             <button
               onClick={handleCalculate}
-              className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:scale-[0.99] text-black font-black font-bold rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all"
+              className="w-full py-3.5 bg-[#22C55E] hover:bg-[#16A34A] active:scale-[0.99] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all"
             >
               <Sparkles className="w-4 h-4" />
               <span>Calculate & Show Step-by-Step Solution</span>

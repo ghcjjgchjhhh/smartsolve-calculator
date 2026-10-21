@@ -9,7 +9,6 @@ import {
   Sparkles,
   WifiOff,
   Maximize2,
-  ArrowRight,
   MoreVertical,
   Laptop
 } from 'lucide-react';
@@ -44,20 +43,20 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-lg bg-white dark:bg-black rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-lg bg-[#181B22] rounded-3xl shadow-2xl border border-[#252A34] overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header with App Icon */}
-        <div className="relative bg-gradient-to-br from-zinc-900 via-zinc-950 to-black p-6 text-white">
+        <div className="relative bg-[#13161D] p-6 text-[#FFFFFF] border-b border-[#252A34]">
           <button
             onClick={onClose}
             aria-label="Close"
-            className="absolute top-4 right-4 p-2 rounded-full bg-black/20 hover:bg-black/30 text-white transition-colors"
+            className="absolute top-4 right-4 p-2 rounded-xl bg-[#252A34] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
 
           <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-2xl bg-white shadow-xl p-1.5 flex-shrink-0 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-2xl bg-[#252A34] border border-[#3B82F6]/40 shadow-xl p-1.5 flex-shrink-0 flex items-center justify-center text-[#3B82F6]">
               <img
                 src="/icon.svg"
                 alt="SmartSolve App Icon"
@@ -66,13 +65,13 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="text-xl font-extrabold tracking-tight">SmartSolve Calculator</span>
-                <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
-                  Mobile App
+                <span className="text-xl font-bold tracking-tight text-[#FFFFFF]">SmartSolve Calculator</span>
+                <span className="bg-[#3B82F6]/20 text-[#3B82F6] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#3B82F6]/30 uppercase">
+                  Mobile PWA
                 </span>
               </div>
-              <p className="text-xs text-emerald-200 mt-1">
-                Install directly on your phone home screen — No Google Play / App Store required!
+              <p className="text-xs text-[#A1A1AA] mt-1">
+                Install directly on your phone home screen — works offline like a native app.
               </p>
             </div>
           </div>
@@ -82,32 +81,32 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
         <div className="p-6 overflow-y-auto space-y-5">
           {/* Status if already installed */}
           {isInstalled ? (
-            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center space-x-3 text-emerald-800 dark:text-emerald-200">
-              <CheckCircle2 className="w-6 h-6 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <div className="p-4 rounded-2xl bg-[#22C55E]/15 border border-[#22C55E]/30 flex items-center space-x-3 text-[#FFFFFF]">
+              <CheckCircle2 className="w-6 h-6 flex-shrink-0 text-[#22C55E]" />
               <div>
-                <p className="text-sm font-bold">App Already Installed!</p>
-                <p className="text-xs opacity-90">
-                  SmartSolve Calculator is already installed and running as a standalone app on your device.
+                <p className="text-sm font-bold text-[#FFFFFF]">App Already Installed!</p>
+                <p className="text-xs text-[#A1A1AA] mt-0.5">
+                  SmartSolve Calculator is installed and ready to launch from your device's home screen.
                 </p>
               </div>
             </div>
           ) : (
             /* Direct One-Tap Install Action if browser supports it */
             canInstall && (
-              <div className="p-4 rounded-2xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/30 dark:border-zinc-800">
+              <div className="p-4 rounded-2xl bg-[#0F1115] border border-[#3B82F6]/30">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-bold text-zinc-100 dark:text-emerald-200 flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-amber-500" />
+                    <p className="text-sm font-bold text-[#FFFFFF] flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-[#3B82F6]" />
                       Instant 1-Tap Installation Ready
                     </p>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-300 mt-0.5">
-                      Your browser is ready to add SmartSolve directly to your app list.
+                    <p className="text-xs text-[#A1A1AA] mt-0.5">
+                      Your browser is ready to add SmartSolve to your device.
                     </p>
                   </div>
                   <button
                     onClick={handleInstallClick}
-                    className="flex-shrink-0 flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm shadow-lg shadow-emerald-500/30 transition-transform active:scale-95"
+                    className="flex-shrink-0 flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold text-sm shadow-lg shadow-emerald-500/25 transition-transform active:scale-95 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
                     <span>Install Now</span>
@@ -119,13 +118,13 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
           {/* Device Tabs */}
           <div>
-            <div className="flex rounded-xl bg-slate-100 dark:bg-zinc-900/80 p-1 mb-4 text-xs font-semibold">
+            <div className="flex rounded-xl bg-[#0F1115] border border-[#252A34] p-1 mb-4 text-xs font-semibold">
               <button
                 onClick={() => setActiveTab('android')}
                 className={`flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg transition-all ${
                   activeTab === 'android'
-                    ? 'bg-white dark:bg-slate-700 text-emerald-500 dark:text-emerald-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#3B82F6] text-[#FFFFFF] shadow-sm font-bold'
+                    : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
                 }`}
               >
                 <Smartphone className="w-3.5 h-3.5" />
@@ -135,8 +134,8 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 onClick={() => setActiveTab('ios')}
                 className={`flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg transition-all ${
                   activeTab === 'ios'
-                    ? 'bg-white dark:bg-slate-700 text-emerald-500 dark:text-emerald-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#3B82F6] text-[#FFFFFF] shadow-sm font-bold'
+                    : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
                 }`}
               >
                 <Smartphone className="w-3.5 h-3.5" />
@@ -146,8 +145,8 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 onClick={() => setActiveTab('pc')}
                 className={`flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg transition-all ${
                   activeTab === 'pc'
-                    ? 'bg-white dark:bg-slate-700 text-emerald-500 dark:text-emerald-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#3B82F6] text-[#FFFFFF] shadow-sm font-bold'
+                    : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
                 }`}
               >
                 <Laptop className="w-3.5 h-3.5" />
@@ -157,45 +156,45 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             {/* Android Instructions */}
             {activeTab === 'android' && (
-              <div className="space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+              <div className="space-y-3 text-xs sm:text-sm text-[#A1A1AA]">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                  <div className="w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     1
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 dark:text-white">
+                    <p className="font-semibold text-[#FFFFFF]">
                       Open this page in Google Chrome
                     </p>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                      Ensure you are using Google Chrome or Samsung Internet browser on your Android phone.
+                    <p className="text-[#A1A1AA] text-xs mt-0.5">
+                      Ensure you are using Google Chrome or Samsung Internet on your phone.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                  <div className="w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     2
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      Tap the Chrome menu <MoreVertical className="w-4 h-4 text-emerald-500 inline" /> (three vertical dots)
+                    <p className="font-semibold text-[#FFFFFF] flex items-center gap-1.5">
+                      Tap the Chrome menu <MoreVertical className="w-4 h-4 text-[#3B82F6] inline" /> (three dots)
                     </p>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                      Located in the top-right corner of your Chrome browser.
+                    <p className="text-[#A1A1AA] text-xs mt-0.5">
+                      Located in the top-right corner of your browser.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/30 dark:border-emerald-500/30">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#22C55E]/40">
+                  <div className="w-6 h-6 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     3
                   </div>
                   <div>
-                    <p className="font-semibold text-white dark:text-emerald-200 flex items-center gap-1.5">
-                      Tap <span className="font-bold underline text-emerald-500 dark:text-emerald-400">“Install app”</span> or <span className="font-bold underline text-emerald-500 dark:text-emerald-400">“Add to Home screen”</span>
+                    <p className="font-semibold text-[#FFFFFF] flex items-center gap-1.5">
+                      Tap <span className="font-bold underline text-[#22C55E]">“Install app”</span> or <span className="font-bold underline text-[#22C55E]">“Add to Home screen”</span>
                     </p>
-                    <p className="text-slate-600 dark:text-slate-400 text-xs mt-0.5">
-                      Chrome will automatically save the app icon to your phone screen and app drawer.
+                    <p className="text-[#A1A1AA] text-xs mt-0.5">
+                      The SmartSolve Calculator icon will be added directly to your home screen.
                     </p>
                   </div>
                 </div>
@@ -203,10 +202,10 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 {canInstall && (
                   <button
                     onClick={handleInstallClick}
-                    className="w-full mt-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition-transform active:scale-98"
+                    className="w-full mt-2 py-3 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition-transform active:scale-98 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Click Here to Trigger Chrome Install</span>
+                    <span>Click Here to Trigger Phone Install</span>
                   </button>
                 )}
               </div>
@@ -214,45 +213,45 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             {/* iOS Instructions */}
             {activeTab === 'ios' && (
-              <div className="space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+              <div className="space-y-3 text-xs sm:text-sm text-[#A1A1AA]">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                  <div className="w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     1
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 dark:text-white">
-                      Open in Safari browser
+                    <p className="font-semibold text-[#FFFFFF]">
+                      Open in Apple Safari
                     </p>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                      Apple requires using Apple Safari on iOS to install home screen web apps.
+                    <p className="text-[#A1A1AA] text-xs mt-0.5">
+                      Apple requires using Safari on iOS to install home screen web apps.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                  <div className="w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     2
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      Tap the <Share2 className="w-4 h-4 text-emerald-500 inline" /> Share button
+                    <p className="font-semibold text-[#FFFFFF] flex items-center gap-1.5">
+                      Tap the <Share2 className="w-4 h-4 text-[#3B82F6] inline" /> Share button
                     </p>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                      The square icon with an arrow pointing up at the bottom of your Safari screen.
+                    <p className="text-[#A1A1AA] text-xs mt-0.5">
+                      The square icon with an upward arrow at the bottom of Safari.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/30 dark:border-emerald-500/30">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#22C55E]/40">
+                  <div className="w-6 h-6 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     3
                   </div>
                   <div>
-                    <p className="font-semibold text-white dark:text-emerald-200 flex items-center gap-1.5">
-                      Scroll down and tap <PlusSquare className="w-4 h-4 text-emerald-500 inline" /> <span className="font-bold underline text-emerald-500 dark:text-emerald-400">“Add to Home Screen”</span>
+                    <p className="font-semibold text-[#FFFFFF] flex items-center gap-1.5">
+                      Tap <PlusSquare className="w-4 h-4 text-[#22C55E] inline" /> <span className="font-bold underline text-[#22C55E]">“Add to Home Screen”</span>
                     </p>
-                    <p className="text-slate-600 dark:text-slate-400 text-xs mt-0.5">
-                      Then tap <strong>“Add”</strong> in the top-right corner. The SmartSolve app icon will appear on your iPhone home screen!
+                    <p className="text-[#A1A1AA] text-xs mt-0.5">
+                      Then tap “Add” in the top-right corner. SmartSolve will appear as a full standalone phone app.
                     </p>
                   </div>
                 </div>
@@ -261,30 +260,30 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             {/* Desktop / PC Instructions */}
             {activeTab === 'pc' && (
-              <div className="space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+              <div className="space-y-3 text-xs sm:text-sm text-[#A1A1AA]">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                  <div className="w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     1
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 dark:text-white">
+                    <p className="font-semibold text-[#FFFFFF]">
                       Look at your browser address bar
                     </p>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                      In Chrome, Edge, or Brave, you will see an <strong>Install</strong> or <strong>Computer screen with down-arrow</strong> icon on the right side of the address bar.
+                    <p className="text-[#A1A1AA] text-xs mt-0.5">
+                      In Chrome, Edge, or Brave, look for the <strong>Install</strong> or monitor icon in the address bar.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/30 dark:border-emerald-500/30">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#22C55E]/40">
+                  <div className="w-6 h-6 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     2
                   </div>
                   <div>
-                    <p className="font-semibold text-white dark:text-emerald-200">
+                    <p className="font-semibold text-[#FFFFFF]">
                       Click “Install SmartSolve Calculator”
                     </p>
-                    <p className="text-slate-600 dark:text-slate-400 text-xs mt-0.5">
+                    <p className="text-[#A1A1AA] text-xs mt-0.5">
                       It will install directly into your Windows Start Menu, macOS Launchpad, or desktop.
                     </p>
                   </div>
@@ -293,7 +292,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 {canInstall && (
                   <button
                     onClick={handleInstallClick}
-                    className="w-full mt-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition-transform active:scale-98"
+                    className="w-full mt-2 py-3 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition-transform active:scale-98 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
                     <span>Install on This Computer</span>
@@ -303,37 +302,37 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
             )}
           </div>
 
-          {/* Why Install? Benefits */}
-          <div className="pt-2 border-t border-slate-100 dark:border-zinc-800">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
-              App Advantages vs Regular Website
+          {/* Benefits */}
+          <div className="pt-2 border-t border-[#252A34]">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#A1A1AA] mb-3">
+              App Advantages vs Website
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center space-x-2 p-2 rounded-lg bg-slate-50 dark:bg-zinc-900/40">
-                <Maximize2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
-                <span>Full-Screen Native Feel (No URL bars)</span>
+              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                <Maximize2 className="w-4 h-4 text-[#3B82F6] flex-shrink-0" />
+                <span className="text-[#FFFFFF]">Fullscreen (No URL Bars)</span>
               </div>
-              <div className="flex items-center space-x-2 p-2 rounded-lg bg-slate-50 dark:bg-zinc-900/40">
-                <WifiOff className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                <span>Works 100% Offline with Zero Data</span>
+              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                <WifiOff className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
+                <span className="text-[#FFFFFF]">100% Offline Ready</span>
               </div>
-              <div className="flex items-center space-x-2 p-2 rounded-lg bg-slate-50 dark:bg-zinc-900/40">
-                <Smartphone className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
-                <span>Instant Phone Home Screen Icon</span>
+              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                <Smartphone className="w-4 h-4 text-[#3B82F6] flex-shrink-0" />
+                <span className="text-[#FFFFFF]">Fast Home Screen Launch</span>
               </div>
-              <div className="flex items-center space-x-2 p-2 rounded-lg bg-slate-50 dark:bg-zinc-900/40">
-                <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                <span>Instant calculations & Fast Loading</span>
+              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                <Sparkles className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
+                <span className="text-[#FFFFFF]">Zero Latency Math Engine</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-slate-50 dark:bg-black border-t border-slate-200 dark:border-zinc-800 flex justify-end">
+        <div className="p-4 bg-[#13161D] border-t border-[#252A34] flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-200 dark:bg-zinc-900 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs transition-colors"
+            className="px-5 py-2 rounded-xl bg-[#252A34] hover:bg-[#2F3542] text-[#FFFFFF] font-semibold text-xs transition-colors cursor-pointer"
           >
             Got it / Close
           </button>

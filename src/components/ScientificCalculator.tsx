@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { evaluateExpression, formatNum } from '../services/mathEngine';
 import { StepSolutionCard } from './StepSolutionCard';
 import { StepSolution } from '../types';
 import { saveToHistory } from '../services/historyStorage';
-import { Delete, Equal, Sparkles } from 'lucide-react';
+import { Delete, Equal, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const ScientificCalculator: React.FC = () => {
   const [expression, setExpression] = useState<string>('');
@@ -12,6 +12,15 @@ export const ScientificCalculator: React.FC = () => {
   const [previewResult, setPreviewResult] = useState<string>('');
   const [lastSolution, setLastSolution] = useState<StepSolution | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [calcMode, setCalcMode] = useState<'standard' | 'scientific'>('standard');
+  const displayEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll display to the end as user types
+  useEffect(() => {
+    if (displayEndRef.current) {
+      displayEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'end' });
+    }
+  }, [expression]);
 
   // Live preview evaluation
   useEffect(() => {
@@ -30,23 +39,75 @@ export const ScientificCalculator: React.FC = () => {
     }
   }, [expression, angleMode]);
 
+  // Keyboard navigation support
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing into an input field or textarea
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+
+      if (e.key >= '0' && e.key <= '9') {
+        handleInput(e.key);
+      } else if (e.key === '.') {
+        handleInput('.');
+      } else if (e.key === '+') {
+        handleInput(' + ');
+      } else if (e.key === '-') {
+        handleInput(' - ');
+      } else if (e.key === '*' || e.key === 'x') {
+        handleInput(' * ');
+      } else if (e.key === '/') {
+        e.preventDefault();
+        handleInput(' / ');
+      } else if (e.key === '%') {
+        handleInput('%');
+      } else if (e.key === '(' || e.key === ')') {
+        handleInput(e.key);
+      } else if (e.key === 'Enter' || e.key === '=') {
+        e.preventDefault();
+        handleCalculate();
+      } else if (e.key === 'Backspace') {
+        handleBackspace();
+      } else if (e.key === 'Escape') {
+        handleClear();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [expression, angleMode]);
+
+  // Subtle haptic touch feedback for mobile
+  const triggerHaptic = () => {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(8);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
   const handleInput = (char: string) => {
+    triggerHaptic();
     setErrorMsg(null);
     setExpression((prev) => prev + char);
   };
 
   const handleClear = () => {
+    triggerHaptic();
     setExpression('');
     setPreviewResult('');
     setErrorMsg(null);
   };
 
   const handleBackspace = () => {
+    triggerHaptic();
     setErrorMsg(null);
     setExpression((prev) => prev.slice(0, -1));
   };
 
   const handleCalculate = () => {
+    triggerHaptic();
     if (!expression.trim()) return;
 
     try {
@@ -77,276 +138,479 @@ export const ScientificCalculator: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Modern Card Body (Sleek Pitch Black & Emerald Engineering Theme) */}
-      <div className="bg-white dark:bg-black rounded-3xl p-5 sm:p-6 shadow-2xl border border-zinc-200 dark:border-zinc-850 transition-colors">
-        {/* LCD Screen Display */}
-        <div className="bg-black text-white rounded-2xl p-4 sm:p-5 mb-5 border border-zinc-800 shadow-inner">
-          <div className="flex items-center justify-between text-xs text-zinc-400 font-mono mb-2">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setAngleMode(angleMode === 'deg' ? 'rad' : 'deg')}
-                className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
-                  angleMode === 'deg' ? 'bg-emerald-500 text-black font-black' : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800 border border-zinc-800'
-                }`}
-              >
-                {angleMode.toUpperCase()}
-              </button>
-              <button
-                onClick={() => setIsShift(!isShift)}
-                className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
-                  isShift ? 'bg-amber-400 text-black font-black' : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800'
-                }`}
-              >
-                2nd / INV
-              </button>
-            </div>
-            <span className="text-[11px] font-bold text-emerald-500/80 tracking-wider">SmartSolve FX</span>
+    <div className="max-w-md sm:max-w-lg lg:max-w-xl mx-auto space-y-6">
+      {/* Polished Modern Calculator Chassis */}
+      <div className="bg-[#0F1115] border border-[#252A34] rounded-3xl p-4 sm:p-6 shadow-2xl shadow-black/80 transition-all">
+        {/* Top Control Bar: Mode Toggle & Angle Settings */}
+        <div className="flex items-center justify-between gap-2 mb-3.5 pb-2 border-b border-[#252A34]/60">
+          {/* Segmented Mode Switcher */}
+          <div className="flex items-center p-1 bg-[#181B22] border border-[#252A34] rounded-xl">
+            <button
+              onClick={() => {
+                triggerHaptic();
+                setCalcMode('standard');
+              }}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                calcMode === 'standard'
+                  ? 'bg-[#3B82F6] text-[#FFFFFF] shadow-sm'
+                  : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
+              }`}
+            >
+              Standard
+            </button>
+            <button
+              onClick={() => {
+                triggerHaptic();
+                setCalcMode('scientific');
+              }}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                calcMode === 'scientific'
+                  ? 'bg-[#3B82F6] text-[#FFFFFF] shadow-sm'
+                  : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
+              }`}
+            >
+              Scientific
+            </button>
           </div>
 
-          {/* Main Input Text */}
-          <div className="min-h-12 flex items-center justify-end overflow-x-auto text-right math-display text-2xl sm:text-3xl text-emerald-400 dark:text-emerald-300 whitespace-nowrap tracking-wider">
-            {expression || <span className="text-zinc-600">0</span>}
+          {/* Angle Mode & 2nd INV toggles */}
+          <div className="flex items-center space-x-1.5">
+            <button
+              onClick={() => {
+                triggerHaptic();
+                setAngleMode(angleMode === 'deg' ? 'rad' : 'deg');
+              }}
+              aria-label="Toggle degree or radian mode"
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+                angleMode === 'deg'
+                  ? 'bg-[#252A34] text-[#FFFFFF] border-[#3B82F6]/60 shadow-xs'
+                  : 'bg-[#181B22] text-[#A1A1AA] border-[#252A34] hover:text-[#FFFFFF]'
+              }`}
+            >
+              {angleMode.toUpperCase()}
+            </button>
+            {calcMode === 'scientific' && (
+              <button
+                onClick={() => {
+                  triggerHaptic();
+                  setIsShift(!isShift);
+                }}
+                aria-label="Toggle second inverse functions"
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+                  isShift
+                    ? 'bg-[#22C55E] text-[#FFFFFF] border-[#22C55E] shadow-sm'
+                    : 'bg-[#181B22] text-[#A1A1AA] border-[#252A34] hover:text-[#FFFFFF]'
+                }`}
+              >
+                2nd
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Calculator Display (#181B22) */}
+        <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-4 sm:p-5 mb-4 shadow-inner">
+          {/* Status line */}
+          <div className="flex items-center justify-between text-xs text-[#A1A1AA] font-mono mb-1">
+            <span className="text-[11px] font-semibold tracking-wider text-[#A1A1AA]">
+              {calcMode.toUpperCase()} · {angleMode.toUpperCase()}
+              {isShift ? ' · INV' : ''}
+            </span>
+            <span className="text-[11px] font-semibold text-[#A1A1AA]">SmartSolve FX</span>
           </div>
 
-          {/* Live Preview / Error */}
-          <div className="min-h-6 flex items-center justify-end text-right font-mono text-sm sm:text-base">
+          {/* Main Input Text (#FFFFFF) */}
+          <div className="min-h-12 flex items-center justify-end overflow-x-auto text-right math-display text-2xl sm:text-3xl text-[#FFFFFF] font-bold whitespace-nowrap tracking-wide scrollbar-none">
+            {expression || <span className="text-[#A1A1AA]/50 font-normal">0</span>}
+            <div ref={displayEndRef} />
+          </div>
+
+          {/* Live Preview / Error line */}
+          <div className="min-h-6 flex items-center justify-end text-right font-mono text-sm sm:text-base mt-1">
             {errorMsg ? (
-              <span className="text-rose-400 text-xs sm:text-sm font-sans">{errorMsg}</span>
+              <span className="text-[#EF4444] text-xs sm:text-sm font-sans font-medium">{errorMsg}</span>
             ) : previewResult ? (
-              <span className="text-emerald-400 flex items-center space-x-1 font-bold">
-                <span className="text-xs text-zinc-500 mr-1 font-normal">=</span> {previewResult}
+              <span className="text-[#22C55E] flex items-center space-x-1 font-bold">
+                <span className="text-xs text-[#A1A1AA] mr-1 font-normal">=</span> {previewResult}
               </span>
-            ) : null}
+            ) : (
+              <span className="text-xs text-[#A1A1AA]/40 select-none">Ready</span>
+            )}
           </div>
         </div>
 
-        {/* Buttons Grid (Crisp high-contrast keys) */}
-        <div className="grid grid-cols-5 gap-2 sm:gap-2.5">
-          {/* Scientific Row 1 */}
-          <button
-            onClick={() => handleInput(isShift ? 'asin(' : 'sin(')}
-            className="p-3 sm:p-3.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-800 dark:text-emerald-400 font-semibold text-xs sm:text-sm transition-all border border-zinc-200 dark:border-zinc-800"
-          >
-            {isShift ? 'sin⁻¹' : 'sin'}
-          </button>
-          <button
-            onClick={() => handleInput(isShift ? 'acos(' : 'cos(')}
-            className="p-3 sm:p-3.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-800 dark:text-emerald-400 font-semibold text-xs sm:text-sm transition-all border border-zinc-200 dark:border-zinc-800"
-          >
-            {isShift ? 'cos⁻¹' : 'cos'}
-          </button>
-          <button
-            onClick={() => handleInput(isShift ? 'atan(' : 'tan(')}
-            className="p-3 sm:p-3.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-800 dark:text-emerald-400 font-semibold text-xs sm:text-sm transition-all border border-zinc-200 dark:border-zinc-800"
-          >
-            {isShift ? 'tan⁻¹' : 'tan'}
-          </button>
-          <button
-            onClick={() => handleInput('π')}
-            className="p-3 sm:p-3.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-800 dark:text-emerald-300 font-semibold text-xs sm:text-sm transition-all border border-zinc-200 dark:border-zinc-800"
-          >
-            π
-          </button>
-          <button
-            onClick={() => handleInput('e')}
-            className="p-3 sm:p-3.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-800 dark:text-emerald-300 font-semibold text-xs sm:text-sm transition-all border border-zinc-200 dark:border-zinc-800"
-          >
-            e
-          </button>
+        {/* Keypad Section */}
+        {calcMode === 'standard' ? (
+          /* STANDARD 4-COLUMN PHONE LAYOUT (Big, Ergonomic Thumb Targets) */
+          <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
+            {/* Row 1 */}
+            <button
+              onClick={handleClear}
+              className="h-14 sm:h-16 bg-[#EF4444] hover:bg-[#DC2626] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-base sm:text-lg shadow-sm shadow-red-500/20 flex items-center justify-center transition-all cursor-pointer"
+            >
+              AC
+            </button>
+            <button
+              onClick={handleBackspace}
+              aria-label="Backspace"
+              className="h-14 sm:h-16 bg-[#EF4444] hover:bg-[#DC2626] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold shadow-sm shadow-red-500/20 flex items-center justify-center transition-all cursor-pointer"
+            >
+              <Delete className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <button
+              onClick={() => handleInput('%')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-lg sm:text-xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              %
+            </button>
+            <button
+              onClick={() => handleInput(' / ')}
+              className="h-14 sm:h-16 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-blue-500/25 flex items-center justify-center transition-all cursor-pointer"
+            >
+              ÷
+            </button>
 
-          {/* Scientific Row 2 */}
-          <button
-            onClick={() => handleInput('log(')}
-            className="p-3 sm:p-3.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-800 dark:text-emerald-400 font-semibold text-xs sm:text-sm transition-all border border-zinc-200 dark:border-zinc-800"
-          >
-            log
-          </button>
-          <button
-            onClick={() => handleInput('ln(')}
-            className="p-3 sm:p-3.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-800 dark:text-emerald-400 font-semibold text-xs sm:text-sm transition-all border border-zinc-200 dark:border-zinc-800"
-          >
-            ln
-          </button>
-          <button
-            onClick={() => handleInput('sqrt(')}
-            className="p-3 sm:p-3.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-800 dark:text-emerald-400 font-semibold text-xs sm:text-sm transition-all border border-zinc-200 dark:border-zinc-800"
-          >
-            √
-          </button>
-          <button
-            onClick={() => handleInput('^2')}
-            className="p-3 sm:p-3.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-800 dark:text-emerald-300 font-semibold text-xs sm:text-sm transition-all border border-zinc-200 dark:border-zinc-800"
-          >
-            x²
-          </button>
-          <button
-            onClick={() => handleInput('^')}
-            className="p-3 sm:p-3.5 bg-zinc-100 dark:bg-zinc-900 hover:bg-emerald-500/10 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-800 dark:text-emerald-300 font-semibold text-xs sm:text-sm transition-all border border-zinc-200 dark:border-zinc-800"
-          >
-            xʸ
-          </button>
+            {/* Row 2 */}
+            <button
+              onClick={() => handleInput('7')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              7
+            </button>
+            <button
+              onClick={() => handleInput('8')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              8
+            </button>
+            <button
+              onClick={() => handleInput('9')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              9
+            </button>
+            <button
+              onClick={() => handleInput(' * ')}
+              className="h-14 sm:h-16 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-blue-500/25 flex items-center justify-center transition-all cursor-pointer"
+            >
+              ×
+            </button>
 
-          {/* Controls & Brackets Row */}
-          <button
-            onClick={() => handleInput('(')}
-            className="p-3 sm:p-3.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-700 dark:text-zinc-200 font-bold text-sm transition-all border border-zinc-200/80 dark:border-zinc-800"
-          >
-            (
-          </button>
-          <button
-            onClick={() => handleInput(')')}
-            className="p-3 sm:p-3.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-700 dark:text-zinc-200 font-bold text-sm transition-all border border-zinc-200/80 dark:border-zinc-800"
-          >
-            )
-          </button>
-          <button
-            onClick={() => handleInput('!')}
-            className="p-3 sm:p-3.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-zinc-700 dark:text-zinc-200 font-semibold text-xs sm:text-sm transition-all border border-zinc-200/80 dark:border-zinc-800"
-          >
-            n!
-          </button>
-          <button
-            onClick={handleClear}
-            className="p-3 sm:p-3.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:hover:bg-rose-500/30 dark:text-rose-300 active:scale-95 rounded-xl font-bold text-xs sm:text-sm transition-all border border-rose-200/60 dark:border-zinc-800"
-          >
-            AC
-          </button>
-          <button
-            onClick={handleBackspace}
-            className="p-3 sm:p-3.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:hover:bg-rose-500/30 dark:text-rose-300 active:scale-95 rounded-xl flex items-center justify-center transition-all border border-rose-200/60 dark:border-zinc-800"
-          >
-            <Delete className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+            {/* Row 3 */}
+            <button
+              onClick={() => handleInput('4')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              4
+            </button>
+            <button
+              onClick={() => handleInput('5')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              5
+            </button>
+            <button
+              onClick={() => handleInput('6')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              6
+            </button>
+            <button
+              onClick={() => handleInput(' - ')}
+              className="h-14 sm:h-16 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-blue-500/25 flex items-center justify-center transition-all cursor-pointer"
+            >
+              −
+            </button>
 
-          {/* Number Keypad Row 1 */}
-          <button
-            onClick={() => handleInput('7')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            7
-          </button>
-          <button
-            onClick={() => handleInput('8')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            8
-          </button>
-          <button
-            onClick={() => handleInput('9')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            9
-          </button>
-          <button
-            onClick={() => handleInput(' / ')}
-            className="p-3.5 sm:p-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 active:scale-95 rounded-xl text-xl font-bold transition-all border border-emerald-500/30 dark:border-zinc-800"
-          >
-            ÷
-          </button>
-          <button
-            onClick={() => handleInput('%')}
-            className="p-3 sm:p-3.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 active:scale-95 rounded-xl font-semibold text-xs sm:text-sm transition-all border border-zinc-200/80 dark:border-zinc-800"
-          >
-            %
-          </button>
+            {/* Row 4 */}
+            <button
+              onClick={() => handleInput('1')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              1
+            </button>
+            <button
+              onClick={() => handleInput('2')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              2
+            </button>
+            <button
+              onClick={() => handleInput('3')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              3
+            </button>
+            <button
+              onClick={() => handleInput(' + ')}
+              className="h-14 sm:h-16 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-blue-500/25 flex items-center justify-center transition-all cursor-pointer"
+            >
+              +
+            </button>
 
-          {/* Number Keypad Row 2 */}
-          <button
-            onClick={() => handleInput('4')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            4
-          </button>
-          <button
-            onClick={() => handleInput('5')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            5
-          </button>
-          <button
-            onClick={() => handleInput('6')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            6
-          </button>
-          <button
-            onClick={() => handleInput(' * ')}
-            className="p-3.5 sm:p-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 active:scale-95 rounded-xl text-xl font-bold transition-all border border-emerald-500/30 dark:border-zinc-800"
-          >
-            ×
-          </button>
-          <button
-            onClick={() => handleInput('abs(')}
-            className="p-3 sm:p-3.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 active:scale-95 rounded-xl font-semibold text-xs sm:text-sm transition-all border border-zinc-200/80 dark:border-zinc-800"
-          >
-            |x|
-          </button>
+            {/* Row 5 */}
+            <button
+              onClick={() => {
+                if (expression.startsWith('-(') && expression.endsWith(')')) {
+                  setExpression(expression.slice(2, -1));
+                } else if (expression.startsWith('-')) {
+                  setExpression(expression.slice(1));
+                } else if (expression) {
+                  setExpression(`-(${expression})`);
+                }
+              }}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-base sm:text-lg border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              ±
+            </button>
+            <button
+              onClick={() => handleInput('0')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              0
+            </button>
+            <button
+              onClick={() => handleInput('.')}
+              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+            >
+              .
+            </button>
+            <button
+              onClick={handleCalculate}
+              className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-extrabold text-xl sm:text-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center transition-all cursor-pointer"
+            >
+              <Equal className="w-6 h-6 stroke-[3]" />
+            </button>
+          </div>
+        ) : (
+          /* SCIENTIFIC 5-COLUMN HIGH-PERFORMANCE GRID */
+          <div className="grid grid-cols-5 gap-2 sm:gap-2.5">
+            {/* Scientific Function Row 1 */}
+            <button
+              onClick={() => handleInput(isShift ? 'asin(' : 'sin(')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              {isShift ? 'sin⁻¹' : 'sin'}
+            </button>
+            <button
+              onClick={() => handleInput(isShift ? 'acos(' : 'cos(')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              {isShift ? 'cos⁻¹' : 'cos'}
+            </button>
+            <button
+              onClick={() => handleInput(isShift ? 'atan(' : 'tan(')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              {isShift ? 'tan⁻¹' : 'tan'}
+            </button>
+            <button
+              onClick={() => handleInput('π')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              π
+            </button>
+            <button
+              onClick={() => handleInput('e')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              e
+            </button>
 
-          {/* Number Keypad Row 3 */}
-          <button
-            onClick={() => handleInput('1')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            1
-          </button>
-          <button
-            onClick={() => handleInput('2')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            2
-          </button>
-          <button
-            onClick={() => handleInput('3')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            3
-          </button>
-          <button
-            onClick={() => handleInput(' - ')}
-            className="p-3.5 sm:p-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 active:scale-95 rounded-xl text-xl font-bold transition-all border border-emerald-500/30 dark:border-zinc-800"
-          >
-            −
-          </button>
-          <button
-            onClick={() => handleInput('* 10^')}
-            className="p-3 sm:p-3.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 active:scale-95 rounded-xl font-semibold text-xs sm:text-sm transition-all border border-zinc-200/80 dark:border-zinc-800"
-          >
-            EXP
-          </button>
+            {/* Scientific Function Row 2 */}
+            <button
+              onClick={() => handleInput('log(')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              log
+            </button>
+            <button
+              onClick={() => handleInput('ln(')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              ln
+            </button>
+            <button
+              onClick={() => handleInput('sqrt(')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              √
+            </button>
+            <button
+              onClick={() => handleInput('^2')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              x²
+            </button>
+            <button
+              onClick={() => handleInput('^')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              xʸ
+            </button>
 
-          {/* Number Keypad Row 4 */}
-          <button
-            onClick={() => handleInput('0')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            0
-          </button>
-          <button
-            onClick={() => handleInput('.')}
-            className="p-3.5 sm:p-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-zinc-800 dark:text-white transition-all border border-zinc-200/80 dark:border-zinc-800 shadow-xs"
-          >
-            .
-          </button>
-          <button
-            onClick={() => handleInput(' + ')}
-            className="p-3.5 sm:p-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 active:scale-95 rounded-xl text-xl font-bold transition-all border border-emerald-500/30 dark:border-zinc-800"
-          >
-            +
-          </button>
-          <button
-            onClick={handleCalculate}
-            className="col-span-2 p-3.5 sm:p-4 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-black rounded-xl text-xl font-black shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
-          >
-            <Equal className="w-5 h-5 stroke-[3]" />
-            <span>SOLVE</span>
-          </button>
-        </div>
+            {/* Scientific Function Row 3: Brackets & Clear/Del */}
+            <button
+              onClick={() => handleInput('(')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#FFFFFF] font-bold text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              (
+            </button>
+            <button
+              onClick={() => handleInput(')')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#FFFFFF] font-bold text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              )
+            </button>
+            <button
+              onClick={() => handleInput('!')}
+              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              n!
+            </button>
+            <button
+              onClick={handleClear}
+              className="h-11 sm:h-12 bg-[#EF4444] hover:bg-[#DC2626] active:scale-95 rounded-xl text-[#FFFFFF] font-bold text-xs sm:text-sm shadow-sm shadow-red-500/20 transition-all cursor-pointer"
+            >
+              AC
+            </button>
+            <button
+              onClick={handleBackspace}
+              aria-label="Backspace"
+              className="h-11 sm:h-12 bg-[#EF4444] hover:bg-[#DC2626] active:scale-95 rounded-xl text-[#FFFFFF] flex items-center justify-center shadow-sm shadow-red-500/20 transition-all cursor-pointer"
+            >
+              <Delete className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+
+            {/* Scientific Row 4: 7, 8, 9, Operator, % */}
+            <button
+              onClick={() => handleInput('7')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              7
+            </button>
+            <button
+              onClick={() => handleInput('8')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              8
+            </button>
+            <button
+              onClick={() => handleInput('9')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              9
+            </button>
+            <button
+              onClick={() => handleInput(' / ')}
+              className="h-12 sm:h-14 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+            >
+              ÷
+            </button>
+            <button
+              onClick={() => handleInput('%')}
+              className="h-12 sm:h-14 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              %
+            </button>
+
+            {/* Scientific Row 5: 4, 5, 6, Operator, |x| */}
+            <button
+              onClick={() => handleInput('4')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              4
+            </button>
+            <button
+              onClick={() => handleInput('5')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              5
+            </button>
+            <button
+              onClick={() => handleInput('6')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              6
+            </button>
+            <button
+              onClick={() => handleInput(' * ')}
+              className="h-12 sm:h-14 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+            >
+              ×
+            </button>
+            <button
+              onClick={() => handleInput('abs(')}
+              className="h-12 sm:h-14 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              |x|
+            </button>
+
+            {/* Scientific Row 6: 1, 2, 3, Operator, EXP */}
+            <button
+              onClick={() => handleInput('1')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              1
+            </button>
+            <button
+              onClick={() => handleInput('2')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              2
+            </button>
+            <button
+              onClick={() => handleInput('3')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              3
+            </button>
+            <button
+              onClick={() => handleInput(' - ')}
+              className="h-12 sm:h-14 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+            >
+              −
+            </button>
+            <button
+              onClick={() => handleInput('* 10^')}
+              className="h-12 sm:h-14 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+            >
+              EXP
+            </button>
+
+            {/* Scientific Row 7: 0, ., +, Equals (Span 2) */}
+            <button
+              onClick={() => handleInput('0')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              0
+            </button>
+            <button
+              onClick={() => handleInput('.')}
+              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+            >
+              .
+            </button>
+            <button
+              onClick={() => handleInput(' + ')}
+              className="h-12 sm:h-14 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+            >
+              +
+            </button>
+            <button
+              onClick={handleCalculate}
+              className="col-span-2 h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-lg sm:text-xl font-extrabold shadow-lg shadow-emerald-500/30 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+            >
+              <Equal className="w-5 h-5 stroke-[3]" />
+              <span>SOLVE</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Step by Step Breakdown Solution Display */}
       {lastSolution && (
-        <div className="pt-2">
+        <div className="pt-2 animate-fadeIn">
           <StepSolutionCard solution={lastSolution} />
         </div>
       )}

@@ -112,20 +112,20 @@ export const EquationSolverView: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Intro & Samples */}
-      <div className="bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+      <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+          <h2 className="text-xl font-bold text-[#FFFFFF] flex items-center space-x-2">
             <Cpu className="w-5 h-5 text-emerald-500" />
             <span>Smart Equation Solver</span>
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-[#A1A1AA] mt-1">
             Type any math or physics equation. The solver automatically detects the variables, rearranges the formula, and presents full substitution steps with SI units.
           </p>
         </div>
 
         {/* Input box */}
         <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
+          <label className="text-xs font-bold text-[#A1A1AA] uppercase tracking-wider block">
             Enter Equation
           </label>
           <div className="relative">
@@ -134,14 +134,14 @@ export const EquationSolverView: React.FC = () => {
               value={equationInput}
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder="e.g. 2x + 5 = 15 or v = u + at"
-              className="w-full px-4 py-3.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white font-mono text-lg font-bold focus:border-emerald-500 focus:outline-none transition-colors"
+              className="w-full px-4 py-3.5 rounded-xl border-2 border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono text-lg font-bold focus:border-emerald-500 focus:outline-none transition-colors"
             />
           </div>
         </div>
 
         {/* Quick Example Chips */}
         <div>
-          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-2">
+          <span className="text-xs font-semibold text-[#A1A1AA] block mb-2">
             Click to try sample equations:
           </span>
           <div className="flex flex-wrap gap-2">
@@ -149,7 +149,7 @@ export const EquationSolverView: React.FC = () => {
               <button
                 key={sample}
                 onClick={() => handleSelectSample(sample)}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 hover:text-emerald-500 dark:hover:bg-slate-700 text-xs font-mono font-semibold text-slate-700 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700"
+                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 hover:text-emerald-500 dark:hover:bg-slate-700 text-xs font-mono font-semibold text-[#A1A1AA] transition-colors border border-[#252A34]"
               >
                 {sample}
               </button>
@@ -159,12 +159,12 @@ export const EquationSolverView: React.FC = () => {
 
         {/* Equation Status / Detection */}
         {analyzed && (
-          <div className="p-4 bg-emerald-500/10 dark:bg-emerald-950/30 rounded-xl border border-emerald-500/30 dark:border-emerald-500/30 space-y-3">
+          <div className="p-4 bg-[#0F1115] rounded-xl border border-[#252A34] space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#3B82F6]">
                 Equation Type Detected:
               </span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 capitalize">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 dark:bg-emerald-950 text-[#3B82F6] capitalize">
                 {analyzed.type.replace('_', ' ')}
               </span>
             </div>
@@ -173,7 +173,7 @@ export const EquationSolverView: React.FC = () => {
             {matchedPhysicsDef && (
               <div className="space-y-4 pt-1">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
+                  <label className="text-xs font-bold text-[#A1A1AA] block mb-1.5">
                     Select Quantity to Find (Solve For):
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -186,8 +186,8 @@ export const EquationSolverView: React.FC = () => {
                           onClick={() => setSelectedTarget(sym)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                             isTarget
-                              ? 'bg-emerald-500 text-black font-black text-white shadow-sm'
-                              : 'bg-white dark:bg-zinc-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                              ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
+                              : 'bg-white dark:bg-zinc-900 text-[#A1A1AA] border border-[#252A34]'
                           }`}
                         >
                           Find {sym} {param ? `(${param.name})` : ''}
@@ -199,17 +199,17 @@ export const EquationSolverView: React.FC = () => {
 
                 {/* Values inputs for known quantities */}
                 <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
+                  <label className="text-xs font-bold text-[#A1A1AA] block mb-1.5">
                     Enter Values for Known Variables:
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {matchedPhysicsDef.variables
                       .filter((v) => v.symbol !== selectedTarget)
                       .map((v) => (
-                        <div key={v.symbol} className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <div key={v.symbol} className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-[#252A34]">
                           <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">{v.name} ({v.symbol})</span>
-                            <span className="font-mono text-slate-600 dark:text-slate-400 font-bold">{v.unit}</span>
+                            <span className="font-semibold text-[#A1A1AA]">{v.name} ({v.symbol})</span>
+                            <span className="font-mono text-[#A1A1AA] font-bold">{v.unit}</span>
                           </div>
                           <input
                             type="number"
@@ -220,7 +220,7 @@ export const EquationSolverView: React.FC = () => {
                                 [v.symbol]: parseFloat(e.target.value) || 0,
                               }))
                             }
-                            className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-black font-mono text-sm font-bold"
+                            className="w-full px-2.5 py-1.5 rounded border border-[#252A34] bg-[#181B22] text-[#FFFFFF] font-mono text-sm font-bold"
                           />
                         </div>
                       ))}
@@ -241,7 +241,7 @@ export const EquationSolverView: React.FC = () => {
         {/* Solve button */}
         <button
           onClick={handleSolve}
-          className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:scale-[0.99] text-black font-black font-bold rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all"
+          className="w-full py-3.5 bg-[#22C55E] hover:bg-[#16A34A] active:scale-[0.99] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all"
         >
           <Sparkles className="w-4 h-4" />
           <span>Solve Equation Automatically</span>

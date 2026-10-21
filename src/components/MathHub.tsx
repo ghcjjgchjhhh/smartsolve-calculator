@@ -167,8 +167,8 @@ export const MathHub: React.FC = () => {
               }}
               className={`flex items-center space-x-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
                 isActive
-                  ? 'bg-emerald-500 text-black font-black shadow-md shadow-emerald-500/25'
-                  : 'bg-white dark:bg-zinc-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-zinc-800'
+                  ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-md shadow-blue-500/25'
+                  : 'bg-[#181B22] border border-[#252A34] text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#252A34]'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -179,7 +179,7 @@ export const MathHub: React.FC = () => {
       </div>
 
       {/* Main Solver Card */}
-      <div className="bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+      <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
         {/* Error Alert */}
         {error && (
           <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-sm flex items-center justify-between">
@@ -194,60 +194,60 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'quadratic' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+              <h3 className="text-lg font-bold text-[#FFFFFF] flex items-center space-x-2">
                 <span>Quadratic Equation Solver (ax² + bx + c = 0)</span>
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Solves with complete steps using Formula, Factorization, or Completing the Square.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
                   Coefficient a (x²)
                 </label>
                 <input
                   type="number"
                   value={quadA}
                   onChange={(e) => setQuadA(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
                   Coefficient b (x)
                 </label>
                 <input
                   type="number"
                   value={quadB}
                   onChange={(e) => setQuadB(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
                   Constant c
                 </label>
                 <input
                   type="number"
                   value={quadC}
                   onChange={(e) => setQuadC(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
             </div>
 
             <div className="flex items-center space-x-2">
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1">Method:</span>
+              <span className="text-xs font-semibold text-[#A1A1AA] mr-1">Method:</span>
               {(['formula', 'factor', 'square'] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setQuadMethod(m)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
                     quadMethod === m
-                      ? 'bg-emerald-500 text-black font-black'
-                      : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400'
+                      ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold'
+                      : 'bg-slate-100 dark:bg-zinc-900 text-[#A1A1AA]'
                   }`}
                 >
                   {m === 'formula' ? 'Quadratic Formula' : m === 'factor' ? 'Factorization' : 'Completing Square'}
@@ -257,7 +257,7 @@ export const MathHub: React.FC = () => {
 
             <button
               onClick={() => executeSolve(() => solveQuadratic(quadA, quadB, quadC, quadMethod))}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-black font-black rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] active:scale-[0.99] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>Solve Quadratic Step-by-Step</span>
@@ -269,56 +269,56 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'linear' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">
                 Linear Equation Solver (ax + b = cx + d)
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Isolates x and balances constants with step-by-step arithmetic.
               </p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">a (LHS x)</label>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">a (LHS x)</label>
                 <input
                   type="number"
                   value={linA}
                   onChange={(e) => setLinA(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-slate-50 dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">b (LHS const)</label>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">b (LHS const)</label>
                 <input
                   type="number"
                   value={linB}
                   onChange={(e) => setLinB(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-slate-50 dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">c (RHS x)</label>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">c (RHS x)</label>
                 <input
                   type="number"
                   value={linC}
                   onChange={(e) => setLinC(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-slate-50 dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">d (RHS const)</label>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">d (RHS const)</label>
                 <input
                   type="number"
                   value={linD}
                   onChange={(e) => setLinD(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-slate-50 dark:bg-zinc-900 font-mono"
                 />
               </div>
             </div>
 
             <button
               onClick={() => executeSolve(() => solveLinear(linA, linB, linC, linD))}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-black font-black rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] active:scale-[0.99] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>Solve Linear Equation</span>
@@ -330,16 +330,16 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'simultaneous' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">
                 Simultaneous Equations (2 Variables)
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Solves Eq 1 (a₁x + b₁y = c₁) and Eq 2 (a₂x + b₂y = c₂) using elimination.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl space-y-2 border border-slate-200 dark:border-zinc-800">
+              <div className="p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl space-y-2 border border-[#252A34]">
                 <span className="text-xs font-bold text-emerald-500 uppercase">Equation 1</span>
                 <div className="grid grid-cols-3 gap-2">
                   <input
@@ -347,26 +347,26 @@ export const MathHub: React.FC = () => {
                     value={simA1}
                     onChange={(e) => setSimA1(parseFloat(e.target.value) || 0)}
                     placeholder="a1"
-                    className="px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                   <input
                     type="number"
                     value={simB1}
                     onChange={(e) => setSimB1(parseFloat(e.target.value) || 0)}
                     placeholder="b1"
-                    className="px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                   <input
                     type="number"
                     value={simC1}
                     onChange={(e) => setSimC1(parseFloat(e.target.value) || 0)}
                     placeholder="c1"
-                    className="px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl space-y-2 border border-slate-200 dark:border-zinc-800">
+              <div className="p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl space-y-2 border border-[#252A34]">
                 <span className="text-xs font-bold text-indigo-600 uppercase">Equation 2</span>
                 <div className="grid grid-cols-3 gap-2">
                   <input
@@ -374,21 +374,21 @@ export const MathHub: React.FC = () => {
                     value={simA2}
                     onChange={(e) => setSimA2(parseFloat(e.target.value) || 0)}
                     placeholder="a2"
-                    className="px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                   <input
                     type="number"
                     value={simB2}
                     onChange={(e) => setSimB2(parseFloat(e.target.value) || 0)}
                     placeholder="b2"
-                    className="px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                   <input
                     type="number"
                     value={simC2}
                     onChange={(e) => setSimC2(parseFloat(e.target.value) || 0)}
                     placeholder="c2"
-                    className="px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                 </div>
               </div>
@@ -396,7 +396,7 @@ export const MathHub: React.FC = () => {
 
             <button
               onClick={() => executeSolve(() => solveSimultaneous(simA1, simB1, simC1, simA2, simB2, simC2))}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-black font-black rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] active:scale-[0.99] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>Solve Simultaneous Equations</span>
@@ -408,15 +408,15 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'calculus' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Calculus: Differentiation & Integration</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">Calculus: Differentiation & Integration</h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Enter any polynomial expression. The engine automatically parses terms, powers, and coefficients.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
                   Polynomial Expression f(x)
                 </label>
                 <input
@@ -424,18 +424,18 @@ export const MathHub: React.FC = () => {
                   value={calcTerms}
                   onChange={(e) => setCalcTerms(e.target.value)}
                   placeholder="e.g. 4x^3 - 2x^2 + 5x - 7"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono text-sm font-bold text-slate-900 dark:text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono text-sm font-bold text-[#FFFFFF]"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
                   Evaluate Derivative at x =
                 </label>
                 <input
                   type="number"
                   value={calcEvalAt}
                   onChange={(e) => setCalcEvalAt(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono text-sm font-bold text-slate-900 dark:text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono text-sm font-bold text-[#FFFFFF]"
                 />
               </div>
             </div>
@@ -449,7 +449,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={intLower}
                     onChange={(e) => setIntLower(parseFloat(e.target.value) || 0)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-black font-mono text-xs font-bold"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#252A34] bg-white dark:bg-black font-mono text-xs font-bold"
                   />
                 </div>
                 <div>
@@ -458,7 +458,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={intUpper}
                     onChange={(e) => setIntUpper(parseFloat(e.target.value) || 0)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-black font-mono text-xs font-bold"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#252A34] bg-white dark:bg-black font-mono text-xs font-bold"
                   />
                 </div>
               </div>
@@ -509,8 +509,8 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'trig' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Trigonometry & Pythagoras Theorem</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">Trigonometry & Pythagoras Theorem</h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Solve right-angled triangles, find missing sides (hypotenuse or legs), area, and acute angles.
               </p>
             </div>
@@ -520,7 +520,7 @@ export const MathHub: React.FC = () => {
                 onClick={() => setPythFind('hypotenuse')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                   pythFind === 'hypotenuse'
-                    ? 'bg-emerald-500 text-black font-black shadow-sm'
+                    ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
                     : 'bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300'
                 }`}
               >
@@ -530,7 +530,7 @@ export const MathHub: React.FC = () => {
                 onClick={() => setPythFind('leg')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                   pythFind === 'leg'
-                    ? 'bg-emerald-500 text-black font-black shadow-sm'
+                    ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
                     : 'bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300'
                 }`}
               >
@@ -540,25 +540,25 @@ export const MathHub: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
                   {pythFind === 'hypotenuse' ? 'Leg a' : 'Known Leg'}
                 </label>
                 <input
                   type="number"
                   value={pythA}
                   onChange={(e) => setPythA(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
                   {pythFind === 'hypotenuse' ? 'Leg b' : 'Hypotenuse (c)'}
                 </label>
                 <input
                   type="number"
                   value={pythB}
                   onChange={(e) => setPythB(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
             </div>
@@ -577,8 +577,8 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'mensuration' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Mensuration (2D & 3D Shapes)</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">Mensuration (2D & 3D Shapes)</h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Calculate Area, Volume, Total Surface Area (TSA), and Curved Surface Area (CSA).
               </p>
             </div>
@@ -590,7 +590,7 @@ export const MathHub: React.FC = () => {
                   onClick={() => setMensShape(s)}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold capitalize transition-colors ${
                     mensShape === s
-                      ? 'bg-emerald-500 text-black font-black shadow-sm'
+                      ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
                       : 'bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300'
                   }`}
                 >
@@ -601,26 +601,26 @@ export const MathHub: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
                   Radius (r)
                 </label>
                 <input
                   type="number"
                   value={mensR}
                   onChange={(e) => setMensR(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               {(mensShape === 'cylinder' || mensShape === 'cone') && (
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                  <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
                     Height (h)
                   </label>
                   <input
                     type="number"
                     value={mensH}
                     onChange={(e) => setMensH(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
               )}
@@ -640,10 +640,10 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'ap_gp' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">
                 Sequences & Series (AP & GP)
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Arithmetic and Geometric Progression terms (Tn), sums (Sn), and sum to infinity (S∞).
               </p>
             </div>
@@ -657,7 +657,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={apA}
                     onChange={(e) => setApA(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
                 <div>
@@ -666,7 +666,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={apD}
                     onChange={(e) => setApD(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
                 <div>
@@ -675,7 +675,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={apN}
                     onChange={(e) => setApN(parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
               </div>
@@ -696,7 +696,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={gpA}
                     onChange={(e) => setGpA(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
                 <div>
@@ -705,7 +705,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={gpR}
                     onChange={(e) => setGpR(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
                 <div>
@@ -714,7 +714,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={gpN}
                     onChange={(e) => setGpN(parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
               </div>
@@ -732,10 +732,10 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'fractions' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">
                 Fractions Arithmetic & Simplification
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Addition, subtraction, multiplication, and division with LCM, GCD & mixed form.
               </p>
             </div>
@@ -746,14 +746,14 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={fNum1}
                   onChange={(e) => setFNum1(parseInt(e.target.value) || 0)}
-                  className="w-full px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-center font-mono font-bold"
+                  className="w-full px-2 py-1.5 rounded-lg border border-[#252A34] text-center font-mono font-bold"
                 />
                 <div className="w-full h-0.5 bg-slate-400 my-1.5" />
                 <input
                   type="number"
                   value={fDen1}
                   onChange={(e) => setFDen1(parseInt(e.target.value) || 1)}
-                  className="w-full px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-center font-mono font-bold"
+                  className="w-full px-2 py-1.5 rounded-lg border border-[#252A34] text-center font-mono font-bold"
                 />
               </div>
 
@@ -763,7 +763,7 @@ export const MathHub: React.FC = () => {
                     key={op}
                     onClick={() => setFOp(op)}
                     className={`w-9 h-9 rounded-lg font-bold text-base transition-colors ${
-                      fOp === op ? 'bg-emerald-500 text-black font-black shadow' : 'text-slate-600 dark:text-slate-400'
+                      fOp === op ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow' : 'text-[#A1A1AA]'
                     }`}
                   >
                     {op === '*' ? '×' : op === '/' ? '÷' : op}
@@ -776,21 +776,21 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={fNum2}
                   onChange={(e) => setFNum2(parseInt(e.target.value) || 0)}
-                  className="w-full px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-center font-mono font-bold"
+                  className="w-full px-2 py-1.5 rounded-lg border border-[#252A34] text-center font-mono font-bold"
                 />
                 <div className="w-full h-0.5 bg-slate-400 my-1.5" />
                 <input
                   type="number"
                   value={fDen2}
                   onChange={(e) => setFDen2(parseInt(e.target.value) || 1)}
-                  className="w-full px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-center font-mono font-bold"
+                  className="w-full px-2 py-1.5 rounded-lg border border-[#252A34] text-center font-mono font-bold"
                 />
               </div>
             </div>
 
             <button
               onClick={() => executeSolve(() => calculateFractions(fNum1, fDen1, fOp, fNum2, fDen2))}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-black font-black rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] active:scale-[0.99] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>Compute Fractions Step-by-Step</span>
@@ -802,8 +802,8 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'percentages' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Percentages & Ratio Sharing</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">Percentages & Ratio Sharing</h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Percentage increase/decrease, ratios and proportional division.
               </p>
             </div>
@@ -814,7 +814,7 @@ export const MathHub: React.FC = () => {
                 <select
                   value={pctType}
                   onChange={(e: any) => setPctType(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 text-sm font-semibold"
+                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 text-sm font-semibold"
                 >
                   <option value="of">P% of Value</option>
                   <option value="increase">Increase Value by P%</option>
@@ -826,14 +826,14 @@ export const MathHub: React.FC = () => {
                   value={pctA}
                   onChange={(e) => setPctA(parseFloat(e.target.value) || 0)}
                   placeholder="Percentage (P)"
-                  className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
                 <input
                   type="number"
                   value={pctB}
                   onChange={(e) => setPctB(parseFloat(e.target.value) || 0)}
                   placeholder="Total / Base"
-                  className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <button
@@ -852,14 +852,14 @@ export const MathHub: React.FC = () => {
                   value={ratioAmount}
                   onChange={(e) => setRatioAmount(parseFloat(e.target.value) || 0)}
                   placeholder="Total Amount to Share"
-                  className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
                 <input
                   type="text"
                   value={ratioParts}
                   onChange={(e) => setRatioParts(e.target.value)}
                   placeholder="Ratio e.g. 2:3:5"
-                  className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <button
@@ -876,8 +876,8 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'coordinate' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Coordinate Geometry</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">Coordinate Geometry</h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Distance between points, midpoint, gradient, and straight line equation.
               </p>
             </div>
@@ -889,7 +889,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={coordX1}
                   onChange={(e) => setCoordX1(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -898,7 +898,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={coordY1}
                   onChange={(e) => setCoordY1(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -907,7 +907,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={coordX2}
                   onChange={(e) => setCoordX2(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -916,14 +916,14 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={coordY2}
                   onChange={(e) => setCoordY2(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
             </div>
 
             <button
               onClick={() => executeSolve(() => calculateCoordinateGeometry(coordX1, coordY1, coordX2, coordY2))}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-black font-black rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] active:scale-[0.99] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>Compute Distance, Midpoint & Gradient</span>
@@ -935,14 +935,14 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'statistics' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Descriptive Statistics</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">Descriptive Statistics</h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Computes Mean, Median, Mode, Range, Variance, and Standard Deviation.
               </p>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+              <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
                 Enter numbers (separated by commas or spaces)
               </label>
               <input
@@ -950,13 +950,13 @@ export const MathHub: React.FC = () => {
                 value={statData}
                 onChange={(e) => setStatData(e.target.value)}
                 placeholder="e.g. 12, 15, 20, 25, 28"
-                className="w-full px-3.5 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono text-sm"
+                className="w-full px-3.5 py-3 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono text-sm"
               />
             </div>
 
             <button
               onClick={() => executeSolve(() => calculateStatistics(statData))}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-black font-black rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] active:scale-[0.99] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>Calculate Statistics</span>
@@ -968,10 +968,10 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'combinatorics' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">
                 Permutations & Combinations (ⁿPᵣ & ⁿCᵣ)
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 Factorials, permutations (arrangements), and combinations (selections).
               </p>
             </div>
@@ -983,7 +983,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={combN}
                   onChange={(e) => setCombN(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -992,7 +992,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={combR}
                   onChange={(e) => setCombR(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -1000,7 +1000,7 @@ export const MathHub: React.FC = () => {
                 <select
                   value={combType}
                   onChange={(e: any) => setCombType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 text-sm font-semibold"
+                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 text-sm font-semibold"
                 >
                   <option value="comb">Combinations (ⁿCᵣ)</option>
                   <option value="perm">Permutations (ⁿPᵣ)</option>
@@ -1010,7 +1010,7 @@ export const MathHub: React.FC = () => {
 
             <button
               onClick={() => executeSolve(() => calculateCombinatorics(combN, combR, combType))}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-black font-black rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] active:scale-[0.99] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>Compute {combType === 'comb' ? 'Combinations' : 'Permutations'}</span>
@@ -1022,8 +1022,8 @@ export const MathHub: React.FC = () => {
         {activeTopic === 'matrices' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Matrices & Vectors</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-bold text-[#FFFFFF]">Matrices & Vectors</h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
                 2x2 Matrix Determinant, Trace, Inverse & 3D Vectors dot/cross product.
               </p>
             </div>
@@ -1036,28 +1036,28 @@ export const MathHub: React.FC = () => {
                   value={matA}
                   onChange={(e) => setMatA(parseFloat(e.target.value) || 0)}
                   placeholder="a"
-                  className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-center font-mono"
+                  className="px-3 py-2 rounded-lg border border-[#252A34] text-center font-mono"
                 />
                 <input
                   type="number"
                   value={matB}
                   onChange={(e) => setMatB(parseFloat(e.target.value) || 0)}
                   placeholder="b"
-                  className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-center font-mono"
+                  className="px-3 py-2 rounded-lg border border-[#252A34] text-center font-mono"
                 />
                 <input
                   type="number"
                   value={matC}
                   onChange={(e) => setMatC(parseFloat(e.target.value) || 0)}
                   placeholder="c"
-                  className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-center font-mono"
+                  className="px-3 py-2 rounded-lg border border-[#252A34] text-center font-mono"
                 />
                 <input
                   type="number"
                   value={matD}
                   onChange={(e) => setMatD(parseFloat(e.target.value) || 0)}
                   placeholder="d"
-                  className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-center font-mono"
+                  className="px-3 py-2 rounded-lg border border-[#252A34] text-center font-mono"
                 />
               </div>
               <button
@@ -1076,14 +1076,14 @@ export const MathHub: React.FC = () => {
                   value={v1}
                   onChange={(e) => setV1(e.target.value)}
                   placeholder="Vector A (x, y, z)"
-                  className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono text-sm"
+                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono text-sm"
                 />
                 <input
                   type="text"
                   value={v2}
                   onChange={(e) => setV2(e.target.value)}
                   placeholder="Vector B (x, y, z)"
-                  className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-zinc-900 font-mono text-sm"
+                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono text-sm"
                 />
               </div>
               <button

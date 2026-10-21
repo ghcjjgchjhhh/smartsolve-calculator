@@ -132,10 +132,10 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-black text-zinc-900 dark:text-zinc-100 transition-colors flex flex-col font-sans">
+    <div className="min-h-screen bg-[#0F1115] text-[#FFFFFF] transition-colors flex flex-col font-sans">
       {/* Offline Status Toast */}
       {!isOnline && (
-        <div className="bg-amber-600 text-white text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center space-x-2">
+        <div className="bg-[#EF4444] text-[#FFFFFF] text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center space-x-2">
           <WifiOff className="w-3.5 h-3.5" />
           <span>Offline Mode — SmartSolve is fully operational offline without internet.</span>
         </div>
@@ -152,7 +152,7 @@ export default function App() {
       />
 
       {/* Main Tab Navigation Ribbon */}
-      <div className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-850 sticky top-16 sm:top-18 z-30 shadow-xs">
+      <div className="bg-[#181B22] border-b border-[#252A34] sticky top-16 sm:top-18 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto py-2.5 scrollbar-none">
             {navigationTabs.map((tab) => {
@@ -164,8 +164,8 @@ export default function App() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
                     isActive
-                      ? 'bg-emerald-500 text-black font-black shadow-md shadow-emerald-500/25 scale-[1.02]'
-                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900'
+                      ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-md shadow-blue-500/25 scale-[1.02]'
+                      : 'text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#252A34]'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -174,8 +174,8 @@ export default function App() {
                     <span
                       className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
                         isActive
-                          ? 'bg-black/20 text-black'
-                          : 'bg-zinc-200 dark:bg-zinc-850 text-zinc-600 dark:text-zinc-400'
+                          ? 'bg-black/25 text-[#FFFFFF]'
+                          : 'bg-[#252A34] text-[#A1A1AA]'
                       }`}
                     >
                       {tab.badge}
@@ -190,22 +190,22 @@ export default function App() {
 
       {/* Mobile Install Promotion Banner (if not installed and not dismissed) */}
       {!isInstalled && !isBannerDismissed && (
-        <div className="bg-zinc-900 dark:bg-zinc-950 text-emerald-400 px-4 py-2.5 border-b border-emerald-500/30">
+        <div className="bg-[#181B22] text-[#FFFFFF] px-4 py-2.5 border-b border-[#252A34]">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-                <Smartphone className="w-4 h-4 text-emerald-400" />
+              <div className="w-8 h-8 rounded-lg bg-[#3B82F6]/15 border border-[#3B82F6]/30 flex items-center justify-center flex-shrink-0">
+                <Smartphone className="w-4 h-4 text-[#3B82F6]" />
               </div>
-              <div className="text-xs truncate text-zinc-200">
-                <span className="font-bold text-emerald-400">Install as Phone App:</span>{' '}
-                <span className="text-zinc-300 hidden sm:inline">Add to home screen for fullscreen solver without browser bars!</span>
-                <span className="text-zinc-300 sm:hidden">Add to home screen!</span>
+              <div className="text-xs truncate text-[#A1A1AA]">
+                <span className="font-bold text-[#FFFFFF]">Install as Phone App:</span>{' '}
+                <span className="text-[#A1A1AA] hidden sm:inline">Add to home screen for fullscreen solver without browser bars!</span>
+                <span className="text-[#A1A1AA] sm:hidden">Add to home screen!</span>
               </div>
             </div>
             <div className="flex items-center space-x-2 flex-shrink-0">
               <button
                 onClick={handleBannerInstallClick}
-                className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 active:scale-95 transition-transform"
+                className="px-3 py-1 rounded-lg bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold text-xs shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 active:scale-95 transition-transform"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Install</span>
@@ -213,7 +213,7 @@ export default function App() {
               <button
                 onClick={handleDismissBanner}
                 aria-label="Dismiss banner"
-                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10"
+                className="p-1 rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-white/10"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -246,23 +246,23 @@ export default function App() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-black py-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
+      <footer className="border-t border-[#252A34] bg-[#0F1115] py-6 text-center text-xs text-[#A1A1AA]">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
-            <span className="font-bold text-zinc-800 dark:text-zinc-200">SmartSolve Calculator</span>
+            <span className="font-bold text-[#FFFFFF]">SmartSolve Calculator</span>
             <span>· All-in-one Mathematics & Physics Step-by-Step Engine</span>
           </div>
           <div className="flex items-center space-x-4">
             {!isInstalled && (
               <button
                 onClick={() => setIsInstallModalOpen(true)}
-                className="text-emerald-500 dark:text-emerald-400 font-bold hover:underline flex items-center space-x-1"
+                className="text-[#3B82F6] hover:text-[#60A5FA] font-bold hover:underline flex items-center space-x-1"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Install on Phone / PC</span>
               </button>
             )}
-            <span className="text-emerald-500 font-semibold flex items-center space-x-1">
+            <span className="text-[#22C55E] font-semibold flex items-center space-x-1">
               <Sparkles className="w-3 h-3 inline" />
               <span>Fast & Offline Ready</span>
             </span>
