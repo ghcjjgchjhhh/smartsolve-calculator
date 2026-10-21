@@ -1,0 +1,69 @@
+{
+  "id": "/",
+  "name": "SmartSolve Calculator - Math & Physics Solver",
+  "short_name": "SmartSolve",
+  "description": "Mathematics and Physics Problem Solver with Step-by-Step Solutions, Equation Solver & JAMB/WAEC Practice.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "categories": ["education", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Scientific Calculator",
+      "short_name": "Calculator",
+      "description": "FX Scientific Calculator with step evaluation",
+      "url": "/?tab=scientific",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mathematics Hub",
+      "short_name": "Math Hub",
+      "description": "15 Mathematics topics with step-by-step working",
+      "url": "/?tab=math",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Physics Hub",
+      "short_name": "Physics",
+      "description": "29 Physics formulas with formula rearrangement",
+      "url": "/?tab=physics",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "JAMB / WAEC Practice",
+      "short_name": "Exam Mode",
+      "description": "Authentic exam questions and step explanations",
+      "url": "/?tab=jamb",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}
