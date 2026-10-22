@@ -1556,6 +1556,599 @@ export const PHYSICS_FORMULAS: PhysicsFormulaDefinition[] = [
       },
     },
   },
+
+  // 30. Hooke's Law
+  {
+    id: 'hookes_law',
+    category: 'Mechanics',
+    name: "Hooke's Law (Elastic Spring)",
+    baseFormula: 'F = k * e',
+    description: 'Relates restoring spring force to spring constant and extension/compression.',
+    variables: [
+      { symbol: 'F', name: 'Force', unit: 'N', defaultValue: 50 },
+      { symbol: 'k', name: 'Spring Constant', unit: 'N/m', defaultValue: 250 },
+      { symbol: 'e', name: 'Extension', unit: 'm', defaultValue: 0.2 },
+    ],
+    solveFor: {
+      F: {
+        rearrangedFormula: 'F = k * e',
+        unit: 'N',
+        calculate: ({ k, e }) => {
+          const ans = k * e;
+          return {
+            result: ans,
+            substitution: `F = ${k} * ${e}`,
+            steps: [`Formula: F = k * e`, `Substitute: k = ${k} N/m, e = ${e} m`, `Calculate: ${k} * ${e} = ${formatNum(ans)} N`],
+          };
+        },
+      },
+      k: {
+        rearrangedFormula: 'k = F / e',
+        unit: 'N/m',
+        calculate: ({ F, e }) => {
+          if (e === 0) throw new Error('Extension cannot be zero.');
+          const ans = F / e;
+          return {
+            result: ans,
+            substitution: `k = ${F} / ${e}`,
+            steps: [`Formula: k = F / e`, `Substitute: F = ${F} N, e = ${e} m`, `Calculate: ${F} ÷ ${e} = ${formatNum(ans)} N/m`],
+          };
+        },
+      },
+      e: {
+        rearrangedFormula: 'e = F / k',
+        unit: 'm',
+        calculate: ({ F, k }) => {
+          if (k === 0) throw new Error('Spring constant cannot be zero.');
+          const ans = F / k;
+          return {
+            result: ans,
+            substitution: `e = ${F} / ${k}`,
+            steps: [`Formula: e = F / k`, `Substitute: F = ${F} N, k = ${k} N/m`, `Calculate: ${F} ÷ ${k} = ${formatNum(ans)} m`],
+          };
+        },
+      },
+    },
+  },
+
+  // 31. Elastic Strain Energy
+  {
+    id: 'strain_energy',
+    category: 'Energy & Work',
+    name: 'Elastic Strain Energy',
+    baseFormula: 'E = 0.5 * k * e²',
+    description: 'Calculates the work done in stretching or compressing a spring.',
+    variables: [
+      { symbol: 'E', name: 'Strain Energy', unit: 'J', defaultValue: 5 },
+      { symbol: 'k', name: 'Spring Constant', unit: 'N/m', defaultValue: 250 },
+      { symbol: 'e', name: 'Extension', unit: 'm', defaultValue: 0.2 },
+    ],
+    solveFor: {
+      E: {
+        rearrangedFormula: 'E = 0.5 * k * e²',
+        unit: 'J',
+        calculate: ({ k, e }) => {
+          const ans = 0.5 * k * e * e;
+          return {
+            result: ans,
+            substitution: `E = 0.5 * ${k} * (${e})²`,
+            steps: [`Formula: E = 0.5 * k * e²`, `e² = ${e * e}`, `Compute: 0.5 * ${k} * ${e * e} = ${formatNum(ans)} J`],
+          };
+        },
+      },
+      k: {
+        rearrangedFormula: 'k = 2E / e²',
+        unit: 'N/m',
+        calculate: ({ E, e }) => {
+          if (e === 0) throw new Error('Extension cannot be zero.');
+          const ans = (2 * E) / (e * e);
+          return {
+            result: ans,
+            substitution: `k = (2 * ${E}) / (${e})²`,
+            steps: [`Formula: k = 2E / e²`, `Denominator: ${e}² = ${e * e}`, `Compute: (2 * ${E}) ÷ ${e * e} = ${formatNum(ans)} N/m`],
+          };
+        },
+      },
+      e: {
+        rearrangedFormula: 'e = sqrt(2E / k)',
+        unit: 'm',
+        calculate: ({ E, k }) => {
+          if (k <= 0) throw new Error('Spring constant must be greater than zero.');
+          const val = (2 * E) / k;
+          if (val < 0) throw new Error('Cannot take square root of a negative value.');
+          const ans = Math.sqrt(val);
+          return {
+            result: ans,
+            substitution: `e = sqrt((2 * ${E}) / ${k})`,
+            steps: [`Formula: e = √(2E / k)`, `Inside root: (2 * ${E}) / ${k} = ${val}`, `Compute square root: √(${val}) = ${formatNum(ans)} m`],
+          };
+        },
+      },
+    },
+  },
+
+  // 32. Charles's Law
+  {
+    id: 'charles_law',
+    category: 'Thermal Physics',
+    name: "Charles's Law (Constant Pressure)",
+    baseFormula: 'V1 / T1 = V2 / T2',
+    description: 'Volume of a gas is directly proportional to absolute temperature at constant pressure.',
+    variables: [
+      { symbol: 'V1', name: 'Initial Volume', unit: 'L', defaultValue: 2.5 },
+      { symbol: 'T1', name: 'Initial Temp', unit: 'K', defaultValue: 300 },
+      { symbol: 'V2', name: 'Final Volume', unit: 'L', defaultValue: 3.5 },
+      { symbol: 'T2', name: 'Final Temp', unit: 'K', defaultValue: 420 },
+    ],
+    solveFor: {
+      V2: {
+        rearrangedFormula: 'V2 = (V1 * T2) / T1',
+        unit: 'L',
+        calculate: ({ V1, T1, T2 }) => {
+          if (T1 === 0) throw new Error('Temperature cannot be absolute zero.');
+          const ans = (V1 * T2) / T1;
+          return {
+            result: ans,
+            substitution: `V2 = (${V1} * ${T2}) / ${T1}`,
+            steps: [`Formula: V2 = (V1 * T2) / T1`, `Numerator: ${V1} * ${T2} = ${V1 * T2}`, `Compute: (${V1 * T2}) ÷ ${T1} = ${formatNum(ans)} L`],
+          };
+        },
+      },
+      T2: {
+        rearrangedFormula: 'T2 = (V2 * T1) / V1',
+        unit: 'K',
+        calculate: ({ V1, T1, V2 }) => {
+          if (V1 === 0) throw new Error('Volume cannot be zero.');
+          const ans = (V2 * T1) / V1;
+          return {
+            result: ans,
+            substitution: `T2 = (${V2} * ${T1}) / ${V1}`,
+            steps: [`Formula: T2 = (V2 * T1) / V1`, `Numerator: ${V2} * ${T1} = ${V2 * T1}`, `Compute: (${V2 * T1}) ÷ ${V1} = ${formatNum(ans)} K`],
+          };
+        },
+      },
+      V1: {
+        rearrangedFormula: 'V1 = (V2 * T1) / T2',
+        unit: 'L',
+        calculate: ({ V2, T1, T2 }) => {
+          if (T2 === 0) throw new Error('Temperature cannot be zero.');
+          const ans = (V2 * T1) / T2;
+          return {
+            result: ans,
+            substitution: `V1 = (${V2} * ${T1}) / ${T2}`,
+            steps: [`Formula: V1 = (V2 * T1) / T2`, `Compute: (${V2 * T1}) ÷ ${T2} = ${formatNum(ans)} L`],
+          };
+        },
+      },
+    },
+  },
+
+  // 33. Ideal Gas Law
+  {
+    id: 'ideal_gas_law',
+    category: 'Thermal Physics',
+    name: 'Ideal Gas Law (PV = nRT)',
+    baseFormula: 'P * V = n * R * T',
+    description: 'Equation of state of a hypothetical ideal gas (R = 8.314 J/(mol·K)).',
+    variables: [
+      { symbol: 'P', name: 'Pressure', unit: 'Pa', defaultValue: 101325 },
+      { symbol: 'V', name: 'Volume', unit: 'm³', defaultValue: 0.024 },
+      { symbol: 'n', name: 'Moles', unit: 'mol', defaultValue: 1 },
+      { symbol: 'T', name: 'Temperature', unit: 'K', defaultValue: 298 },
+    ],
+    solveFor: {
+      P: {
+        rearrangedFormula: 'P = (n * R * T) / V',
+        unit: 'Pa',
+        calculate: ({ n, T, V }) => {
+          const R = 8.314;
+          if (V === 0) throw new Error('Volume cannot be zero.');
+          const ans = (n * R * T) / V;
+          return {
+            result: ans,
+            substitution: `P = (${n} * 8.314 * ${T}) / ${V}`,
+            steps: [`R constant = 8.314 J/(mol·K)`, `Numerator: ${n} * 8.314 * ${T} = ${n * 8.314 * T}`, `Compute: (${n * 8.314 * T}) ÷ ${V} = ${formatNum(ans)} Pa`],
+          };
+        },
+      },
+      V: {
+        rearrangedFormula: 'V = (n * R * T) / P',
+        unit: 'm³',
+        calculate: ({ n, T, P }) => {
+          const R = 8.314;
+          if (P === 0) throw new Error('Pressure cannot be zero.');
+          const ans = (n * R * T) / P;
+          return {
+            result: ans,
+            substitution: `V = (${n} * 8.314 * ${T}) / ${P}`,
+            steps: [`Numerator: ${n} * 8.314 * ${T} = ${n * 8.314 * T}`, `Compute: (${n * 8.314 * T}) ÷ ${P} = ${formatNum(ans)} m³`],
+          };
+        },
+      },
+      T: {
+        rearrangedFormula: 'T = (P * V) / (n * R)',
+        unit: 'K',
+        calculate: ({ P, V, n }) => {
+          const R = 8.314;
+          if (n === 0) throw new Error('Number of moles cannot be zero.');
+          const ans = (P * V) / (n * R);
+          return {
+            result: ans,
+            substitution: `T = (${P} * ${V}) / (${n} * 8.314)`,
+            steps: [`Numerator: ${P} * ${V} = ${P * V}`, `Denominator: ${n} * 8.314 = ${n * 8.314}`, `Compute: ${P * V} ÷ ${n * 8.314} = ${formatNum(ans)} K`],
+          };
+        },
+      },
+    },
+  },
+
+  // 34. Newton's Universal Gravitation
+  {
+    id: 'universal_gravitation',
+    category: 'Mechanics',
+    name: "Universal Gravitation (Newton)",
+    baseFormula: 'F = G * (m1 * m2) / r²',
+    description: 'Gravitational attraction between two masses (G = 6.674e-11 N·m²/kg²).',
+    variables: [
+      { symbol: 'm1', name: 'Mass 1', unit: 'kg', defaultValue: 5.972e24 },
+      { symbol: 'm2', name: 'Mass 2', unit: 'kg', defaultValue: 70 },
+      { symbol: 'r', name: 'Distance', unit: 'm', defaultValue: 6.371e6 },
+    ],
+    solveFor: {
+      F: {
+        rearrangedFormula: 'F = G * (m1 * m2) / r²',
+        unit: 'N',
+        calculate: ({ m1, m2, r }) => {
+          const G = 6.6743e-11;
+          if (r === 0) throw new Error('Distance cannot be zero.');
+          const ans = (G * m1 * m2) / (r * r);
+          return {
+            result: ans,
+            substitution: `F = (6.674e-11 * ${m1} * ${m2}) / (${r})²`,
+            steps: [`G constant = 6.6743 × 10⁻¹¹ N·m²/kg²`, `Numerator: ${G * m1 * m2}`, `Denominator r² = ${r * r}`, `Compute: ${ans.toExponential(4)} N (${formatNum(ans)} N)`],
+          };
+        },
+      },
+    },
+  },
+
+  // 35. Coulomb's Law
+  {
+    id: 'coulombs_law',
+    category: 'Electricity & Magnetism',
+    name: "Coulomb's Law of Electrostatics",
+    baseFormula: 'F = k * (q1 * q2) / r²',
+    description: 'Electrostatic force between two charges (k = 8.988e9 N·m²/C²).',
+    variables: [
+      { symbol: 'q1', name: 'Charge 1', unit: 'C', defaultValue: 1e-6 },
+      { symbol: 'q2', name: 'Charge 2', unit: 'C', defaultValue: 2e-6 },
+      { symbol: 'r', name: 'Separation', unit: 'm', defaultValue: 0.05 },
+    ],
+    solveFor: {
+      F: {
+        rearrangedFormula: 'F = k * (q1 * q2) / r²',
+        unit: 'N',
+        calculate: ({ q1, q2, r }) => {
+          const k = 8.98755e9;
+          if (r === 0) throw new Error('Separation cannot be zero.');
+          const ans = (k * Math.abs(q1 * q2)) / (r * r);
+          return {
+            result: ans,
+            substitution: `F = (8.988e9 * ${q1} * ${q2}) / (${r})²`,
+            steps: [`Coulomb constant k = 8.988 × 10⁹ N·m²/C²`, `Numerator: ${k * Math.abs(q1 * q2)}`, `Denominator: ${r * r}`, `Compute: ${formatNum(ans)} N`],
+          };
+        },
+      },
+    },
+  },
+
+  // 36. Transformer Ratio
+  {
+    id: 'transformer_ratio',
+    category: 'Electricity & Magnetism',
+    name: 'Transformer Voltage and Turns Ratio',
+    baseFormula: 'Vp / Vs = Np / Ns',
+    description: 'Calculates primary and secondary voltages and turn counts in an ideal transformer.',
+    variables: [
+      { symbol: 'Vp', name: 'Primary Voltage', unit: 'V', defaultValue: 240 },
+      { symbol: 'Vs', name: 'Secondary Voltage', unit: 'V', defaultValue: 12 },
+      { symbol: 'Np', name: 'Primary Turns', unit: 'turns', defaultValue: 1000 },
+      { symbol: 'Ns', name: 'Secondary Turns', unit: 'turns', defaultValue: 50 },
+    ],
+    solveFor: {
+      Vs: {
+        rearrangedFormula: 'Vs = (Vp * Ns) / Np',
+        unit: 'V',
+        calculate: ({ Vp, Ns, Np }) => {
+          if (Np === 0) throw new Error('Primary turns cannot be zero.');
+          const ans = (Vp * Ns) / Np;
+          return {
+            result: ans,
+            substitution: `Vs = (${Vp} * ${Ns}) / ${Np}`,
+            steps: [`Formula: Vs = (Vp * Ns) / Np`, `Numerator: ${Vp} * ${Ns} = ${Vp * Ns}`, `Compute: (${Vp * Ns}) ÷ ${Np} = ${formatNum(ans)} V`],
+          };
+        },
+      },
+      Vp: {
+        rearrangedFormula: 'Vp = (Vs * Np) / Ns',
+        unit: 'V',
+        calculate: ({ Vs, Np, Ns }) => {
+          if (Ns === 0) throw new Error('Secondary turns cannot be zero.');
+          const ans = (Vs * Np) / Ns;
+          return {
+            result: ans,
+            substitution: `Vp = (${Vs} * ${Np}) / ${Ns}`,
+            steps: [`Formula: Vp = (Vs * Np) / Ns`, `Compute: (${Vs} * ${Np}) ÷ ${Ns} = ${formatNum(ans)} V`],
+          };
+        },
+      },
+      Ns: {
+        rearrangedFormula: 'Ns = (Np * Vs) / Vp',
+        unit: 'turns',
+        calculate: ({ Np, Vs, Vp }) => {
+          if (Vp === 0) throw new Error('Primary voltage cannot be zero.');
+          const ans = (Np * Vs) / Vp;
+          return {
+            result: ans,
+            substitution: `Ns = (${Np} * ${Vs}) / ${Vp}`,
+            steps: [`Formula: Ns = (Np * Vs) / Vp`, `Compute: (${Np} * ${Vs}) ÷ ${Vp} = ${formatNum(ans)} turns`],
+          };
+        },
+      },
+    },
+  },
+
+  // 37. Photoelectric Effect
+  {
+    id: 'photoelectric_effect',
+    category: 'Modern & Advanced',
+    name: "Einstein's Photoelectric Effect",
+    baseFormula: 'Ek = h * f - W0',
+    description: 'Kinetic energy of emitted photoelectrons from frequency and work function (h = 6.626e-34 J·s).',
+    variables: [
+      { symbol: 'f', name: 'Photon Frequency', unit: 'Hz', defaultValue: 8e14 },
+      { symbol: 'W0', name: 'Work Function', unit: 'J', defaultValue: 3.2e-19 },
+    ],
+    solveFor: {
+      Ek: {
+        rearrangedFormula: 'Ek = h * f - W0',
+        unit: 'J',
+        calculate: ({ f, W0 }) => {
+          const h = 6.62607e-34;
+          const energyPhoton = h * f;
+          const ans = energyPhoton - W0;
+          return {
+            result: ans,
+            substitution: `Ek = (6.626e-34 * ${f}) - ${W0}`,
+            steps: [
+              `Photon energy E = h * f = 6.626e-34 * ${f} = ${energyPhoton.toExponential(4)} J`,
+              `Subtract work function W0 = ${W0} J`,
+              `Maximum Kinetic Energy = ${ans.toExponential(4)} J (${(ans / 1.602e-19).toFixed(3)} eV)`,
+            ],
+          };
+        },
+      },
+    },
+  },
+
+  // 38. Radioactive Decay Half-Life
+  {
+    id: 'radioactive_decay',
+    category: 'Atomic & Nuclear',
+    name: 'Radioactivity & Half-Life Decay',
+    baseFormula: 'N = N0 * (1/2)^(t / T_half)',
+    description: 'Calculates the remaining quantity of radioactive material after elapsed time t.',
+    variables: [
+      { symbol: 'N0', name: 'Initial Quantity', unit: 'g', defaultValue: 100 },
+      { symbol: 't', name: 'Elapsed Time', unit: 'years', defaultValue: 15 },
+      { symbol: 'T_half', name: 'Half-Life', unit: 'years', defaultValue: 5 },
+    ],
+    solveFor: {
+      N: {
+        rearrangedFormula: 'N = N0 * 0.5^(t / T_half)',
+        unit: 'g',
+        calculate: ({ N0, t, T_half }) => {
+          if (T_half === 0) throw new Error('Half-life cannot be zero.');
+          const halfLifeCount = t / T_half;
+          const ans = N0 * Math.pow(0.5, halfLifeCount);
+          return {
+            result: ans,
+            substitution: `N = ${N0} * (0.5)^(${t} / ${T_half})`,
+            steps: [
+              `Number of half-lives elapsed = ${t} ÷ ${T_half} = ${halfLifeCount}`,
+              `Decay factor = (0.5)^${halfLifeCount} = ${Math.pow(0.5, halfLifeCount).toFixed(6)}`,
+              `Remaining quantity N = ${N0} × ${Math.pow(0.5, halfLifeCount).toFixed(6)} = ${formatNum(ans)} g`,
+            ],
+          };
+        },
+      },
+    },
+  },
+
+  // 39. Electric Field Strength
+  {
+    id: 'electric_field_strength',
+    category: 'Electricity & Magnetism',
+    name: 'Electric Field Strength (Uniform)',
+    baseFormula: 'E = V / d',
+    description: 'Electric field intensity between parallel plates separated by distance d with potential V.',
+    variables: [
+      { symbol: 'V', name: 'Potential Diff', unit: 'V', defaultValue: 500 },
+      { symbol: 'd', name: 'Separation Distance', unit: 'm', defaultValue: 0.02 },
+    ],
+    solveFor: {
+      E: {
+        rearrangedFormula: 'E = V / d',
+        unit: 'V/m',
+        calculate: ({ V, d }) => {
+          if (d === 0) throw new Error('Distance cannot be zero.');
+          const ans = V / d;
+          return {
+            result: ans,
+            substitution: `E = ${V} / ${d}`,
+            steps: [`Formula: E = V / d`, `Substitute: V = ${V} V, d = ${d} m`, `Compute: ${V} ÷ ${d} = ${formatNum(ans)} V/m (or N/C)`],
+          };
+        },
+      },
+    },
+  },
+
+  // 40. Magnetic Force on Moving Charge
+  {
+    id: 'lorentz_magnetic_force',
+    category: 'Electricity & Magnetism',
+    name: 'Magnetic Force on Charge (F = qvB)',
+    baseFormula: 'F = q * v * B',
+    description: 'Perpendicular Lorentz force on a charge moving through a magnetic field B.',
+    variables: [
+      { symbol: 'q', name: 'Charge', unit: 'C', defaultValue: 1.6e-19 },
+      { symbol: 'v', name: 'Velocity', unit: 'm/s', defaultValue: 2e6 },
+      { symbol: 'B', name: 'Magnetic Field', unit: 'T', defaultValue: 0.5 },
+    ],
+    solveFor: {
+      F: {
+        rearrangedFormula: 'F = q * v * B',
+        unit: 'N',
+        calculate: ({ q, v, B }) => {
+          const ans = q * v * B;
+          return {
+            result: ans,
+            substitution: `F = ${q} * ${v} * ${B}`,
+            steps: [`Formula: F = q * v * B`, `Compute: ${q} * ${v} * ${B} = ${ans.toExponential(4)} N`],
+          };
+        },
+      },
+    },
+  },
+
+  // 41. De Broglie Wavelength
+  {
+    id: 'de_broglie_wavelength',
+    category: 'Atomic & Nuclear',
+    name: 'De Broglie Matter Wavelength',
+    baseFormula: 'λ = h / (m * v)',
+    description: 'Wave-particle duality wavelength associated with a moving mass m at velocity v.',
+    variables: [
+      { symbol: 'm', name: 'Mass', unit: 'kg', defaultValue: 9.109e-31 },
+      { symbol: 'v', name: 'Velocity', unit: 'm/s', defaultValue: 1e6 },
+    ],
+    solveFor: {
+      lambda: {
+        rearrangedFormula: 'λ = h / (m * v)',
+        unit: 'm',
+        calculate: ({ m, v }) => {
+          const h = 6.62607e-34;
+          const p = m * v;
+          if (p === 0) throw new Error('Momentum cannot be zero.');
+          const ans = h / p;
+          return {
+            result: ans,
+            substitution: `λ = 6.626e-34 / (${m} * ${v})`,
+            steps: [
+              `Momentum p = m * v = ${p.toExponential(4)} kg·m/s`,
+              `Compute λ = h / p = 6.626e-34 ÷ ${p.toExponential(4)} = ${ans.toExponential(4)} m (${(ans * 1e9).toFixed(4)} nm)`,
+            ],
+          };
+        },
+      },
+    },
+  },
+
+  // 42. Escape Velocity
+  {
+    id: 'escape_velocity',
+    category: 'Mechanics',
+    name: 'Escape Velocity from Planet',
+    baseFormula: 'v_e = sqrt(2 * G * M / R)',
+    description: 'Minimum speed needed for an object to escape the gravitational field of a primary mass M.',
+    variables: [
+      { symbol: 'M', name: 'Planet Mass', unit: 'kg', defaultValue: 5.972e24 },
+      { symbol: 'R', name: 'Planet Radius', unit: 'm', defaultValue: 6.371e6 },
+    ],
+    solveFor: {
+      ve: {
+        rearrangedFormula: 'v_e = sqrt(2 * G * M / R)',
+        unit: 'm/s',
+        calculate: ({ M, R }) => {
+          const G = 6.6743e-11;
+          if (R === 0) throw new Error('Radius cannot be zero.');
+          const ans = Math.sqrt((2 * G * M) / R);
+          return {
+            result: ans,
+            substitution: `v_e = sqrt((2 * 6.674e-11 * ${M}) / ${R})`,
+            steps: [
+              `G = 6.6743 × 10⁻¹¹ N·m²/kg²`,
+              `Inside root: (2 * G * M) / R = ${(2 * G * M) / R}`,
+              `Escape Velocity = √(${(2 * G * M) / R}) = ${formatNum(ans)} m/s (${(ans / 1000).toFixed(2)} km/s)`,
+            ],
+          };
+        },
+      },
+    },
+  },
+
+  // 43. Thermal Conduction
+  {
+    id: 'thermal_conduction',
+    category: 'Thermal Physics',
+    name: 'Thermal Conduction Rate',
+    baseFormula: 'Q/t = (k * A * ΔT) / d',
+    description: 'Rate of heat transfer through a material of thermal conductivity k, area A, and thickness d.',
+    variables: [
+      { symbol: 'k', name: 'Conductivity', unit: 'W/(m·K)', defaultValue: 0.8 },
+      { symbol: 'A', name: 'Surface Area', unit: 'm²', defaultValue: 15 },
+      { symbol: 'deltaT', name: 'Temp Difference', unit: 'K', defaultValue: 20 },
+      { symbol: 'd', name: 'Thickness', unit: 'm', defaultValue: 0.15 },
+    ],
+    solveFor: {
+      H: {
+        rearrangedFormula: 'H = (k * A * ΔT) / d',
+        unit: 'W',
+        calculate: ({ k, A, deltaT, d }) => {
+          if (d === 0) throw new Error('Thickness cannot be zero.');
+          const ans = (k * A * deltaT) / d;
+          return {
+            result: ans,
+            substitution: `H = (${k} * ${A} * ${deltaT}) / ${d}`,
+            steps: [`Numerator: ${k} * ${A} * ${deltaT} = ${k * A * deltaT}`, `Compute: (${k * A * deltaT}) ÷ ${d} = ${formatNum(ans)} Watts`],
+          };
+        },
+      },
+    },
+  },
+
+  // 44. LC Circuit Resonance
+  {
+    id: 'lc_resonance',
+    category: 'Electricity & Magnetism',
+    name: 'Resonant Frequency of LC Circuit',
+    baseFormula: 'f = 1 / (2 * π * sqrt(L * C))',
+    description: 'Natural resonant oscillation frequency of an ideal inductor-capacitor tank circuit.',
+    variables: [
+      { symbol: 'L', name: 'Inductance', unit: 'H', defaultValue: 10e-3 },
+      { symbol: 'C', name: 'Capacitance', unit: 'F', defaultValue: 100e-9 },
+    ],
+    solveFor: {
+      f: {
+        rearrangedFormula: 'f = 1 / (2 * π * sqrt(L * C))',
+        unit: 'Hz',
+        calculate: ({ L, C }) => {
+          if (L <= 0 || C <= 0) throw new Error('L and C must be greater than zero.');
+          const ans = 1 / (2 * Math.PI * Math.sqrt(L * C));
+          return {
+            result: ans,
+            substitution: `f = 1 / (2 * π * sqrt(${L} * ${C}))`,
+            steps: [
+              `L * C product = ${L * C}`,
+              `Square root √(LC) = ${Math.sqrt(L * C).toExponential(4)}`,
+              `Denominator 2π√(LC) = ${(2 * Math.PI * Math.sqrt(L * C)).toExponential(4)}`,
+              `Resonant Frequency = ${formatNum(ans)} Hz (${(ans / 1000).toFixed(2)} kHz)`,
+            ],
+          };
+        },
+      },
+    },
+  },
 ];
 
 /**

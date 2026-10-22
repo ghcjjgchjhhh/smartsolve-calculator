@@ -13,9 +13,14 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
   const [query, setQuery] = useState('');
 
   const mathEntries = [
+    { name: 'Gemini AI Real-World Solver', sub: 'Solves complex physics & math questions with step-by-step reasoning', tab: 'ai_solver' },
     { name: 'Quadratic Equation Solver', sub: 'ax² + bx + c = 0 (Formula, Factorization, Completing Square)', tab: 'math' },
     { name: 'Linear Equations Solver', sub: 'Single variable ax + b = cx + d', tab: 'math' },
     { name: 'Simultaneous Equations', sub: '2-variable system elimination & Cramer rule', tab: 'math' },
+    { name: 'Financial Interest & Compound', sub: 'Simple interest, compound interest A = P(1+r/n)^(nt), loan amortization', tab: 'math' },
+    { name: 'Logarithms & Exponentials', sub: 'Change of base, natural logs ln, solve b^y = x', tab: 'math' },
+    { name: 'Circle Geometry & Sectors', sub: 'Area πr², circumference, arc length s = rθ, sector area', tab: 'math' },
+    { name: 'Binomial Theorem Expansion', sub: '(a + b)^n expansion using combination coefficients (n choose k)', tab: 'math' },
     { name: 'Fractions Calculator', sub: 'Add, subtract, multiply, divide, LCM & GCD', tab: 'math' },
     { name: 'Percentages & Ratios', sub: 'Percentage change & proportional sharing', tab: 'math' },
     { name: 'Arithmetic Progression (AP)', sub: 'Tn = a + (n-1)d and Sn sum', tab: 'math' },

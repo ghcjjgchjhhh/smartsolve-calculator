@@ -4,15 +4,23 @@
 
 export interface StepSolution {
   title: string;
-  category: 'Mathematics' | 'Physics' | 'Equation Solver' | 'Scientific' | 'Unit Converter';
+  category: 'Mathematics' | 'Physics' | 'Equation Solver' | 'Scientific' | 'Unit Converter' | 'AI Solver' | string;
   subCategory?: string;
   problemStatement?: string;
   formula: string;
   rearrangedFormula?: string;
+  givenValues?: {
+    name: string;
+    symbol: string;
+    value: string;
+    unit?: string;
+  }[];
   substitution: string;
   steps: string[];
   finalAnswer: string;
   unit?: string;
+  explanation?: string;
+  tips?: string;
   notes?: string;
   timestamp?: number;
 }

@@ -18,6 +18,10 @@ import {
   calculatePythagoras,
   calculateMensuration,
   parsePolynomial,
+  calculateFinancialInterest,
+  calculateLogarithms,
+  calculateCircleGeometry,
+  calculateBinomialExpansion,
 } from '../services/mathEngine';
 import { StepSolutionCard } from './StepSolutionCard';
 import { StepSolution } from '../types';
@@ -124,6 +128,29 @@ export const MathHub: React.FC = () => {
   const [v1, setV1] = useState<string>('1, 2, 3');
   const [v2, setV2] = useState<string>('4, 5, 6');
 
+  // 14. Financial Interest
+  const [interestPrincipal, setInterestPrincipal] = useState<number>(50000);
+  const [interestRate, setInterestRate] = useState<number>(12);
+  const [interestTime, setInterestTime] = useState<number>(3);
+  const [interestType, setInterestType] = useState<'simple' | 'compound'>('compound');
+  const [interestCompounds, setInterestCompounds] = useState<number>(1);
+
+  // 15. Logarithms
+  const [logBase, setLogBase] = useState<number>(2);
+  const [logValue, setLogValue] = useState<number>(64);
+  const [logTargetBase, setLogTargetBase] = useState<number>(10);
+
+  // 16. Circle Geometry
+  const [circleH, setCircleH] = useState<number>(0);
+  const [circleK, setCircleK] = useState<number>(0);
+  const [circleR, setCircleR] = useState<number>(5);
+  const [circleAngle, setCircleAngle] = useState<number>(60);
+
+  // 17. Binomial Theorem
+  const [binA, setBinA] = useState<number>(2);
+  const [binB, setBinB] = useState<number>(3);
+  const [binN, setBinN] = useState<number>(4);
+
   const executeSolve = (fn: () => StepSolution) => {
     setError(null);
     try {
@@ -149,6 +176,10 @@ export const MathHub: React.FC = () => {
     { id: 'statistics', name: 'Statistics', icon: BarChart2 },
     { id: 'combinatorics', name: 'Permutations & Comb.', icon: Sigma },
     { id: 'matrices', name: 'Matrices & Vectors', icon: Grid3X3 },
+    { id: 'interest', name: 'Interest (Simple & Compound)', icon: TrendingUp },
+    { id: 'logarithms', name: 'Logarithms & Powers', icon: FunctionSquare },
+    { id: 'circles', name: 'Circle Geometry & Equation', icon: Compass },
+    { id: 'binomial', name: 'Binomial Theorem Expansion', icon: Boxes },
   ];
 
   return (
@@ -1099,6 +1130,304 @@ export const MathHub: React.FC = () => {
                 Compute Vector Dot & Cross Products
               </button>
             </div>
+          </div>
+        )}
+
+        {/* 14. SIMPLE & COMPOUND INTEREST */}
+        {activeTopic === 'interest' && (
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-lg font-bold text-[#FFFFFF]">
+                Financial Interest Calculator (Simple & Compound)
+              </h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
+                Calculates accrued amount, simple interest, and compound growth with customizable compounding intervals.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-semibold text-[#A1A1AA]">Type:</span>
+              <button
+                onClick={() => setInterestType('compound')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  interestType === 'compound'
+                    ? 'bg-[#3B82F6] text-[#FFFFFF]'
+                    : 'bg-[#0F1115] text-[#A1A1AA] border border-[#252A34]'
+                }`}
+              >
+                Compound Interest (A = P(1 + r/n)^nt)
+              </button>
+              <button
+                onClick={() => setInterestType('simple')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  interestType === 'simple'
+                    ? 'bg-[#3B82F6] text-[#FFFFFF]'
+                    : 'bg-[#0F1115] text-[#A1A1AA] border border-[#252A34]'
+                }`}
+              >
+                Simple Interest (I = PRT/100)
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Principal Amount (P)
+                </label>
+                <input
+                  type="number"
+                  value={interestPrincipal}
+                  onChange={(e) => setInterestPrincipal(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Annual Interest Rate (% R)
+                </label>
+                <input
+                  type="number"
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Time Period (Years T)
+                </label>
+                <input
+                  type="number"
+                  value={interestTime}
+                  onChange={(e) => setInterestTime(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            {interestType === 'compound' && (
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Compounding Frequency (Times per year n)
+                </label>
+                <select
+                  value={interestCompounds}
+                  onChange={(e) => setInterestCompounds(parseInt(e.target.value) || 1)}
+                  className="w-full sm:w-64 px-3 py-2 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] text-xs font-semibold"
+                >
+                  <option value={1}>Annually (n = 1)</option>
+                  <option value={2}>Semi-annually (n = 2)</option>
+                  <option value={4}>Quarterly (n = 4)</option>
+                  <option value={12}>Monthly (n = 12)</option>
+                  <option value={365}>Daily (n = 365)</option>
+                </select>
+              </div>
+            )}
+
+            <button
+              onClick={() =>
+                executeSolve(() =>
+                  calculateFinancialInterest(
+                    interestPrincipal,
+                    interestRate,
+                    interestTime,
+                    interestType,
+                    interestCompounds
+                  )
+                )
+              }
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Calculate Interest & Show Steps</span>
+            </button>
+          </div>
+        )}
+
+        {/* 15. LOGARITHMS & POWERS */}
+        {activeTopic === 'logarithms' && (
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-lg font-bold text-[#FFFFFF]">
+                Logarithms & Change of Base Calculator
+              </h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
+                Evaluates log_b(x) with change of base theorem, verifying exponential form b^y = x.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Logarithm Base (b)
+                </label>
+                <input
+                  type="number"
+                  value={logBase}
+                  onChange={(e) => setLogBase(parseFloat(e.target.value) || 2)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Argument Value (x)
+                </label>
+                <input
+                  type="number"
+                  value={logValue}
+                  onChange={(e) => setLogValue(parseFloat(e.target.value) || 1)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Change to Base (Optional)
+                </label>
+                <input
+                  type="number"
+                  value={logTargetBase}
+                  onChange={(e) => setLogTargetBase(parseFloat(e.target.value) || 10)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => executeSolve(() => calculateLogarithms(logBase, logValue, logTargetBase))}
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Evaluate Logarithm Step-by-Step</span>
+            </button>
+          </div>
+        )}
+
+        {/* 16. CIRCLE GEOMETRY */}
+        {activeTopic === 'circles' && (
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-lg font-bold text-[#FFFFFF]">
+                Circle Geometry, Equation & Theorems
+              </h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
+                Derives standard equation (x - h)² + (y - k)² = r², circumference, area, sector area, and arc length.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Center X (h)
+                </label>
+                <input
+                  type="number"
+                  value={circleH}
+                  onChange={(e) => setCircleH(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Center Y (k)
+                </label>
+                <input
+                  type="number"
+                  value={circleK}
+                  onChange={(e) => setCircleK(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Radius (r)
+                </label>
+                <input
+                  type="number"
+                  value={circleR}
+                  onChange={(e) => setCircleR(parseFloat(e.target.value) || 1)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Sector Angle (θ°)
+                </label>
+                <input
+                  type="number"
+                  value={circleAngle}
+                  onChange={(e) => setCircleAngle(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => executeSolve(() => calculateCircleGeometry(circleH, circleK, circleR, circleAngle))}
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Compute Circle Equation & Geometry</span>
+            </button>
+          </div>
+        )}
+
+        {/* 17. BINOMIAL THEOREM EXPANSION */}
+        {activeTopic === 'binomial' && (
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-lg font-bold text-[#FFFFFF]">
+                Binomial Theorem Expansion (ax + b)ⁿ
+              </h3>
+              <p className="text-xs text-[#A1A1AA] mt-1">
+                Expands any binomial polynomial using Pascal's coefficients and combinatorial formula ⁿCᵣ.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Coefficient a (for x)
+                </label>
+                <input
+                  type="number"
+                  value={binA}
+                  onChange={(e) => setBinA(parseFloat(e.target.value) || 1)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Constant b
+                </label>
+                <input
+                  type="number"
+                  value={binB}
+                  onChange={(e) => setBinB(parseFloat(e.target.value) || 1)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#A1A1AA] block mb-1">
+                  Power Exponent n (0 to 12)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={12}
+                  value={binN}
+                  onChange={(e) => setBinN(parseInt(e.target.value) || 1)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => executeSolve(() => calculateBinomialExpansion(binA, binB, binN))}
+              className="w-full py-3 bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Expand Binomial with Full Terms</span>
+            </button>
           </div>
         )}
       </div>

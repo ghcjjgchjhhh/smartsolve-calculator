@@ -1299,3 +1299,233 @@ export function calculateVectors3D(
     finalAnswer: `Dot Product = ${dot}, Angle = ${formatNum(angleDeg, 2)}°, Cross Product = (${cx}, ${cy}, ${cz})`,
   };
 }
+
+// -------------------------------------------------------------
+// 14. SIMPLE & COMPOUND INTEREST CALCULATOR
+// -------------------------------------------------------------
+
+export function calculateFinancialInterest(
+  principal: number,
+  annualRatePct: number,
+  timeYears: number,
+  type: 'simple' | 'compound' = 'compound',
+  compoundsPerYear: number = 1
+): StepSolution {
+  const steps: string[] = [];
+  const P = principal;
+  const R = annualRatePct;
+  const T = timeYears;
+
+  steps.push(`Principal (P) = ${formatNum(P)}`);
+  steps.push(`Annual Interest Rate (R) = ${R}%`);
+  steps.push(`Time (T) = ${T} years`);
+
+  if (type === 'simple') {
+    const interest = (P * R * T) / 100;
+    const totalAmount = P + interest;
+    steps.push(`Simple Interest Formula: I = (P × R × T) / 100`);
+    steps.push(`Substitute: I = (${P} × ${R} × ${T}) / 100`);
+    steps.push(`Numerator: ${P * R * T}`);
+    steps.push(`Simple Interest (I) = ${formatNum(interest)}`);
+    steps.push(`Total Accrued Amount (A) = Principal + Interest = ${P} + ${formatNum(interest)} = ${formatNum(totalAmount)}`);
+
+    return {
+      title: 'Simple Interest Calculation',
+      category: 'Mathematics',
+      subCategory: 'Financial Mathematics',
+      problemStatement: `P = ${P}, Rate = ${R}%, Time = ${T} years (Simple Interest)`,
+      formula: 'I = (P × R × T) / 100,  A = P + I',
+      substitution: `I = (${P} × ${R} × ${T}) / 100 = ${formatNum(interest)}`,
+      steps,
+      finalAnswer: `Interest = ${formatNum(interest)}, Total Amount = ${formatNum(totalAmount)}`,
+    };
+  } else {
+    const n = compoundsPerYear || 1;
+    steps.push(`Compounding frequency (n) = ${n} time(s) per year`);
+    const rateDecimal = R / 100;
+    const base = 1 + rateDecimal / n;
+    const exponent = n * T;
+    const totalAmount = P * Math.pow(base, exponent);
+    const compoundInterest = totalAmount - P;
+
+    steps.push(`Compound Interest Formula: A = P × (1 + r/n)^(n×t)`);
+    steps.push(`Rate in decimal (r) = ${R} / 100 = ${rateDecimal}`);
+    steps.push(`Term (1 + r/n) = 1 + (${rateDecimal} / ${n}) = ${formatNum(base, 6)}`);
+    steps.push(`Total compounding periods (n × t) = ${n} × ${T} = ${exponent}`);
+    steps.push(`Growth Factor = (${formatNum(base, 6)})^${exponent} = ${formatNum(Math.pow(base, exponent), 6)}`);
+    steps.push(`Total Amount (A) = ${P} × ${formatNum(Math.pow(base, exponent), 6)} = ${formatNum(totalAmount, 2)}`);
+    steps.push(`Compound Interest Earned = A - P = ${formatNum(totalAmount, 2)} - ${P} = ${formatNum(compoundInterest, 2)}`);
+
+    return {
+      title: 'Compound Interest Calculation',
+      category: 'Mathematics',
+      subCategory: 'Financial Mathematics',
+      problemStatement: `P = ${P}, Rate = ${R}%, Time = ${T} yrs, Compounded ${n}x/yr`,
+      formula: 'A = P(1 + r/n)^(nt),  CI = A - P',
+      substitution: `A = ${P} × (1 + ${rateDecimal}/${n})^(${n}×${T})`,
+      steps,
+      finalAnswer: `Total Amount = ${formatNum(totalAmount, 2)}, Compound Interest = ${formatNum(compoundInterest, 2)}`,
+    };
+  }
+}
+
+// -------------------------------------------------------------
+// 15. LOGARITHMS & EXPONENTIAL LAWS
+// -------------------------------------------------------------
+
+export function calculateLogarithms(
+  base: number,
+  value: number,
+  targetBase: number = 10
+): StepSolution {
+  const steps: string[] = [];
+
+  if (base <= 0 || base === 1) throw new Error('Base must be positive and not equal to 1.');
+  if (value <= 0) throw new Error('Logarithm argument must be strictly positive (> 0).');
+
+  steps.push(`Evaluating: log_${base}(${value})`);
+  steps.push(`Definition: If y = log_b(x), then b^y = x`);
+
+  const result = Math.log(value) / Math.log(base);
+
+  steps.push(`Change of Base Formula: log_b(x) = ln(x) / ln(b)`);
+  steps.push(`ln(${value}) = ${formatNum(Math.log(value), 6)}`);
+  steps.push(`ln(${base}) = ${formatNum(Math.log(base), 6)}`);
+  steps.push(`Compute: ${formatNum(Math.log(value), 6)} ÷ ${formatNum(Math.log(base), 6)} = ${formatNum(result, 6)}`);
+  steps.push(`Verification: ${base}^(${formatNum(result, 4)}) = ${formatNum(Math.pow(base, result), 4)} ≈ ${value}`);
+
+  if (targetBase && targetBase !== base) {
+    const converted = Math.log(value) / Math.log(targetBase);
+    steps.push(`Converted to base ${targetBase}: log_${targetBase}(${value}) = ${formatNum(converted, 6)}`);
+  }
+
+  return {
+    title: 'Logarithm Evaluation',
+    category: 'Mathematics',
+    subCategory: 'Algebra & Logarithms',
+    problemStatement: `log_${base}(${value})`,
+    formula: 'log_b(x) = ln(x) / ln(b)  ⟺  b^y = x',
+    substitution: `log_${base}(${value}) = ln(${value}) / ln(${base})`,
+    steps,
+    finalAnswer: `${formatNum(result, 6)}`,
+  };
+}
+
+// -------------------------------------------------------------
+// 16. CIRCLE THEOREMS & CIRCLE EQUATION
+// -------------------------------------------------------------
+
+export function calculateCircleGeometry(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  sectorAngleDeg: number = 60
+): StepSolution {
+  const steps: string[] = [];
+  const h = centerX;
+  const k = centerY;
+  const r = radius;
+
+  if (r <= 0) throw new Error('Circle radius must be strictly positive.');
+
+  steps.push(`Circle Center C(h, k) = (${h}, ${k})`);
+  steps.push(`Radius (r) = ${r}`);
+
+  const hSign = h >= 0 ? `- ${h}` : `+ ${Math.abs(h)}`;
+  const kSign = k >= 0 ? `- ${k}` : `+ ${Math.abs(k)}`;
+  const rSquared = r * r;
+  const circleEq = `(x ${hSign})² + (y ${kSign})² = ${rSquared}`;
+
+  steps.push(`Standard Circle Equation: (x - h)² + (y - k)² = r²`);
+  steps.push(`Equation: ${circleEq}`);
+
+  const diameter = 2 * r;
+  const circumference = 2 * Math.PI * r;
+  const area = Math.PI * r * r;
+
+  steps.push(`Diameter (D) = 2r = 2 × ${r} = ${diameter}`);
+  steps.push(`Circumference (C) = 2πr = 2 × π × ${r} = ${formatNum(circumference, 4)}`);
+  steps.push(`Area (A) = πr² = π × (${r})² = ${formatNum(area, 4)}`);
+
+  let sectorArea = 0;
+  let arcLength = 0;
+  if (sectorAngleDeg > 0) {
+    arcLength = (sectorAngleDeg / 360) * 2 * Math.PI * r;
+    sectorArea = (sectorAngleDeg / 360) * Math.PI * r * r;
+    steps.push(`Sector Angle (θ) = ${sectorAngleDeg}°`);
+    steps.push(`Arc Length (s) = (θ / 360) × 2πr = (${sectorAngleDeg} / 360) × ${formatNum(circumference, 4)} = ${formatNum(arcLength, 4)}`);
+    steps.push(`Sector Area = (θ / 360) × πr² = (${sectorAngleDeg} / 360) × ${formatNum(area, 4)} = ${formatNum(sectorArea, 4)}`);
+  }
+
+  return {
+    title: 'Circle Geometry and Equation',
+    category: 'Mathematics',
+    subCategory: 'Coordinate Geometry',
+    problemStatement: `Center (${h}, ${k}), Radius r = ${r}`,
+    formula: '(x - h)² + (y - k)² = r²,  Area = πr²,  Circumference = 2πr',
+    substitution: circleEq,
+    steps,
+    finalAnswer: `Eq: ${circleEq}, Area = ${formatNum(area, 4)}, Circumference = ${formatNum(circumference, 4)}`,
+  };
+}
+
+// -------------------------------------------------------------
+// 17. BINOMIAL THEOREM EXPANSION
+// -------------------------------------------------------------
+
+export function calculateBinomialExpansion(
+  aCoeff: number,
+  bCoeff: number,
+  n: number
+): StepSolution {
+  const steps: string[] = [];
+
+  if (n < 0 || !Number.isInteger(n) || n > 12) {
+    throw new Error('Exponent n must be an integer between 0 and 12 for expansion.');
+  }
+
+  const exprStr = `(${aCoeff === 1 ? '' : aCoeff}x + ${bCoeff})^${n}`;
+  steps.push(`Binomial Expression: ${exprStr}`);
+  steps.push(`Binomial Theorem Formula: (a + b)ⁿ = Σ [nCr × aⁿ⁻ʳ × bʳ] for r = 0 to n`);
+
+  const terms: string[] = [];
+  const termDetails: string[] = [];
+
+  for (let r = 0; r <= n; r++) {
+    // nCr
+    const comb = factorial(n) / (factorial(r) * factorial(n - r));
+    const powerA = n - r;
+    const powerB = r;
+
+    const coeffA = Math.pow(aCoeff, powerA);
+    const coeffB = Math.pow(bCoeff, powerB);
+    const finalCoeff = comb * coeffA * coeffB;
+
+    let termVar = '';
+    if (powerA > 1) termVar = `x^${powerA}`;
+    else if (powerA === 1) termVar = 'x';
+
+    const termFormatted = termVar ? `${finalCoeff === 1 && termVar ? '' : finalCoeff}${termVar}` : `${finalCoeff}`;
+    terms.push(termFormatted);
+
+    termDetails.push(
+      `Term ${r + 1} (r=${r}): ⁿCᵣ × (${aCoeff}x)^${powerA} × (${bCoeff})^${powerB} = ${comb} × ${coeffA}${termVar ? termVar : ''} × ${coeffB} = ${termFormatted}`
+    );
+  }
+
+  steps.push(...termDetails);
+  const expansion = terms.join(' + ').replace(/\+\s\-/g, '- ');
+  steps.push(`Full Expanded Polynomial: ${expansion}`);
+
+  return {
+    title: 'Binomial Theorem Expansion',
+    category: 'Mathematics',
+    subCategory: 'Algebra',
+    problemStatement: `Expand ${exprStr}`,
+    formula: '(a + b)ⁿ = Σ [ⁿCᵣ × aⁿ⁻ʳ × bʳ]',
+    substitution: `Expanded with n = ${n}`,
+    steps,
+    finalAnswer: expansion,
+  };
+}
+

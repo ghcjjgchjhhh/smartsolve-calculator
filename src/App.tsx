@@ -7,6 +7,7 @@ import { EquationSolverView } from './components/EquationSolverView';
 import { UnitConverterView } from './components/UnitConverterView';
 import { JambPracticeView } from './components/JambPracticeView';
 import { SmartInputView } from './components/SmartInputView';
+import { GeminiAiSolverView } from './components/GeminiAiSolverView';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { SearchModal } from './components/SearchModal';
 import { InstallAppModal } from './components/InstallAppModal';
@@ -31,7 +32,7 @@ export default function App() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
-      if (tabParam && ['scientific', 'math', 'physics', 'equation', 'converter', 'jamb', 'smart_input'].includes(tabParam)) {
+      if (tabParam && ['scientific', 'ai_solver', 'math', 'physics', 'equation', 'converter', 'jamb', 'smart_input'].includes(tabParam)) {
         return tabParam;
       }
     } catch {
@@ -123,8 +124,9 @@ export default function App() {
 
   const navigationTabs = [
     { id: 'scientific', name: 'Scientific', icon: Calculator, badge: 'FX' },
-    { id: 'math', name: 'Mathematics', icon: FunctionSquare, badge: '15 Topics' },
-    { id: 'physics', name: 'Physics', icon: Atom, badge: '29 Formulas' },
+    { id: 'ai_solver', name: 'Gemini AI Solver', icon: Sparkles, badge: 'Real AI' },
+    { id: 'math', name: 'Mathematics', icon: FunctionSquare, badge: '19 Topics' },
+    { id: 'physics', name: 'Physics', icon: Atom, badge: '44 Formulas' },
     { id: 'equation', name: 'Equation Solver', icon: Cpu, badge: 'Auto' },
     { id: 'converter', name: 'Unit Converter', icon: Scale, badge: '16 Types' },
     { id: 'jamb', name: 'JAMB / WAEC', icon: GraduationCap, badge: 'Exam Mode' },
@@ -225,6 +227,7 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {activeTab === 'scientific' && <ScientificCalculator />}
+        {activeTab === 'ai_solver' && <GeminiAiSolverView />}
         {activeTab === 'math' && <MathHub />}
         {activeTab === 'physics' && <PhysicsHub />}
         {activeTab === 'equation' && <EquationSolverView />}

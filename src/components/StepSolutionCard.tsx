@@ -122,6 +122,25 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
           </div>
         )}
 
+        {/* Given Values Grid if available */}
+        {solution.givenValues && solution.givenValues.length > 0 && (
+          <div>
+            <span className="text-xs font-bold text-[#A1A1AA] uppercase tracking-wider block mb-2">
+              Given Quantities Extracted
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {solution.givenValues.map((g, i) => (
+                <div key={i} className="p-2.5 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                  <div className="text-[11px] text-[#A1A1AA] truncate">{g.name}</div>
+                  <div className="text-xs font-mono font-bold text-[#FFFFFF] mt-0.5">
+                    {g.symbol} = {g.value} {g.unit || ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Working Steps */}
         {solution.steps && solution.steps.length > 0 && (
           <div>
@@ -163,6 +182,32 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
             <span>Verified Computation</span>
           </div>
         </div>
+
+        {/* Explanation if available */}
+        {solution.explanation && (
+          <div className="p-3.5 rounded-xl bg-[#0F1115] border border-[#252A34] text-xs">
+            <span className="font-bold text-[#3B82F6] uppercase tracking-wider block mb-1">
+              Physical & Mathematical Principle
+            </span>
+            <p className="text-[#A1A1AA] leading-relaxed">
+              {solution.explanation}
+            </p>
+          </div>
+        )}
+
+        {/* Pro Tip / Common Pitfall if available */}
+        {solution.tips && (
+          <div className="p-3.5 rounded-xl bg-[#0F1115] border border-[#3B82F6]/30 text-xs flex items-start space-x-2">
+            <div>
+              <span className="font-bold text-[#FFFFFF] block mb-0.5">
+                Pro Tip & Exam Advice
+              </span>
+              <p className="text-[#A1A1AA] leading-relaxed">
+                {solution.tips}
+              </p>
+            </div>
+          </div>
+        )}
 
         {solution.notes && (
           <p className="text-xs text-[#A1A1AA] italic">
