@@ -133,7 +133,14 @@ export const GeminiAiSolverView: React.FC = () => {
         setLoadingStage('Executing verified mathematical substitution & algebraic derivation...');
       }, 1900);
 
-      const response = await fetch('/api/ai/solve', {
+      const getApiEndpoint = () => {
+        if (typeof window !== 'undefined' && window.location.hostname.includes('github.io')) {
+          return 'https://ais-dev-ggu4bo4rvjv7rwriyk6l3u-301739057489.europe-west3.run.app/api/ai/solve';
+        }
+        return '/api/ai/solve';
+      };
+
+      const response = await fetch(getApiEndpoint(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
