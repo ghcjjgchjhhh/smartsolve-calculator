@@ -7,6 +7,7 @@ import {
   History,
   Download,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { InstallAppModal } from './InstallAppModal';
@@ -25,7 +26,7 @@ export const Header: React.FC<Props> = ({
   onToggleDarkMode,
   onOpenSearch,
   onOpenHistory,
-  activeTab: _activeTab,
+  activeTab,
   setActiveTab,
 }) => {
   const { isInstalled, canInstall, triggerInstall } = usePWAInstall();
@@ -44,7 +45,7 @@ export const Header: React.FC<Props> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#181B22]/95 backdrop-blur-md border-b border-[#252A34] transition-colors">
+      <header className="sticky top-0 z-40 bg-[#0A0A0A]/95 backdrop-blur-md border-b border-[#27272A] transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-18">
             {/* Logo & Branding */}
@@ -52,15 +53,15 @@ export const Header: React.FC<Props> = ({
               className="flex items-center space-x-3 cursor-pointer select-none"
               onClick={() => setActiveTab('scientific')}
             >
-              <div className="w-10 h-10 rounded-2xl bg-[#252A34] border border-[#3B82F6]/40 flex items-center justify-center shadow-lg shadow-blue-500/15 text-[#3B82F6] flex-shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-[#18181B] border border-[#22C55E]/40 flex items-center justify-center shadow-lg shadow-emerald-500/15 text-[#22C55E] flex-shrink-0">
                 <Calculator className="w-5 h-5" />
               </div>
               <div>
                 <div className="flex items-center space-x-1.5">
                   <span className="text-lg font-black tracking-tight text-[#FFFFFF]">
-                    Smart<span className="text-[#3B82F6]">Solve</span>
+                    Smart<span className="text-[#22C55E]">Solve</span>
                   </span>
-                  <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/30">
+                  <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30">
                     PRO
                   </span>
                 </div>
@@ -72,6 +73,21 @@ export const Header: React.FC<Props> = ({
 
             {/* Actions */}
             <div className="flex items-center space-x-1.5 sm:space-x-2">
+              {/* Direct Gemini AI Button */}
+              <button
+                onClick={() => setActiveTab('ai_solver')}
+                className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'ai_solver'
+                    ? 'bg-[#22C55E] text-[#FFFFFF] shadow-md shadow-emerald-500/25'
+                    : 'bg-[#18181B] hover:bg-[#27272A] text-[#22C55E] border border-[#22C55E]/30'
+                }`}
+                title="Open real Gemini AI Mathematics and Physics Solver"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-inherit" />
+                <span className="hidden sm:inline">Gemini AI Solver</span>
+                <span className="sm:hidden">AI</span>
+              </button>
+
               {/* Install App Button */}
               {!isInstalled ? (
                 <button
@@ -80,7 +96,7 @@ export const Header: React.FC<Props> = ({
                   title="Install SmartSolve as a phone or desktop app"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Install App</span>
+                  <span className="hidden sm:inline">Install App</span>
                 </button>
               ) : (
                 <div className="hidden sm:flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-[#22C55E]/15 text-[#22C55E] text-[11px] font-semibold border border-[#22C55E]/30">
@@ -92,9 +108,9 @@ export const Header: React.FC<Props> = ({
               {/* Quick Search Button */}
               <button
                 onClick={onOpenSearch}
-                className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-[#252A34] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors text-xs font-semibold border border-white/5 cursor-pointer"
+                className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-[#18181B] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors text-xs font-semibold border border-white/5 cursor-pointer"
               >
-                <Search className="w-4 h-4 text-[#3B82F6]" />
+                <Search className="w-4 h-4 text-[#22C55E]" />
                 <span className="hidden md:inline">Quick Search (60+ tools)</span>
               </button>
 
@@ -102,7 +118,7 @@ export const Header: React.FC<Props> = ({
               <button
                 onClick={onOpenHistory}
                 title="Calculation History"
-                className="p-2.5 rounded-xl bg-[#252A34] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors border border-white/5 cursor-pointer"
+                className="p-2.5 rounded-xl bg-[#18181B] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors border border-white/5 cursor-pointer"
               >
                 <History className="w-4 h-4" />
               </button>
@@ -111,9 +127,9 @@ export const Header: React.FC<Props> = ({
               <button
                 onClick={onToggleDarkMode}
                 title={darkMode ? 'Dark Mode active' : 'Switch theme'}
-                className="p-2.5 rounded-xl bg-[#252A34] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors border border-white/5 cursor-pointer"
+                className="p-2.5 rounded-xl bg-[#18181B] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors border border-white/5 cursor-pointer"
               >
-                {darkMode ? <Moon className="w-4 h-4 text-[#3B82F6]" /> : <Sun className="w-4 h-4 text-amber-400" />}
+                {darkMode ? <Moon className="w-4 h-4 text-[#22C55E]" /> : <Sun className="w-4 h-4 text-amber-400" />}
               </button>
             </div>
           </div>

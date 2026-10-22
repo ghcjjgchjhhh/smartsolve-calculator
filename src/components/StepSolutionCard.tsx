@@ -35,16 +35,16 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
   };
 
   return (
-    <div className="bg-[#181B22] border border-[#252A34] rounded-3xl shadow-2xl shadow-black/60 overflow-hidden transition-all">
+    <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl shadow-2xl shadow-black/60 overflow-hidden transition-all">
       {/* Header */}
-      <div className="bg-[#13161D] px-5 py-4 text-[#FFFFFF] flex items-center justify-between border-b border-[#252A34]">
+      <div className="bg-[#13161D] px-5 py-4 text-[#FFFFFF] flex items-center justify-between border-b border-[#27272A]">
         <div className="flex items-center space-x-3">
-          <div className="p-2 bg-[#3B82F6]/15 border border-[#3B82F6]/30 rounded-xl">
-            <BookOpen className="w-5 h-5 text-[#3B82F6]" />
+          <div className="p-2 bg-[#22C55E]/15 border border-[#22C55E]/30 rounded-xl">
+            <BookOpen className="w-5 h-5 text-[#22C55E]" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#3B82F6]">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#22C55E]">
                 {solution.category}
               </span>
               {solution.subCategory && (
@@ -59,14 +59,14 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
           <button
             onClick={copySolutionText}
             title="Copy full solution"
-            className="p-2 hover:bg-[#252A34] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors"
+            className="p-2 hover:bg-[#18181B] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors"
           >
             {copied ? <Check className="w-4 h-4 text-[#22C55E]" /> : <Copy className="w-4 h-4" />}
           </button>
           <button
             onClick={handleSave}
             title="Save to history"
-            className="p-2 hover:bg-[#252A34] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors"
+            className="p-2 hover:bg-[#18181B] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors"
           >
             {saved ? <BookmarkCheck className="w-4 h-4 text-[#22C55E]" /> : <Bookmark className="w-4 h-4" />}
           </button>
@@ -77,7 +77,7 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
       <div className="p-5 space-y-4">
         {/* Problem Statement if available */}
         {solution.problemStatement && (
-          <div className="p-3 bg-[#0F1115] rounded-xl border border-[#252A34]">
+          <div className="p-3 bg-[#000000] rounded-xl border border-[#27272A]">
             <span className="text-xs font-bold text-[#A1A1AA] uppercase tracking-wider block mb-1">
               Input Expression
             </span>
@@ -89,8 +89,8 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
 
         {/* Formula Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="p-3.5 bg-[#0F1115] rounded-xl border border-[#252A34]">
-            <span className="text-xs font-bold text-[#3B82F6] uppercase tracking-wider block mb-1">
+          <div className="p-3.5 bg-[#000000] rounded-xl border border-[#27272A]">
+            <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider block mb-1">
               Evaluation Rule
             </span>
             <div className="text-base font-bold text-[#FFFFFF] math-display">
@@ -99,7 +99,7 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
           </div>
 
           {solution.rearrangedFormula && (
-            <div className="p-3.5 bg-[#0F1115] rounded-xl border border-[#252A34]">
+            <div className="p-3.5 bg-[#000000] rounded-xl border border-[#27272A]">
               <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider block mb-1">
                 Rearranged For Target
               </span>
@@ -112,7 +112,7 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
 
         {/* Substitution */}
         {solution.substitution && (
-          <div className="p-3.5 bg-[#0F1115] rounded-xl border border-[#252A34]">
+          <div className="p-3.5 bg-[#000000] rounded-xl border border-[#27272A]">
             <span className="text-xs font-bold text-[#A1A1AA] uppercase tracking-wider block mb-1">
               Value Substitution
             </span>
@@ -130,7 +130,7 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {solution.givenValues.map((g, i) => (
-                <div key={i} className="p-2.5 rounded-xl bg-[#0F1115] border border-[#252A34]">
+                <div key={i} className="p-2.5 rounded-xl bg-[#000000] border border-[#27272A]">
                   <div className="text-[11px] text-[#A1A1AA] truncate">{g.name}</div>
                   <div className="text-xs font-mono font-bold text-[#FFFFFF] mt-0.5">
                     {g.symbol} = {g.value} {g.unit || ''}
@@ -145,16 +145,16 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
         {solution.steps && solution.steps.length > 0 && (
           <div>
             <div className="flex items-center space-x-1.5 text-xs font-bold text-[#A1A1AA] uppercase tracking-wider mb-2">
-              <Layers className="w-3.5 h-3.5 text-[#3B82F6]" />
+              <Layers className="w-3.5 h-3.5 text-[#22C55E]" />
               <span>Step-by-Step Working</span>
             </div>
             <div className="space-y-2">
               {solution.steps.map((step, idx) => (
                 <div
                   key={idx}
-                  className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34] text-sm"
+                  className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#27272A] text-sm"
                 >
-                  <span className="flex-shrink-0 w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs border border-white/5">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-lg bg-[#18181B] text-[#FFFFFF] font-bold flex items-center justify-center text-xs border border-white/5">
                     {idx + 1}
                   </span>
                   <div className="text-[#A1A1AA] font-mono text-xs sm:text-sm pt-0.5 leading-relaxed break-words flex-1">
@@ -167,7 +167,7 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
         )}
 
         {/* Highlighted Final Answer */}
-        <div className="p-4 bg-[#0F1115] rounded-2xl border border-[#22C55E]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm shadow-emerald-500/10">
+        <div className="p-4 bg-[#000000] rounded-2xl border border-[#22C55E]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm shadow-emerald-500/10">
           <div>
             <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider block">
               Final Answer
@@ -185,8 +185,8 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
 
         {/* Explanation if available */}
         {solution.explanation && (
-          <div className="p-3.5 rounded-xl bg-[#0F1115] border border-[#252A34] text-xs">
-            <span className="font-bold text-[#3B82F6] uppercase tracking-wider block mb-1">
+          <div className="p-3.5 rounded-xl bg-[#000000] border border-[#27272A] text-xs">
+            <span className="font-bold text-[#22C55E] uppercase tracking-wider block mb-1">
               Physical & Mathematical Principle
             </span>
             <p className="text-[#A1A1AA] leading-relaxed">
@@ -197,7 +197,7 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
 
         {/* Pro Tip / Common Pitfall if available */}
         {solution.tips && (
-          <div className="p-3.5 rounded-xl bg-[#0F1115] border border-[#3B82F6]/30 text-xs flex items-start space-x-2">
+          <div className="p-3.5 rounded-xl bg-[#000000] border border-[#22C55E]/30 text-xs flex items-start space-x-2">
             <div>
               <span className="font-bold text-[#FFFFFF] block mb-0.5">
                 Pro Tip & Exam Advice

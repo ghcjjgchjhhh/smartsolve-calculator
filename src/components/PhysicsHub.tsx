@@ -89,7 +89,7 @@ export const PhysicsHub: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search physics formulas (e.g. velocity, Ohm's law, heat, waves, projectile)..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] border border-[#252A34] text-[#FFFFFF] text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] border border-[#27272A] text-[#FFFFFF] text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
@@ -100,8 +100,8 @@ export const PhysicsHub: React.FC = () => {
               onClick={() => setSelectedCategory(c)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedCategory === c
-                  ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
-                  : 'bg-[#181B22] border border-[#252A34] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#252A34]'
+                  ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-sm'
+                  : 'bg-[#0A0A0A] border border-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#27272A]'
               }`}
             >
               {c}
@@ -125,8 +125,8 @@ export const PhysicsHub: React.FC = () => {
                 onClick={() => handleSelectFormula(f)}
                 className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-start justify-between ${
                   isSelected
-                    ? 'bg-[#0F1115] border-[#3B82F6] shadow-sm'
-                    : 'bg-[#181B22] border-[#252A34] hover:border-slate-300 dark:hover:border-slate-700'
+                    ? 'bg-[#000000] border-[#22C55E] shadow-sm'
+                    : 'bg-[#0A0A0A] border-[#27272A] hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
                 <div>
@@ -136,7 +136,7 @@ export const PhysicsHub: React.FC = () => {
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-[#FFFFFF] mt-1">{f.name}</h4>
-                  <div className="text-xs font-mono font-semibold text-[#3B82F6] mt-0.5">
+                  <div className="text-xs font-mono font-semibold text-[#22C55E] mt-0.5">
                     {f.baseFormula}
                   </div>
                 </div>
@@ -150,7 +150,7 @@ export const PhysicsHub: React.FC = () => {
           })}
 
           {filteredFormulas.length === 0 && (
-            <div className="p-8 text-center text-slate-500 text-sm bg-[#0F1115] border border-[#252A34] text-[#FFFFFF] rounded-xl border border-[#252A34]">
+            <div className="p-8 text-center text-slate-500 text-sm bg-[#000000] border border-[#27272A] text-[#FFFFFF] rounded-xl border border-[#27272A]">
               No formulas match "{searchQuery}"
             </div>
           )}
@@ -158,11 +158,11 @@ export const PhysicsHub: React.FC = () => {
 
         {/* Right: Active Formula Calculator */}
         <div className="lg:col-span-7 space-y-5">
-          <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+          <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
             {/* Header */}
             <div>
               <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#3B82F6]">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#22C55E]">
                   {currentFormula.category}
                 </span>
               </div>
@@ -171,9 +171,9 @@ export const PhysicsHub: React.FC = () => {
             </div>
 
             {/* Base Formula Banner */}
-            <div className="p-3.5 bg-[#0F1115] rounded-xl border border-[#252A34] flex items-center justify-between">
+            <div className="p-3.5 bg-[#000000] rounded-xl border border-[#27272A] flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-[#3B82F6] uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-[#22C55E] uppercase tracking-wider block">
                   Base Formula
                 </span>
                 <span className="text-lg font-black text-[#FFFFFF] math-display">
@@ -202,8 +202,8 @@ export const PhysicsHub: React.FC = () => {
                       }}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
                         isTarget
-                          ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
-                          : 'bg-[#252A34] text-[#A1A1AA] hover:text-[#FFFFFF]'
+                          ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-sm'
+                          : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF]'
                       }`}
                     >
                       <span>Find {sym}</span>
@@ -227,8 +227,8 @@ export const PhysicsHub: React.FC = () => {
                       key={v.symbol}
                       className={`p-3 rounded-xl border transition-all ${
                         isTarget
-                          ? 'bg-[#0F1115] border-[#3B82F6]'
-                          : 'bg-[#0F1115] border-[#252A34]'
+                          ? 'bg-[#000000] border-[#22C55E]'
+                          : 'bg-[#000000] border-[#27272A]'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -239,7 +239,7 @@ export const PhysicsHub: React.FC = () => {
                       </div>
 
                       {isTarget ? (
-                        <div className="py-2 text-xs font-bold text-[#3B82F6] italic">
+                        <div className="py-2 text-xs font-bold text-[#22C55E] italic">
                           Unknown to calculate →
                         </div>
                       ) : (
@@ -248,7 +248,7 @@ export const PhysicsHub: React.FC = () => {
                           value={inputValues[v.symbol] !== undefined ? inputValues[v.symbol] : ''}
                           onChange={(e) => handleInputChange(v.symbol, e.target.value)}
                           placeholder={`Enter ${v.symbol}`}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-[#0F1115] border border-[#252A34] text-[#FFFFFF] font-mono text-sm font-bold text-[#FFFFFF]"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-[#000000] border border-[#27272A] text-[#FFFFFF] font-mono text-sm font-bold text-[#FFFFFF]"
                         />
                       )}
                     </div>

@@ -134,7 +134,7 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0F1115] text-[#FFFFFF] transition-colors flex flex-col font-sans">
+    <div className="min-h-screen bg-[#000000] text-[#FFFFFF] transition-colors flex flex-col font-sans">
       {/* Offline Status Toast */}
       {!isOnline && (
         <div className="bg-[#EF4444] text-[#FFFFFF] text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center space-x-2">
@@ -154,7 +154,7 @@ export default function App() {
       />
 
       {/* Main Tab Navigation Ribbon */}
-      <div className="bg-[#181B22] border-b border-[#252A34] sticky top-16 sm:top-18 z-30 shadow-sm">
+      <div className="bg-[#0A0A0A] border-b border-[#27272A] sticky top-16 sm:top-18 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto py-2.5 scrollbar-none">
             {navigationTabs.map((tab) => {
@@ -166,8 +166,8 @@ export default function App() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
                     isActive
-                      ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-md shadow-blue-500/25 scale-[1.02]'
-                      : 'text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#252A34]'
+                      ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-md shadow-emerald-500/25 scale-[1.02]'
+                      : 'text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#18181B]'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -177,7 +177,7 @@ export default function App() {
                       className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
                         isActive
                           ? 'bg-black/25 text-[#FFFFFF]'
-                          : 'bg-[#252A34] text-[#A1A1AA]'
+                          : 'bg-[#18181B] text-[#A1A1AA]'
                       }`}
                     >
                       {tab.badge}
@@ -192,11 +192,11 @@ export default function App() {
 
       {/* Mobile Install Promotion Banner (if not installed and not dismissed) */}
       {!isInstalled && !isBannerDismissed && (
-        <div className="bg-[#181B22] text-[#FFFFFF] px-4 py-2.5 border-b border-[#252A34]">
+        <div className="bg-[#0A0A0A] text-[#FFFFFF] px-4 py-2.5 border-b border-[#27272A]">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-[#3B82F6]/15 border border-[#3B82F6]/30 flex items-center justify-center flex-shrink-0">
-                <Smartphone className="w-4 h-4 text-[#3B82F6]" />
+              <div className="w-8 h-8 rounded-lg bg-[#22C55E]/15 border border-[#22C55E]/30 flex items-center justify-center flex-shrink-0">
+                <Smartphone className="w-4 h-4 text-[#22C55E]" />
               </div>
               <div className="text-xs truncate text-[#A1A1AA]">
                 <span className="font-bold text-[#FFFFFF]">Install as Phone App:</span>{' '}
@@ -249,7 +249,7 @@ export default function App() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-[#252A34] bg-[#0F1115] py-6 text-center text-xs text-[#A1A1AA]">
+      <footer className="border-t border-[#27272A] bg-[#000000] py-6 text-center text-xs text-[#A1A1AA]">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
             <span className="font-bold text-[#FFFFFF]">SmartSolve Calculator</span>
@@ -259,7 +259,7 @@ export default function App() {
             {!isInstalled && (
               <button
                 onClick={() => setIsInstallModalOpen(true)}
-                className="text-[#3B82F6] hover:text-[#60A5FA] font-bold hover:underline flex items-center space-x-1"
+                className="text-[#22C55E] hover:text-[#4ADE80] font-bold hover:underline flex items-center space-x-1"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Install on Phone / PC</span>

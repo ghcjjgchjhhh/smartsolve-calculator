@@ -165,17 +165,17 @@ export const GeminiAiSolverView: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Hero Header Card */}
-      <div className="bg-[#181B22] border border-[#252A34] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-[#3B82F6]/20 text-[#3B82F6] font-bold text-xs uppercase tracking-wider border border-[#3B82F6]/30">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E] font-bold text-xs uppercase tracking-wider border border-[#22C55E]/30">
                 Gemini AI Engine
               </span>
               <span className="text-xs text-[#A1A1AA]">· 100% Real Problem Solving</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-[#FFFFFF] mt-1 flex items-center space-x-2">
-              <Sparkles className="w-5 h-5 text-[#3B82F6]" />
+              <Sparkles className="w-5 h-5 text-[#22C55E]" />
               <span>Real Mathematics & Physics AI Solver</span>
             </h2>
             <p className="text-xs sm:text-sm text-[#A1A1AA] mt-1">
@@ -183,7 +183,7 @@ export const GeminiAiSolverView: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center space-x-2 bg-[#0F1115] px-3.5 py-2 rounded-xl border border-[#252A34] text-xs text-[#22C55E] font-bold shrink-0">
+          <div className="flex items-center space-x-2 bg-[#000000] px-3.5 py-2 rounded-xl border border-[#27272A] text-xs text-[#22C55E] font-bold shrink-0">
             <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
             <span>Real Step Verification</span>
           </div>
@@ -197,8 +197,8 @@ export const GeminiAiSolverView: React.FC = () => {
               onClick={() => setSelectedSubject(subj)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 selectedSubject === subj
-                  ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
-                  : 'bg-[#0F1115] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#252A34]'
+                  ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-sm'
+                  : 'bg-[#000000] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#27272A]'
               }`}
             >
               {subj}
@@ -214,17 +214,17 @@ export const GeminiAiSolverView: React.FC = () => {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Type any math or physics question here... (e.g., A car of mass 1200kg travelling at 20 m/s brakes to a halt in 40m. Find the braking force and deceleration.)"
-              className="w-full p-4 rounded-2xl bg-[#0F1115] border border-[#252A34] text-[#FFFFFF] placeholder:text-[#A1A1AA]/60 text-sm sm:text-base font-medium focus:border-[#3B82F6] focus:outline-none transition-colors resize-y leading-relaxed"
+              className="w-full p-4 rounded-2xl bg-[#000000] border border-[#27272A] text-[#FFFFFF] placeholder:text-[#A1A1AA]/60 text-sm sm:text-base font-medium focus:border-[#22C55E] focus:outline-none transition-colors resize-y leading-relaxed"
             />
           </div>
 
           {/* Image preview if user uploaded a problem photo */}
           {imagePreview && (
-            <div className="flex items-center space-x-3 p-3 rounded-2xl bg-[#0F1115] border border-[#252A34] w-fit">
+            <div className="flex items-center space-x-3 p-3 rounded-2xl bg-[#000000] border border-[#27272A] w-fit">
               <img
                 src={imagePreview}
                 alt="Uploaded problem"
-                className="w-16 h-16 object-cover rounded-xl border border-[#252A34]"
+                className="w-16 h-16 object-cover rounded-xl border border-[#27272A]"
               />
               <div>
                 <span className="text-xs font-bold text-[#FFFFFF] block">Attached Problem Image</span>
@@ -233,7 +233,7 @@ export const GeminiAiSolverView: React.FC = () => {
               <button
                 onClick={handleClearImage}
                 aria-label="Remove image"
-                className="p-1.5 rounded-lg bg-[#252A34] hover:bg-[#EF4444] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg bg-[#18181B] hover:bg-[#EF4444] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -253,9 +253,9 @@ export const GeminiAiSolverView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center space-x-2 px-3.5 py-2.5 rounded-xl bg-[#252A34] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold border border-white/5 transition-colors cursor-pointer"
+                className="flex items-center space-x-2 px-3.5 py-2.5 rounded-xl bg-[#18181B] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold border border-white/5 transition-colors cursor-pointer"
               >
-                <ImageIcon className="w-4 h-4 text-[#3B82F6]" />
+                <ImageIcon className="w-4 h-4 text-[#22C55E]" />
                 <span>Snap / Upload Question Photo</span>
               </button>
 
@@ -263,7 +263,7 @@ export const GeminiAiSolverView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setPrompt('')}
-                  className="px-3 py-2.5 rounded-xl bg-[#0F1115] hover:bg-[#252A34] text-[#A1A1AA] text-xs font-semibold transition-colors cursor-pointer"
+                  className="px-3 py-2.5 rounded-xl bg-[#000000] hover:bg-[#18181B] text-[#A1A1AA] text-xs font-semibold transition-colors cursor-pointer"
                 >
                   Clear
                 </button>
@@ -292,8 +292,8 @@ export const GeminiAiSolverView: React.FC = () => {
 
         {/* Loading stage ticker */}
         {isLoading && (
-          <div className="p-4 rounded-2xl bg-[#0F1115] border border-[#3B82F6]/40 flex items-center space-x-3 text-xs text-[#FFFFFF] animate-pulse">
-            <Loader2 className="w-4 h-4 text-[#3B82F6] animate-spin flex-shrink-0" />
+          <div className="p-4 rounded-2xl bg-[#000000] border border-[#22C55E]/40 flex items-center space-x-3 text-xs text-[#FFFFFF] animate-pulse">
+            <Loader2 className="w-4 h-4 text-[#22C55E] animate-spin flex-shrink-0" />
             <span>{loadingStage || 'Gemini AI is deriving the step-by-step solution...'}</span>
           </div>
         )}
@@ -317,7 +317,7 @@ export const GeminiAiSolverView: React.FC = () => {
       </div>
 
       {/* Suggested Real Exam & Math/Physics Problems */}
-      <div className="bg-[#181B22] border border-[#252A34] rounded-3xl p-5 shadow-sm space-y-3">
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-[#A1A1AA] block">
             Try Authentic Math & Physics Problems ({selectedSubject}):
@@ -325,7 +325,7 @@ export const GeminiAiSolverView: React.FC = () => {
           {selectedSubject !== 'All' && (
             <button
               onClick={() => setSelectedSubject('All')}
-              className="text-[11px] text-[#3B82F6] hover:underline cursor-pointer"
+              className="text-[11px] text-[#22C55E] hover:underline cursor-pointer"
             >
               Show All Subjects
             </button>
@@ -347,10 +347,10 @@ export const GeminiAiSolverView: React.FC = () => {
                 setPrompt(item.text);
                 handleSolve(item.text);
               }}
-              className="p-3 text-left rounded-2xl bg-[#0F1115] hover:bg-[#252A34] border border-[#252A34] hover:border-[#3B82F6]/60 transition-all cursor-pointer group"
+              className="p-3 text-left rounded-2xl bg-[#000000] hover:bg-[#18181B] border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-bold text-[#3B82F6]">{item.subject}</span>
+                <span className="font-bold text-[#22C55E]">{item.subject}</span>
                 <span className="text-[11px] text-[#A1A1AA] group-hover:text-[#FFFFFF]">Click to Solve →</span>
               </div>
               <div className="text-xs font-semibold text-[#FFFFFF]">{item.label}</div>

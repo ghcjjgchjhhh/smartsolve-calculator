@@ -198,8 +198,8 @@ export const MathHub: React.FC = () => {
               }}
               className={`flex items-center space-x-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
                 isActive
-                  ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-md shadow-blue-500/25'
-                  : 'bg-[#181B22] border border-[#252A34] text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#252A34]'
+                  ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-md shadow-emerald-500/25'
+                  : 'bg-[#0A0A0A] border border-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#18181B]'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -210,7 +210,7 @@ export const MathHub: React.FC = () => {
       </div>
 
       {/* Main Solver Card */}
-      <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
         {/* Error Alert */}
         {error && (
           <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-sm flex items-center justify-between">
@@ -242,7 +242,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={quadA}
                   onChange={(e) => setQuadA(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -253,7 +253,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={quadB}
                   onChange={(e) => setQuadB(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -264,7 +264,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={quadC}
                   onChange={(e) => setQuadC(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
             </div>
@@ -277,7 +277,7 @@ export const MathHub: React.FC = () => {
                   onClick={() => setQuadMethod(m)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
                     quadMethod === m
-                      ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold'
+                      ? 'bg-[#22C55E] text-[#FFFFFF] font-bold'
                       : 'bg-slate-100 dark:bg-zinc-900 text-[#A1A1AA]'
                   }`}
                 >
@@ -315,7 +315,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={linA}
                   onChange={(e) => setLinA(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-slate-50 dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-slate-50 dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -324,7 +324,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={linB}
                   onChange={(e) => setLinB(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-slate-50 dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-slate-50 dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -333,7 +333,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={linC}
                   onChange={(e) => setLinC(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-slate-50 dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-slate-50 dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -342,7 +342,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={linD}
                   onChange={(e) => setLinD(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-slate-50 dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-slate-50 dark:bg-zinc-900 font-mono"
                 />
               </div>
             </div>
@@ -370,7 +370,7 @@ export const MathHub: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl space-y-2 border border-[#252A34]">
+              <div className="p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl space-y-2 border border-[#27272A]">
                 <span className="text-xs font-bold text-emerald-500 uppercase">Equation 1</span>
                 <div className="grid grid-cols-3 gap-2">
                   <input
@@ -378,26 +378,26 @@ export const MathHub: React.FC = () => {
                     value={simA1}
                     onChange={(e) => setSimA1(parseFloat(e.target.value) || 0)}
                     placeholder="a1"
-                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                   <input
                     type="number"
                     value={simB1}
                     onChange={(e) => setSimB1(parseFloat(e.target.value) || 0)}
                     placeholder="b1"
-                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                   <input
                     type="number"
                     value={simC1}
                     onChange={(e) => setSimC1(parseFloat(e.target.value) || 0)}
                     placeholder="c1"
-                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl space-y-2 border border-[#252A34]">
+              <div className="p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl space-y-2 border border-[#27272A]">
                 <span className="text-xs font-bold text-indigo-600 uppercase">Equation 2</span>
                 <div className="grid grid-cols-3 gap-2">
                   <input
@@ -405,21 +405,21 @@ export const MathHub: React.FC = () => {
                     value={simA2}
                     onChange={(e) => setSimA2(parseFloat(e.target.value) || 0)}
                     placeholder="a2"
-                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                   <input
                     type="number"
                     value={simB2}
                     onChange={(e) => setSimB2(parseFloat(e.target.value) || 0)}
                     placeholder="b2"
-                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                   <input
                     type="number"
                     value={simC2}
                     onChange={(e) => setSimC2(parseFloat(e.target.value) || 0)}
                     placeholder="c2"
-                    className="px-2.5 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 text-center font-mono"
+                    className="px-2.5 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 text-center font-mono"
                   />
                 </div>
               </div>
@@ -455,7 +455,7 @@ export const MathHub: React.FC = () => {
                   value={calcTerms}
                   onChange={(e) => setCalcTerms(e.target.value)}
                   placeholder="e.g. 4x^3 - 2x^2 + 5x - 7"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono text-sm font-bold text-[#FFFFFF]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono text-sm font-bold text-[#FFFFFF]"
                 />
               </div>
               <div>
@@ -466,7 +466,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={calcEvalAt}
                   onChange={(e) => setCalcEvalAt(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono text-sm font-bold text-[#FFFFFF]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono text-sm font-bold text-[#FFFFFF]"
                 />
               </div>
             </div>
@@ -480,7 +480,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={intLower}
                     onChange={(e) => setIntLower(parseFloat(e.target.value) || 0)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#252A34] bg-white dark:bg-black font-mono text-xs font-bold"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#27272A] bg-white dark:bg-black font-mono text-xs font-bold"
                   />
                 </div>
                 <div>
@@ -489,7 +489,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={intUpper}
                     onChange={(e) => setIntUpper(parseFloat(e.target.value) || 0)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#252A34] bg-white dark:bg-black font-mono text-xs font-bold"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#27272A] bg-white dark:bg-black font-mono text-xs font-bold"
                   />
                 </div>
               </div>
@@ -551,7 +551,7 @@ export const MathHub: React.FC = () => {
                 onClick={() => setPythFind('hypotenuse')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                   pythFind === 'hypotenuse'
-                    ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
+                    ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-sm'
                     : 'bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300'
                 }`}
               >
@@ -561,7 +561,7 @@ export const MathHub: React.FC = () => {
                 onClick={() => setPythFind('leg')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                   pythFind === 'leg'
-                    ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
+                    ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-sm'
                     : 'bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300'
                 }`}
               >
@@ -578,7 +578,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={pythA}
                   onChange={(e) => setPythA(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -589,7 +589,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={pythB}
                   onChange={(e) => setPythB(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
             </div>
@@ -621,7 +621,7 @@ export const MathHub: React.FC = () => {
                   onClick={() => setMensShape(s)}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold capitalize transition-colors ${
                     mensShape === s
-                      ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
+                      ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-sm'
                       : 'bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300'
                   }`}
                 >
@@ -639,7 +639,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={mensR}
                   onChange={(e) => setMensR(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               {(mensShape === 'cylinder' || mensShape === 'cone') && (
@@ -651,7 +651,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={mensH}
                     onChange={(e) => setMensH(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
               )}
@@ -688,7 +688,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={apA}
                     onChange={(e) => setApA(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
                 <div>
@@ -697,7 +697,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={apD}
                     onChange={(e) => setApD(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
                 <div>
@@ -706,7 +706,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={apN}
                     onChange={(e) => setApN(parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
               </div>
@@ -727,7 +727,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={gpA}
                     onChange={(e) => setGpA(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
                 <div>
@@ -736,7 +736,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={gpR}
                     onChange={(e) => setGpR(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
                 <div>
@@ -745,7 +745,7 @@ export const MathHub: React.FC = () => {
                     type="number"
                     value={gpN}
                     onChange={(e) => setGpN(parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 rounded-lg border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                   />
                 </div>
               </div>
@@ -777,14 +777,14 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={fNum1}
                   onChange={(e) => setFNum1(parseInt(e.target.value) || 0)}
-                  className="w-full px-2 py-1.5 rounded-lg border border-[#252A34] text-center font-mono font-bold"
+                  className="w-full px-2 py-1.5 rounded-lg border border-[#27272A] text-center font-mono font-bold"
                 />
                 <div className="w-full h-0.5 bg-slate-400 my-1.5" />
                 <input
                   type="number"
                   value={fDen1}
                   onChange={(e) => setFDen1(parseInt(e.target.value) || 1)}
-                  className="w-full px-2 py-1.5 rounded-lg border border-[#252A34] text-center font-mono font-bold"
+                  className="w-full px-2 py-1.5 rounded-lg border border-[#27272A] text-center font-mono font-bold"
                 />
               </div>
 
@@ -794,7 +794,7 @@ export const MathHub: React.FC = () => {
                     key={op}
                     onClick={() => setFOp(op)}
                     className={`w-9 h-9 rounded-lg font-bold text-base transition-colors ${
-                      fOp === op ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow' : 'text-[#A1A1AA]'
+                      fOp === op ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow' : 'text-[#A1A1AA]'
                     }`}
                   >
                     {op === '*' ? '×' : op === '/' ? '÷' : op}
@@ -807,14 +807,14 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={fNum2}
                   onChange={(e) => setFNum2(parseInt(e.target.value) || 0)}
-                  className="w-full px-2 py-1.5 rounded-lg border border-[#252A34] text-center font-mono font-bold"
+                  className="w-full px-2 py-1.5 rounded-lg border border-[#27272A] text-center font-mono font-bold"
                 />
                 <div className="w-full h-0.5 bg-slate-400 my-1.5" />
                 <input
                   type="number"
                   value={fDen2}
                   onChange={(e) => setFDen2(parseInt(e.target.value) || 1)}
-                  className="w-full px-2 py-1.5 rounded-lg border border-[#252A34] text-center font-mono font-bold"
+                  className="w-full px-2 py-1.5 rounded-lg border border-[#27272A] text-center font-mono font-bold"
                 />
               </div>
             </div>
@@ -845,7 +845,7 @@ export const MathHub: React.FC = () => {
                 <select
                   value={pctType}
                   onChange={(e: any) => setPctType(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 text-sm font-semibold"
+                  className="px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 text-sm font-semibold"
                 >
                   <option value="of">P% of Value</option>
                   <option value="increase">Increase Value by P%</option>
@@ -857,14 +857,14 @@ export const MathHub: React.FC = () => {
                   value={pctA}
                   onChange={(e) => setPctA(parseFloat(e.target.value) || 0)}
                   placeholder="Percentage (P)"
-                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
                 <input
                   type="number"
                   value={pctB}
                   onChange={(e) => setPctB(parseFloat(e.target.value) || 0)}
                   placeholder="Total / Base"
-                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <button
@@ -883,14 +883,14 @@ export const MathHub: React.FC = () => {
                   value={ratioAmount}
                   onChange={(e) => setRatioAmount(parseFloat(e.target.value) || 0)}
                   placeholder="Total Amount to Share"
-                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
                 <input
                   type="text"
                   value={ratioParts}
                   onChange={(e) => setRatioParts(e.target.value)}
                   placeholder="Ratio e.g. 2:3:5"
-                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <button
@@ -920,7 +920,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={coordX1}
                   onChange={(e) => setCoordX1(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -929,7 +929,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={coordY1}
                   onChange={(e) => setCoordY1(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -938,7 +938,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={coordX2}
                   onChange={(e) => setCoordX2(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -947,7 +947,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={coordY2}
                   onChange={(e) => setCoordY2(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
             </div>
@@ -981,7 +981,7 @@ export const MathHub: React.FC = () => {
                 value={statData}
                 onChange={(e) => setStatData(e.target.value)}
                 placeholder="e.g. 12, 15, 20, 25, 28"
-                className="w-full px-3.5 py-3 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono text-sm"
+                className="w-full px-3.5 py-3 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono text-sm"
               />
             </div>
 
@@ -1014,7 +1014,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={combN}
                   onChange={(e) => setCombN(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -1023,7 +1023,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={combR}
                   onChange={(e) => setCombR(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono"
                 />
               </div>
               <div>
@@ -1031,7 +1031,7 @@ export const MathHub: React.FC = () => {
                 <select
                   value={combType}
                   onChange={(e: any) => setCombType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 text-sm font-semibold"
+                  className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 text-sm font-semibold"
                 >
                   <option value="comb">Combinations (ⁿCᵣ)</option>
                   <option value="perm">Permutations (ⁿPᵣ)</option>
@@ -1067,28 +1067,28 @@ export const MathHub: React.FC = () => {
                   value={matA}
                   onChange={(e) => setMatA(parseFloat(e.target.value) || 0)}
                   placeholder="a"
-                  className="px-3 py-2 rounded-lg border border-[#252A34] text-center font-mono"
+                  className="px-3 py-2 rounded-lg border border-[#27272A] text-center font-mono"
                 />
                 <input
                   type="number"
                   value={matB}
                   onChange={(e) => setMatB(parseFloat(e.target.value) || 0)}
                   placeholder="b"
-                  className="px-3 py-2 rounded-lg border border-[#252A34] text-center font-mono"
+                  className="px-3 py-2 rounded-lg border border-[#27272A] text-center font-mono"
                 />
                 <input
                   type="number"
                   value={matC}
                   onChange={(e) => setMatC(parseFloat(e.target.value) || 0)}
                   placeholder="c"
-                  className="px-3 py-2 rounded-lg border border-[#252A34] text-center font-mono"
+                  className="px-3 py-2 rounded-lg border border-[#27272A] text-center font-mono"
                 />
                 <input
                   type="number"
                   value={matD}
                   onChange={(e) => setMatD(parseFloat(e.target.value) || 0)}
                   placeholder="d"
-                  className="px-3 py-2 rounded-lg border border-[#252A34] text-center font-mono"
+                  className="px-3 py-2 rounded-lg border border-[#27272A] text-center font-mono"
                 />
               </div>
               <button
@@ -1107,14 +1107,14 @@ export const MathHub: React.FC = () => {
                   value={v1}
                   onChange={(e) => setV1(e.target.value)}
                   placeholder="Vector A (x, y, z)"
-                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono text-sm"
+                  className="px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono text-sm"
                 />
                 <input
                   type="text"
                   value={v2}
                   onChange={(e) => setV2(e.target.value)}
                   placeholder="Vector B (x, y, z)"
-                  className="px-3 py-2 rounded-xl border border-[#252A34] bg-white dark:bg-zinc-900 font-mono text-sm"
+                  className="px-3 py-2 rounded-xl border border-[#27272A] bg-white dark:bg-zinc-900 font-mono text-sm"
                 />
               </div>
               <button
@@ -1151,8 +1151,8 @@ export const MathHub: React.FC = () => {
                 onClick={() => setInterestType('compound')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   interestType === 'compound'
-                    ? 'bg-[#3B82F6] text-[#FFFFFF]'
-                    : 'bg-[#0F1115] text-[#A1A1AA] border border-[#252A34]'
+                    ? 'bg-[#22C55E] text-[#FFFFFF]'
+                    : 'bg-[#000000] text-[#A1A1AA] border border-[#27272A]'
                 }`}
               >
                 Compound Interest (A = P(1 + r/n)^nt)
@@ -1161,8 +1161,8 @@ export const MathHub: React.FC = () => {
                 onClick={() => setInterestType('simple')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   interestType === 'simple'
-                    ? 'bg-[#3B82F6] text-[#FFFFFF]'
-                    : 'bg-[#0F1115] text-[#A1A1AA] border border-[#252A34]'
+                    ? 'bg-[#22C55E] text-[#FFFFFF]'
+                    : 'bg-[#000000] text-[#A1A1AA] border border-[#27272A]'
                 }`}
               >
                 Simple Interest (I = PRT/100)
@@ -1178,7 +1178,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={interestPrincipal}
                   onChange={(e) => setInterestPrincipal(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -1189,7 +1189,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={interestRate}
                   onChange={(e) => setInterestRate(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -1200,7 +1200,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={interestTime}
                   onChange={(e) => setInterestTime(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
             </div>
@@ -1213,7 +1213,7 @@ export const MathHub: React.FC = () => {
                 <select
                   value={interestCompounds}
                   onChange={(e) => setInterestCompounds(parseInt(e.target.value) || 1)}
-                  className="w-full sm:w-64 px-3 py-2 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] text-xs font-semibold"
+                  className="w-full sm:w-64 px-3 py-2 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] text-xs font-semibold"
                 >
                   <option value={1}>Annually (n = 1)</option>
                   <option value={2}>Semi-annually (n = 2)</option>
@@ -1265,7 +1265,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={logBase}
                   onChange={(e) => setLogBase(parseFloat(e.target.value) || 2)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -1276,7 +1276,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={logValue}
                   onChange={(e) => setLogValue(parseFloat(e.target.value) || 1)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -1287,7 +1287,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={logTargetBase}
                   onChange={(e) => setLogTargetBase(parseFloat(e.target.value) || 10)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
             </div>
@@ -1323,7 +1323,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={circleH}
                   onChange={(e) => setCircleH(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -1334,7 +1334,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={circleK}
                   onChange={(e) => setCircleK(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -1345,7 +1345,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={circleR}
                   onChange={(e) => setCircleR(parseFloat(e.target.value) || 1)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -1356,7 +1356,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={circleAngle}
                   onChange={(e) => setCircleAngle(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
             </div>
@@ -1392,7 +1392,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={binA}
                   onChange={(e) => setBinA(parseFloat(e.target.value) || 1)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -1403,7 +1403,7 @@ export const MathHub: React.FC = () => {
                   type="number"
                   value={binB}
                   onChange={(e) => setBinB(parseFloat(e.target.value) || 1)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
               <div>
@@ -1416,7 +1416,7 @@ export const MathHub: React.FC = () => {
                   max={12}
                   value={binN}
                   onChange={(e) => setBinN(parseInt(e.target.value) || 1)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold"
                 />
               </div>
             </div>

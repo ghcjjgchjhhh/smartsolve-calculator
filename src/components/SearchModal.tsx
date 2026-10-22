@@ -65,10 +65,10 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm p-4 sm:p-6 flex items-start justify-center">
-      <div className="bg-[#181B22] border border-[#252A34] rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden mt-12 animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden mt-12 animate-in fade-in zoom-in-95 duration-150">
         {/* Search Input Bar */}
-        <div className="p-4 sm:p-5 border-b border-[#252A34] flex items-center space-x-3">
-          <Search className="w-5 h-5 text-[#3B82F6]" />
+        <div className="p-4 sm:p-5 border-b border-[#27272A] flex items-center space-x-3">
+          <Search className="w-5 h-5 text-[#22C55E]" />
           <input
             autoFocus
             type="text"
@@ -79,7 +79,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
           />
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#252A34] cursor-pointer"
+            className="p-1.5 rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#18181B] cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -90,7 +90,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
           {/* Physics */}
           {searchResults.physics.length > 0 && (
             <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#3B82F6] flex items-center space-x-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#22C55E] flex items-center space-x-1.5">
                 <Atom className="w-3.5 h-3.5" />
                 <span>Physics Calculators ({searchResults.physics.length})</span>
               </span>
@@ -102,10 +102,10 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
                       onSelectAction('physics', f.id);
                       onClose();
                     }}
-                    className="p-3 text-left rounded-xl bg-[#0F1115] hover:bg-[#252A34] border border-[#252A34] transition-all cursor-pointer group"
+                    className="p-3 text-left rounded-xl bg-[#000000] hover:bg-[#18181B] border border-[#27272A] transition-all cursor-pointer group"
                   >
                     <div className="text-xs font-bold text-[#FFFFFF] line-clamp-1">{f.name}</div>
-                    <div className="text-xs font-mono font-semibold text-[#3B82F6] mt-0.5">
+                    <div className="text-xs font-mono font-semibold text-[#22C55E] mt-0.5">
                       {f.baseFormula}
                     </div>
                   </button>
@@ -129,7 +129,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
                       onSelectAction(m.tab);
                       onClose();
                     }}
-                    className="p-3 text-left rounded-xl bg-[#0F1115] hover:bg-[#252A34] border border-[#252A34] transition-all cursor-pointer"
+                    className="p-3 text-left rounded-xl bg-[#000000] hover:bg-[#18181B] border border-[#27272A] transition-all cursor-pointer"
                   >
                     <div className="text-xs font-bold text-[#FFFFFF] line-clamp-1">{m.name}</div>
                     <div className="text-[11px] text-[#A1A1AA] line-clamp-1 mt-0.5">{m.sub}</div>
@@ -154,7 +154,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
                       onSelectAction('converter');
                       onClose();
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-[#252A34] text-xs font-semibold text-[#FFFFFF] border border-[#252A34] cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-[#000000] hover:bg-[#18181B] text-xs font-semibold text-[#FFFFFF] border border-[#27272A] cursor-pointer"
                   >
                     {u.name} ({u.baseUnit})
                   </button>

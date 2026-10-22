@@ -47,13 +47,13 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/80 backdrop-blur-sm flex justify-end">
-      <div className="w-full max-w-lg bg-[#181B22] h-full shadow-2xl flex flex-col border-l border-[#252A34] animate-in slide-in-from-right duration-200">
+      <div className="w-full max-w-lg bg-[#0A0A0A] h-full shadow-2xl flex flex-col border-l border-[#27272A] animate-in slide-in-from-right duration-200">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-[#252A34] flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-[#27272A] flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <History className="w-5 h-5 text-[#3B82F6]" />
+            <History className="w-5 h-5 text-[#22C55E]" />
             <h3 className="font-bold text-[#FFFFFF] text-lg">Calculation History</h3>
-            <span className="px-2 py-0.5 rounded-full bg-[#252A34] text-xs font-bold text-[#A1A1AA]">
+            <span className="px-2 py-0.5 rounded-full bg-[#18181B] text-xs font-bold text-[#A1A1AA]">
               {historyList.length}
             </span>
           </div>
@@ -70,7 +70,7 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
             )}
             <button
               onClick={onClose}
-              className="p-2 hover:bg-[#252A34] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] cursor-pointer"
+              className="p-2 hover:bg-[#18181B] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -91,10 +91,10 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
             historyList.map((item) => (
               <div
                 key={item.id}
-                className="p-3.5 rounded-xl border border-[#252A34] bg-[#0F1115] hover:border-[#3B82F6]/60 transition-all space-y-2 group"
+                className="p-3.5 rounded-xl border border-[#27272A] bg-[#000000] hover:border-[#22C55E]/60 transition-all space-y-2 group"
               >
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold uppercase tracking-wider text-[#3B82F6]">
+                  <span className="font-bold uppercase tracking-wider text-[#22C55E]">
                     {item.category}
                   </span>
                   <span className="text-[11px] text-[#A1A1AA]">{formatDate(item.timestamp)}</span>
@@ -118,7 +118,7 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
                   <div className="flex items-center space-x-1">
                     <button
                       onClick={() => setActiveItem(item)}
-                      className="px-2.5 py-1 rounded bg-[#252A34] text-[#FFFFFF] text-xs font-semibold hover:bg-[#3B82F6] hover:text-white transition-all cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-[#18181B] text-[#FFFFFF] text-xs font-semibold hover:bg-[#22C55E] hover:text-white transition-all cursor-pointer"
                     >
                       View Steps
                     </button>
@@ -142,7 +142,7 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
               <div className="flex justify-end mb-2">
                 <button
                   onClick={() => setActiveItem(null)}
-                  className="p-1.5 bg-[#252A34] text-[#FFFFFF] rounded-full hover:bg-[#3B82F6] cursor-pointer"
+                  className="p-1.5 bg-[#18181B] text-[#FFFFFF] rounded-full hover:bg-[#22C55E] cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>

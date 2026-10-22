@@ -64,7 +64,7 @@ export const JambPracticeView: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Banner */}
-      <div className="bg-gradient-to-r from-[#181B22] via-[#1E232E] to-[#252A34] border border-[#252A34] rounded-3xl p-6 text-white shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-[#181B22] via-[#1E232E] to-[#252A34] border border-[#27272A] rounded-3xl p-6 text-white shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
             <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-xs font-bold uppercase tracking-wider">
@@ -89,7 +89,7 @@ export const JambPracticeView: React.FC = () => {
       </div>
 
       {/* Filter and navigation controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#181B22] border border-[#252A34] p-4 rounded-2xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0A0A0A] border border-[#27272A] p-4 rounded-2xl">
         {/* Subject filter */}
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-slate-400" />
@@ -102,8 +102,8 @@ export const JambPracticeView: React.FC = () => {
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 subjectFilter === s
-                  ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
-                  : 'bg-[#0F1115] text-[#A1A1AA] hover:text-[#FFFFFF]'
+                  ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-sm'
+                  : 'bg-[#000000] text-[#A1A1AA] hover:text-[#FFFFFF]'
               }`}
             >
               {s}
@@ -130,14 +130,14 @@ export const JambPracticeView: React.FC = () => {
 
       {/* Question Card */}
       {currentQ && (
-        <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-6 shadow-sm space-y-6">
+        <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-6 shadow-sm space-y-6">
           {/* Question Metadata */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-1 rounded-lg bg-[#3B82F6]/20 text-[#3B82F6] font-bold text-xs">
+              <span className="px-2.5 py-1 rounded-lg bg-[#22C55E]/20 text-[#22C55E] font-bold text-xs">
                 {currentQ.exam} {currentQ.year ? `(${currentQ.year})` : ''}
               </span>
-              <span className="px-2.5 py-1 rounded-lg bg-[#0F1115] text-[#A1A1AA] font-semibold text-xs">
+              <span className="px-2.5 py-1 rounded-lg bg-[#000000] text-[#A1A1AA] font-semibold text-xs">
                 {currentQ.subject}
               </span>
             </div>
@@ -157,7 +157,7 @@ export const JambPracticeView: React.FC = () => {
               const isCorrectAnswer = currentQ.correctAnswer === opt;
 
               let style =
-                'bg-[#0F1115] border-[#252A34] hover:border-emerald-400 dark:hover:border-emerald-500 text-[#FFFFFF]';
+                'bg-[#000000] border-[#27272A] hover:border-emerald-400 dark:hover:border-emerald-500 text-[#FFFFFF]';
 
               if (userChoice) {
                 if (isCorrectAnswer) {
@@ -189,10 +189,10 @@ export const JambPracticeView: React.FC = () => {
           </div>
 
           {/* Action Row */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#252A34]">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#27272A]">
             <button
               onClick={handleToggleSolution}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#252A34] hover:bg-slate-200 dark:hover:bg-slate-700 text-[#FFFFFF] text-xs font-bold transition-colors flex items-center justify-center space-x-2"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#18181B] hover:bg-slate-200 dark:hover:bg-slate-700 text-[#FFFFFF] text-xs font-bold transition-colors flex items-center justify-center space-x-2"
             >
               <Lightbulb className="w-4 h-4 text-amber-500" />
               <span>{isRevealed ? 'Hide Step-by-Step Solution' : 'Show Step-by-Step Solution'}</span>
@@ -203,14 +203,14 @@ export const JambPracticeView: React.FC = () => {
               <button
                 disabled={currentIndex === 0}
                 onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#252A34] disabled:opacity-40 text-slate-700 dark:text-slate-300"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#18181B] disabled:opacity-40 text-slate-700 dark:text-slate-300"
               >
                 Previous
               </button>
               <button
                 disabled={currentIndex >= questions.length - 1}
                 onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-[#3B82F6] hover:bg-[#2563EB] text-[#FFFFFF] disabled:opacity-40"
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] disabled:opacity-40"
               >
                 Next Question
               </button>

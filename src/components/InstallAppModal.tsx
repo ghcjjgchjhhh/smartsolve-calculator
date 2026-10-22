@@ -44,19 +44,19 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-lg bg-[#181B22] rounded-3xl shadow-2xl border border-[#252A34] overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-lg bg-[#0A0A0A] rounded-3xl shadow-2xl border border-[#27272A] overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header with App Icon */}
-        <div className="relative bg-[#13161D] p-6 text-[#FFFFFF] border-b border-[#252A34]">
+        <div className="relative bg-[#13161D] p-6 text-[#FFFFFF] border-b border-[#27272A]">
           <button
             onClick={onClose}
             aria-label="Close"
-            className="absolute top-4 right-4 p-2 rounded-xl bg-[#252A34] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer"
+            className="absolute top-4 right-4 p-2 rounded-xl bg-[#18181B] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
 
           <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#252A34] border border-[#3B82F6]/40 shadow-xl p-1.5 flex-shrink-0 flex items-center justify-center text-[#3B82F6]">
+            <div className="w-14 h-14 rounded-2xl bg-[#18181B] border border-[#22C55E]/40 shadow-xl p-1.5 flex-shrink-0 flex items-center justify-center text-[#22C55E]">
               <img
                 src="/icon.svg"
                 alt="SmartSolve App Icon"
@@ -66,7 +66,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-xl font-bold tracking-tight text-[#FFFFFF]">SmartSolve Calculator</span>
-                <span className="bg-[#3B82F6]/20 text-[#3B82F6] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#3B82F6]/30 uppercase">
+                <span className="bg-[#22C55E]/20 text-[#22C55E] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#22C55E]/30 uppercase">
                   Mobile PWA
                 </span>
               </div>
@@ -93,11 +93,11 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
           ) : (
             /* Direct One-Tap Install Action if browser supports it */
             canInstall && (
-              <div className="p-4 rounded-2xl bg-[#0F1115] border border-[#3B82F6]/30">
+              <div className="p-4 rounded-2xl bg-[#000000] border border-[#22C55E]/30">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-bold text-[#FFFFFF] flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-[#3B82F6]" />
+                      <Sparkles className="w-4 h-4 text-[#22C55E]" />
                       Instant 1-Tap Installation Ready
                     </p>
                     <p className="text-xs text-[#A1A1AA] mt-0.5">
@@ -118,12 +118,12 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
           {/* Device Tabs */}
           <div>
-            <div className="flex rounded-xl bg-[#0F1115] border border-[#252A34] p-1 mb-4 text-xs font-semibold">
+            <div className="flex rounded-xl bg-[#000000] border border-[#27272A] p-1 mb-4 text-xs font-semibold">
               <button
                 onClick={() => setActiveTab('android')}
                 className={`flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg transition-all ${
                   activeTab === 'android'
-                    ? 'bg-[#3B82F6] text-[#FFFFFF] shadow-sm font-bold'
+                    ? 'bg-[#22C55E] text-[#FFFFFF] shadow-sm font-bold'
                     : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
                 }`}
               >
@@ -134,7 +134,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 onClick={() => setActiveTab('ios')}
                 className={`flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg transition-all ${
                   activeTab === 'ios'
-                    ? 'bg-[#3B82F6] text-[#FFFFFF] shadow-sm font-bold'
+                    ? 'bg-[#22C55E] text-[#FFFFFF] shadow-sm font-bold'
                     : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
                 }`}
               >
@@ -145,7 +145,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 onClick={() => setActiveTab('pc')}
                 className={`flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg transition-all ${
                   activeTab === 'pc'
-                    ? 'bg-[#3B82F6] text-[#FFFFFF] shadow-sm font-bold'
+                    ? 'bg-[#22C55E] text-[#FFFFFF] shadow-sm font-bold'
                     : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
                 }`}
               >
@@ -157,8 +157,8 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* Android Instructions */}
             {activeTab === 'android' && (
               <div className="space-y-3 text-xs sm:text-sm text-[#A1A1AA]">
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34]">
-                  <div className="w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#27272A]">
+                  <div className="w-6 h-6 rounded-lg bg-[#18181B] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     1
                   </div>
                   <div>
@@ -171,13 +171,13 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34]">
-                  <div className="w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#27272A]">
+                  <div className="w-6 h-6 rounded-lg bg-[#18181B] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     2
                   </div>
                   <div>
                     <p className="font-semibold text-[#FFFFFF] flex items-center gap-1.5">
-                      Tap the Chrome menu <MoreVertical className="w-4 h-4 text-[#3B82F6] inline" /> (three dots)
+                      Tap the Chrome menu <MoreVertical className="w-4 h-4 text-[#22C55E] inline" /> (three dots)
                     </p>
                     <p className="text-[#A1A1AA] text-xs mt-0.5">
                       Located in the top-right corner of your browser.
@@ -185,7 +185,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#22C55E]/40">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#22C55E]/40">
                   <div className="w-6 h-6 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     3
                   </div>
@@ -214,8 +214,8 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* iOS Instructions */}
             {activeTab === 'ios' && (
               <div className="space-y-3 text-xs sm:text-sm text-[#A1A1AA]">
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34]">
-                  <div className="w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#27272A]">
+                  <div className="w-6 h-6 rounded-lg bg-[#18181B] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     1
                   </div>
                   <div>
@@ -228,13 +228,13 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34]">
-                  <div className="w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#27272A]">
+                  <div className="w-6 h-6 rounded-lg bg-[#18181B] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     2
                   </div>
                   <div>
                     <p className="font-semibold text-[#FFFFFF] flex items-center gap-1.5">
-                      Tap the <Share2 className="w-4 h-4 text-[#3B82F6] inline" /> Share button
+                      Tap the <Share2 className="w-4 h-4 text-[#22C55E] inline" /> Share button
                     </p>
                     <p className="text-[#A1A1AA] text-xs mt-0.5">
                       The square icon with an upward arrow at the bottom of Safari.
@@ -242,7 +242,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#22C55E]/40">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#22C55E]/40">
                   <div className="w-6 h-6 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     3
                   </div>
@@ -261,8 +261,8 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* Desktop / PC Instructions */}
             {activeTab === 'pc' && (
               <div className="space-y-3 text-xs sm:text-sm text-[#A1A1AA]">
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#252A34]">
-                  <div className="w-6 h-6 rounded-lg bg-[#252A34] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#27272A]">
+                  <div className="w-6 h-6 rounded-lg bg-[#18181B] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     1
                   </div>
                   <div>
@@ -275,7 +275,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#0F1115] border border-[#22C55E]/40">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#22C55E]/40">
                   <div className="w-6 h-6 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     2
                   </div>
@@ -303,24 +303,24 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </div>
 
           {/* Benefits */}
-          <div className="pt-2 border-t border-[#252A34]">
+          <div className="pt-2 border-t border-[#27272A]">
             <p className="text-xs font-bold uppercase tracking-wider text-[#A1A1AA] mb-3">
               App Advantages vs Website
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#0F1115] border border-[#252A34]">
-                <Maximize2 className="w-4 h-4 text-[#3B82F6] flex-shrink-0" />
+              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#000000] border border-[#27272A]">
+                <Maximize2 className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
                 <span className="text-[#FFFFFF]">Fullscreen (No URL Bars)</span>
               </div>
-              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#0F1115] border border-[#252A34]">
+              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#000000] border border-[#27272A]">
                 <WifiOff className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
                 <span className="text-[#FFFFFF]">100% Offline Ready</span>
               </div>
-              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#0F1115] border border-[#252A34]">
-                <Smartphone className="w-4 h-4 text-[#3B82F6] flex-shrink-0" />
+              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#000000] border border-[#27272A]">
+                <Smartphone className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
                 <span className="text-[#FFFFFF]">Fast Home Screen Launch</span>
               </div>
-              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#0F1115] border border-[#252A34]">
+              <div className="flex items-center space-x-2 p-2 rounded-xl bg-[#000000] border border-[#27272A]">
                 <Sparkles className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
                 <span className="text-[#FFFFFF]">Zero Latency Math Engine</span>
               </div>
@@ -329,10 +329,10 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-[#13161D] border-t border-[#252A34] flex justify-end">
+        <div className="p-4 bg-[#13161D] border-t border-[#27272A] flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-[#252A34] hover:bg-[#2F3542] text-[#FFFFFF] font-semibold text-xs transition-colors cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-[#18181B] hover:bg-[#2F3542] text-[#FFFFFF] font-semibold text-xs transition-colors cursor-pointer"
           >
             Got it / Close
           </button>

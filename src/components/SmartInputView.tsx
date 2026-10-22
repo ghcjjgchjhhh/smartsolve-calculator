@@ -48,15 +48,15 @@ export const SmartInputView: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Intro */}
-      <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
         <div>
           <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#3B82F6]/20 text-[#3B82F6] font-bold text-xs uppercase tracking-wider">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E] font-bold text-xs uppercase tracking-wider">
               Smart Natural Language Processing
             </span>
           </div>
           <h2 className="text-xl font-bold text-[#FFFFFF] mt-1 flex items-center space-x-2">
-            <MessageSquareCode className="w-5 h-5 text-[#3B82F6]" />
+            <MessageSquareCode className="w-5 h-5 text-[#22C55E]" />
             <span>Smart Problem Solver</span>
           </h2>
           <p className="text-xs sm:text-sm text-[#A1A1AA] mt-1">
@@ -80,7 +80,7 @@ export const SmartInputView: React.FC = () => {
             />
             <button
               onClick={() => handleExecute()}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[#3B82F6] text-[#FFFFFF] hover:bg-[#2563EB] transition-colors"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[#22C55E] text-[#FFFFFF] hover:bg-[#16A34A] transition-colors"
             >
               <CornerDownLeft className="w-4 h-4" />
             </button>
@@ -97,7 +97,7 @@ export const SmartInputView: React.FC = () => {
               <button
                 key={sample}
                 onClick={() => handleSelectSample(sample)}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 hover:text-[#3B82F6] dark:hover:bg-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700"
+                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 hover:text-[#22C55E] dark:hover:bg-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700"
               >
                 {sample}
               </button>

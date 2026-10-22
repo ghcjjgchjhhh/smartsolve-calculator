@@ -106,7 +106,7 @@ export const UnitConverterView: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Category Grid */}
-      <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 shadow-sm space-y-4">
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-5 shadow-sm space-y-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center space-x-2">
             <Scale className="w-5 h-5 text-emerald-500" />
@@ -128,8 +128,8 @@ export const UnitConverterView: React.FC = () => {
                 onClick={() => handleSelectCategory(c.name)}
                 className={`flex items-center space-x-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
                   isSelected
-                    ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold border-[#3B82F6] shadow-sm'
-                    : 'bg-[#0F1115] text-[#A1A1AA] border-[#252A34] hover:text-[#FFFFFF] hover:bg-[#252A34]'
+                    ? 'bg-[#22C55E] text-[#FFFFFF] font-bold border-[#22C55E] shadow-sm'
+                    : 'bg-[#000000] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF] hover:bg-[#18181B]'
                 }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
@@ -141,9 +141,9 @@ export const UnitConverterView: React.FC = () => {
       </div>
 
       {/* Main Conversion Control Card */}
-      <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#3B82F6]">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#22C55E]">
             Converting: {currentCat.name}
           </span>
           <span className="text-xs text-[#A1A1AA]">
@@ -162,12 +162,12 @@ export const UnitConverterView: React.FC = () => {
               type="number"
               value={inputValue}
               onChange={(e) => setInputValue(parseFloat(e.target.value) || 0)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold text-lg"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold text-lg"
             />
             <select
               value={fromUnitId}
               onChange={(e) => setFromUnitId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] text-sm font-semibold"
+              className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] text-sm font-semibold"
             >
               {currentCat.units.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -182,7 +182,7 @@ export const UnitConverterView: React.FC = () => {
             <button
               onClick={handleSwapUnits}
               title="Swap Units"
-              className="p-3 rounded-full bg-[#252A34] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#252A34] transition-transform active:rotate-180"
+              className="p-3 rounded-full bg-[#18181B] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#27272A] transition-transform active:rotate-180"
             >
               <ArrowLeftRight className="w-5 h-5" />
             </button>
@@ -193,13 +193,13 @@ export const UnitConverterView: React.FC = () => {
             <label className="text-xs font-bold text-[#A1A1AA] uppercase tracking-wider block">
               To
             </label>
-            <div className="w-full px-3.5 py-2.5 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono font-bold text-lg min-h-[46px] flex items-center">
+            <div className="w-full px-3.5 py-2.5 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono font-bold text-lg min-h-[46px] flex items-center">
               {solution ? solution.finalAnswer : '---'}
             </div>
             <select
               value={toUnitId}
               onChange={(e) => setToUnitId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-[#252A34] bg-[#0F1115] text-[#FFFFFF] text-sm font-semibold"
+              className="w-full px-3 py-2 rounded-xl border border-[#27272A] bg-[#000000] text-[#FFFFFF] text-sm font-semibold"
             >
               {currentCat.units.map((u) => (
                 <option key={u.id} value={u.id}>

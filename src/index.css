@@ -4,10 +4,10 @@
   :root {
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    --color-bg-main: #0F1115;
-    --color-calc-display: #181B22;
-    --color-btn-number: #252A34;
-    --color-btn-operator: #3B82F6;
+    --color-bg-main: #000000;
+    --color-calc-display: #0A0A0A;
+    --color-btn-number: #18181B;
+    --color-btn-operator: #22C55E;
     --color-btn-equals: #22C55E;
     --color-btn-clear: #EF4444;
     --color-text-main: #FFFFFF;
@@ -15,7 +15,7 @@
   }
 
   body {
-    background-color: #0F1115;
+    background-color: #000000;
     color: #FFFFFF;
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;

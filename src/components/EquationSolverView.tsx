@@ -112,7 +112,7 @@ export const EquationSolverView: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Intro & Samples */}
-      <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
         <div>
           <h2 className="text-xl font-bold text-[#FFFFFF] flex items-center space-x-2">
             <Cpu className="w-5 h-5 text-emerald-500" />
@@ -134,7 +134,7 @@ export const EquationSolverView: React.FC = () => {
               value={equationInput}
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder="e.g. 2x + 5 = 15 or v = u + at"
-              className="w-full px-4 py-3.5 rounded-xl border-2 border-[#252A34] bg-[#0F1115] text-[#FFFFFF] font-mono text-lg font-bold focus:border-emerald-500 focus:outline-none transition-colors"
+              className="w-full px-4 py-3.5 rounded-xl border-2 border-[#27272A] bg-[#000000] text-[#FFFFFF] font-mono text-lg font-bold focus:border-emerald-500 focus:outline-none transition-colors"
             />
           </div>
         </div>
@@ -149,7 +149,7 @@ export const EquationSolverView: React.FC = () => {
               <button
                 key={sample}
                 onClick={() => handleSelectSample(sample)}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 hover:text-emerald-500 dark:hover:bg-slate-700 text-xs font-mono font-semibold text-[#A1A1AA] transition-colors border border-[#252A34]"
+                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 hover:text-emerald-500 dark:hover:bg-slate-700 text-xs font-mono font-semibold text-[#A1A1AA] transition-colors border border-[#27272A]"
               >
                 {sample}
               </button>
@@ -159,12 +159,12 @@ export const EquationSolverView: React.FC = () => {
 
         {/* Equation Status / Detection */}
         {analyzed && (
-          <div className="p-4 bg-[#0F1115] rounded-xl border border-[#252A34] space-y-3">
+          <div className="p-4 bg-[#000000] rounded-xl border border-[#27272A] space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#3B82F6]">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#22C55E]">
                 Equation Type Detected:
               </span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 dark:bg-emerald-950 text-[#3B82F6] capitalize">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 dark:bg-emerald-950 text-[#22C55E] capitalize">
                 {analyzed.type.replace('_', ' ')}
               </span>
             </div>
@@ -186,8 +186,8 @@ export const EquationSolverView: React.FC = () => {
                           onClick={() => setSelectedTarget(sym)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                             isTarget
-                              ? 'bg-[#3B82F6] text-[#FFFFFF] font-bold shadow-sm'
-                              : 'bg-white dark:bg-zinc-900 text-[#A1A1AA] border border-[#252A34]'
+                              ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-sm'
+                              : 'bg-white dark:bg-zinc-900 text-[#A1A1AA] border border-[#27272A]'
                           }`}
                         >
                           Find {sym} {param ? `(${param.name})` : ''}
@@ -206,7 +206,7 @@ export const EquationSolverView: React.FC = () => {
                     {matchedPhysicsDef.variables
                       .filter((v) => v.symbol !== selectedTarget)
                       .map((v) => (
-                        <div key={v.symbol} className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-[#252A34]">
+                        <div key={v.symbol} className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-[#27272A]">
                           <div className="flex items-center justify-between text-xs mb-1">
                             <span className="font-semibold text-[#A1A1AA]">{v.name} ({v.symbol})</span>
                             <span className="font-mono text-[#A1A1AA] font-bold">{v.unit}</span>
@@ -220,7 +220,7 @@ export const EquationSolverView: React.FC = () => {
                                 [v.symbol]: parseFloat(e.target.value) || 0,
                               }))
                             }
-                            className="w-full px-2.5 py-1.5 rounded border border-[#252A34] bg-[#181B22] text-[#FFFFFF] font-mono text-sm font-bold"
+                            className="w-full px-2.5 py-1.5 rounded border border-[#27272A] bg-[#0A0A0A] text-[#FFFFFF] font-mono text-sm font-bold"
                           />
                         </div>
                       ))}

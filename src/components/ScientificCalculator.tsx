@@ -3,7 +3,7 @@ import { evaluateExpression, formatNum } from '../services/mathEngine';
 import { StepSolutionCard } from './StepSolutionCard';
 import { StepSolution } from '../types';
 import { saveToHistory } from '../services/historyStorage';
-import { Delete, Equal, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Delete, Equal, Sparkles, Loader2, AlertCircle } from 'lucide-react';
 
 export const ScientificCalculator: React.FC = () => {
   const [expression, setExpression] = useState<string>('');
@@ -13,6 +13,8 @@ export const ScientificCalculator: React.FC = () => {
   const [lastSolution, setLastSolution] = useState<StepSolution | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [calcMode, setCalcMode] = useState<'standard' | 'scientific'>('standard');
+  const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
+  const [aiStatusMessage, setAiStatusMessage] = useState<string>('');
   const displayEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll display to the end as user types
@@ -22,10 +24,17 @@ export const ScientificCalculator: React.FC = () => {
     }
   }, [expression]);
 
-  // Live preview evaluation
+  // Live preview evaluation (for purely arithmetic expressions)
   useEffect(() => {
     if (!expression.trim()) {
       setPreviewResult('');
+      setErrorMsg(null);
+      return;
+    }
+
+    // If expression contains algebra or equation (= or variable letters x, y, z), preview shows AI ready
+    if (expression.includes('=') || /[xyz]/i.test(expression)) {
+      setPreviewResult('AI Ready');
       setErrorMsg(null);
       return;
     }
@@ -42,7 +51,6 @@ export const ScientificCalculator: React.FC = () => {
   // Keyboard navigation support
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing into an input field or textarea
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
 
       if (e.key >= '0' && e.key <= '9') {
@@ -53,16 +61,16 @@ export const ScientificCalculator: React.FC = () => {
         handleInput(' + ');
       } else if (e.key === '-') {
         handleInput(' - ');
-      } else if (e.key === '*' || e.key === 'x') {
-        handleInput(' * ');
+      } else if (e.key === '*' || e.key === 'x' || e.key === 'X') {
+        handleInput(e.key === '*' ? ' * ' : 'x');
       } else if (e.key === '/') {
         e.preventDefault();
         handleInput(' / ');
       } else if (e.key === '%') {
         handleInput('%');
-      } else if (e.key === '(' || e.key === ')') {
+      } else if (e.key === '(' || e.key === ')' || e.key === '=') {
         handleInput(e.key);
-      } else if (e.key === 'Enter' || e.key === '=') {
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         handleCalculate();
       } else if (e.key === 'Backspace') {
@@ -76,7 +84,6 @@ export const ScientificCalculator: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [expression, angleMode]);
 
-  // Subtle haptic touch feedback for mobile
   const triggerHaptic = () => {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
@@ -106,9 +113,61 @@ export const ScientificCalculator: React.FC = () => {
     setExpression((prev) => prev.slice(0, -1));
   };
 
-  const handleCalculate = () => {
+  // Real Gemini AI solver invocation
+  const handleAiSolve = async (overridePrompt?: string) => {
+    triggerHaptic();
+    const targetPrompt = overridePrompt || expression;
+    if (!targetPrompt.trim()) {
+      setErrorMsg('Type an equation, math problem, or question to solve with Gemini AI.');
+      return;
+    }
+
+    setIsAiLoading(true);
+    setErrorMsg(null);
+    setAiStatusMessage('Gemini AI is deriving the step-by-step solution...');
+
+    try {
+      const response = await fetch('/api/ai/solve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: targetPrompt,
+          subject: 'Mathematics',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to solve with Gemini AI.');
+      }
+
+      setLastSolution(data.solution);
+      saveToHistory(data.solution);
+
+      if (data.solution.finalAnswer) {
+        setPreviewResult(data.solution.finalAnswer);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Gemini AI was unable to solve this problem.');
+    } finally {
+      setIsAiLoading(false);
+      setAiStatusMessage('');
+    }
+  };
+
+  // Main calculate button: solves arithmetic directly, or automatically routes algebra/equations to Gemini AI
+  const handleCalculate = async () => {
     triggerHaptic();
     if (!expression.trim()) return;
+
+    // Check if the input contains algebraic equation (=), variables (x, y, z), or word problem
+    const isAlgebraOrEquation = expression.includes('=') || /[xyz]/i.test(expression) || expression.length > 25;
+
+    if (isAlgebraOrEquation) {
+      await handleAiSolve(expression);
+      return;
+    }
 
     try {
       const res = evaluateExpression(expression, angleMode);
@@ -132,27 +191,28 @@ export const ScientificCalculator: React.FC = () => {
       saveToHistory(solution);
       setExpression(finalStr);
       setErrorMsg(null);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Syntax error in calculation.');
+    } catch {
+      // If arithmetic parser fails, automatically attempt real Gemini AI solve!
+      await handleAiSolve(expression);
     }
   };
 
   return (
     <div className="max-w-md sm:max-w-lg lg:max-w-xl mx-auto space-y-6">
-      {/* Polished Modern Calculator Chassis */}
-      <div className="bg-[#0F1115] border border-[#252A34] rounded-3xl p-4 sm:p-6 shadow-2xl shadow-black/80 transition-all">
-        {/* Top Control Bar: Mode Toggle & Angle Settings */}
-        <div className="flex items-center justify-between gap-2 mb-3.5 pb-2 border-b border-[#252A34]/60">
+      {/* Polished Modern Calculator Chassis (Pure Black & Emerald Green) */}
+      <div className="bg-[#000000] border border-[#27272A] rounded-3xl p-4 sm:p-6 shadow-2xl shadow-black transition-all">
+        {/* Top Control Bar: Mode Toggle & Gemini AI Button */}
+        <div className="flex items-center justify-between gap-2 mb-3.5 pb-2 border-b border-[#27272A]">
           {/* Segmented Mode Switcher */}
-          <div className="flex items-center p-1 bg-[#181B22] border border-[#252A34] rounded-xl">
+          <div className="flex items-center p-1 bg-[#0A0A0A] border border-[#27272A] rounded-xl">
             <button
               onClick={() => {
                 triggerHaptic();
                 setCalcMode('standard');
               }}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 calcMode === 'standard'
-                  ? 'bg-[#3B82F6] text-[#FFFFFF] shadow-sm'
+                  ? 'bg-[#22C55E] text-[#FFFFFF] shadow-sm'
                   : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
               }`}
             >
@@ -163,9 +223,9 @@ export const ScientificCalculator: React.FC = () => {
                 triggerHaptic();
                 setCalcMode('scientific');
               }}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 calcMode === 'scientific'
-                  ? 'bg-[#3B82F6] text-[#FFFFFF] shadow-sm'
+                  ? 'bg-[#22C55E] text-[#FFFFFF] shadow-sm'
                   : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
               }`}
             >
@@ -173,7 +233,22 @@ export const ScientificCalculator: React.FC = () => {
             </button>
           </div>
 
-          {/* Angle Mode & 2nd INV toggles */}
+          {/* Quick Gemini AI Button */}
+          <button
+            onClick={() => handleAiSolve()}
+            disabled={isAiLoading}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#22C55E]/15 hover:bg-[#22C55E]/25 text-[#22C55E] border border-[#22C55E]/40 text-xs font-bold shadow-sm active:scale-95 transition-all cursor-pointer"
+            title="Solve complex math or physics problem using real Gemini AI"
+          >
+            {isAiLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22C55E]" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5 text-[#22C55E]" />
+            )}
+            <span>{isAiLoading ? 'AI Solving...' : '⚡ Gemini AI Solve'}</span>
+          </button>
+
+          {/* Angle Mode toggle */}
           <div className="flex items-center space-x-1.5">
             <button
               onClick={() => {
@@ -181,25 +256,25 @@ export const ScientificCalculator: React.FC = () => {
                 setAngleMode(angleMode === 'deg' ? 'rad' : 'deg');
               }}
               aria-label="Toggle degree or radian mode"
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                 angleMode === 'deg'
-                  ? 'bg-[#252A34] text-[#FFFFFF] border-[#3B82F6]/60 shadow-xs'
-                  : 'bg-[#181B22] text-[#A1A1AA] border-[#252A34] hover:text-[#FFFFFF]'
+                  ? 'bg-[#18181B] text-[#FFFFFF] border-[#22C55E]/60 shadow-xs'
+                  : 'bg-[#0A0A0A] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF]'
               }`}
             >
               {angleMode.toUpperCase()}
             </button>
+
             {calcMode === 'scientific' && (
               <button
                 onClick={() => {
                   triggerHaptic();
-                  setIsShift(!isShift);
+                  setIsShift((prev) => !prev);
                 }}
-                aria-label="Toggle second inverse functions"
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                   isShift
                     ? 'bg-[#22C55E] text-[#FFFFFF] border-[#22C55E] shadow-sm'
-                    : 'bg-[#181B22] text-[#A1A1AA] border-[#252A34] hover:text-[#FFFFFF]'
+                    : 'bg-[#0A0A0A] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF]'
                 }`}
               >
                 2nd
@@ -208,15 +283,18 @@ export const ScientificCalculator: React.FC = () => {
           </div>
         </div>
 
-        {/* Calculator Display (#181B22) */}
-        <div className="bg-[#181B22] border border-[#252A34] rounded-2xl p-4 sm:p-5 mb-4 shadow-inner">
+        {/* Calculator Display (Deep Black #0A0A0A with Emerald Accents) */}
+        <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-4 sm:p-5 mb-4 shadow-inner">
           {/* Status line */}
           <div className="flex items-center justify-between text-xs text-[#A1A1AA] font-mono mb-1">
             <span className="text-[11px] font-semibold tracking-wider text-[#A1A1AA]">
               {calcMode.toUpperCase()} · {angleMode.toUpperCase()}
               {isShift ? ' · INV' : ''}
             </span>
-            <span className="text-[11px] font-semibold text-[#A1A1AA]">SmartSolve FX</span>
+            <span className="text-[11px] font-semibold text-[#22C55E] flex items-center space-x-1">
+              <Sparkles className="w-3 h-3 text-[#22C55E] inline" />
+              <span>SmartSolve AI Ready</span>
+            </span>
           </div>
 
           {/* Main Input Text (#FFFFFF) */}
@@ -228,7 +306,10 @@ export const ScientificCalculator: React.FC = () => {
           {/* Live Preview / Error line */}
           <div className="min-h-6 flex items-center justify-end text-right font-mono text-sm sm:text-base mt-1">
             {errorMsg ? (
-              <span className="text-[#EF4444] text-xs sm:text-sm font-sans font-medium">{errorMsg}</span>
+              <span className="text-[#EF4444] text-xs sm:text-sm font-sans font-medium flex items-center space-x-1">
+                <AlertCircle className="w-3.5 h-3.5 text-[#EF4444] inline" />
+                <span>{errorMsg}</span>
+              </span>
             ) : previewResult ? (
               <span className="text-[#22C55E] flex items-center space-x-1 font-bold">
                 <span className="text-xs text-[#A1A1AA] mr-1 font-normal">=</span> {previewResult}
@@ -239,9 +320,17 @@ export const ScientificCalculator: React.FC = () => {
           </div>
         </div>
 
-        {/* Keypad Section */}
+        {/* AI Loading Banner */}
+        {isAiLoading && (
+          <div className="mb-3.5 p-3 rounded-xl bg-[#22C55E]/10 border border-[#22C55E]/30 flex items-center space-x-2.5 text-xs text-[#22C55E] font-semibold animate-pulse">
+            <Loader2 className="w-4 h-4 text-[#22C55E] animate-spin flex-shrink-0" />
+            <span>{aiStatusMessage || 'Gemini AI is deriving the step-by-step solution...'}</span>
+          </div>
+        )}
+
+        {/* Keypad Section (White, Black, and Emerald Green) */}
         {calcMode === 'standard' ? (
-          /* STANDARD 4-COLUMN PHONE LAYOUT (Big, Ergonomic Thumb Targets) */
+          /* STANDARD 4-COLUMN PHONE LAYOUT */
           <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
             {/* Row 1 */}
             <button
@@ -258,14 +347,14 @@ export const ScientificCalculator: React.FC = () => {
               <Delete className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             <button
-              onClick={() => handleInput('%')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-lg sm:text-xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              onClick={() => handleInput('x')}
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#22C55E] rounded-2xl font-bold text-lg sm:text-xl border border-[#27272A] shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
-              %
+              x
             </button>
             <button
               onClick={() => handleInput(' / ')}
-              className="h-14 sm:h-16 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-blue-500/25 flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-emerald-500/25 flex items-center justify-center transition-all cursor-pointer"
             >
               ÷
             </button>
@@ -273,25 +362,25 @@ export const ScientificCalculator: React.FC = () => {
             {/* Row 2 */}
             <button
               onClick={() => handleInput('7')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               7
             </button>
             <button
               onClick={() => handleInput('8')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               8
             </button>
             <button
               onClick={() => handleInput('9')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               9
             </button>
             <button
               onClick={() => handleInput(' * ')}
-              className="h-14 sm:h-16 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-blue-500/25 flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-emerald-500/25 flex items-center justify-center transition-all cursor-pointer"
             >
               ×
             </button>
@@ -299,25 +388,25 @@ export const ScientificCalculator: React.FC = () => {
             {/* Row 3 */}
             <button
               onClick={() => handleInput('4')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               4
             </button>
             <button
               onClick={() => handleInput('5')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               5
             </button>
             <button
               onClick={() => handleInput('6')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               6
             </button>
             <button
               onClick={() => handleInput(' - ')}
-              className="h-14 sm:h-16 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-blue-500/25 flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-emerald-500/25 flex items-center justify-center transition-all cursor-pointer"
             >
               −
             </button>
@@ -325,58 +414,51 @@ export const ScientificCalculator: React.FC = () => {
             {/* Row 4 */}
             <button
               onClick={() => handleInput('1')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               1
             </button>
             <button
               onClick={() => handleInput('2')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               2
             </button>
             <button
               onClick={() => handleInput('3')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               3
             </button>
             <button
               onClick={() => handleInput(' + ')}
-              className="h-14 sm:h-16 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-blue-500/25 flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-emerald-500/25 flex items-center justify-center transition-all cursor-pointer"
             >
               +
             </button>
 
             {/* Row 5 */}
             <button
-              onClick={() => {
-                if (expression.startsWith('-(') && expression.endsWith(')')) {
-                  setExpression(expression.slice(2, -1));
-                } else if (expression.startsWith('-')) {
-                  setExpression(expression.slice(1));
-                } else if (expression) {
-                  setExpression(`-(${expression})`);
-                }
-              }}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-base sm:text-lg border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              onClick={() => handleInput('=')}
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#22C55E] rounded-2xl font-bold text-lg sm:text-xl border border-[#27272A] shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
-              ±
+              =
             </button>
             <button
               onClick={() => handleInput('0')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               0
             </button>
             <button
               onClick={() => handleInput('.')}
-              className="h-14 sm:h-16 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
               .
             </button>
             <button
               onClick={handleCalculate}
+              disabled={isAiLoading}
               className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-extrabold text-xl sm:text-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center transition-all cursor-pointer"
             >
               <Equal className="w-6 h-6 stroke-[3]" />
@@ -388,31 +470,31 @@ export const ScientificCalculator: React.FC = () => {
             {/* Scientific Function Row 1 */}
             <button
               onClick={() => handleInput(isShift ? 'asin(' : 'sin(')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               {isShift ? 'sin⁻¹' : 'sin'}
             </button>
             <button
               onClick={() => handleInput(isShift ? 'acos(' : 'cos(')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               {isShift ? 'cos⁻¹' : 'cos'}
             </button>
             <button
               onClick={() => handleInput(isShift ? 'atan(' : 'tan(')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               {isShift ? 'tan⁻¹' : 'tan'}
             </button>
             <button
               onClick={() => handleInput('π')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               π
             </button>
             <button
               onClick={() => handleInput('e')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               e
             </button>
@@ -420,31 +502,31 @@ export const ScientificCalculator: React.FC = () => {
             {/* Scientific Function Row 2 */}
             <button
               onClick={() => handleInput('log(')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               log
             </button>
             <button
               onClick={() => handleInput('ln(')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               ln
             </button>
             <button
               onClick={() => handleInput('sqrt(')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               √
             </button>
             <button
               onClick={() => handleInput('^2')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               x²
             </button>
             <button
               onClick={() => handleInput('^')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               xʸ
             </button>
@@ -452,21 +534,21 @@ export const ScientificCalculator: React.FC = () => {
             {/* Scientific Function Row 3: Brackets & Clear/Del */}
             <button
               onClick={() => handleInput('(')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#FFFFFF] font-bold text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#FFFFFF] font-bold text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               (
             </button>
             <button
               onClick={() => handleInput(')')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#FFFFFF] font-bold text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#FFFFFF] font-bold text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               )
             </button>
             <button
-              onClick={() => handleInput('!')}
-              className="h-11 sm:h-12 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              onClick={() => handleInput('x')}
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#22C55E] font-bold text-sm border border-[#27272A] transition-all cursor-pointer"
             >
-              n!
+              x
             </button>
             <button
               onClick={handleClear}
@@ -482,127 +564,132 @@ export const ScientificCalculator: React.FC = () => {
               <Delete className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            {/* Scientific Row 4: 7, 8, 9, Operator, % */}
+            {/* Scientific Row 4: 7, 8, 9, ÷, % */}
             <button
               onClick={() => handleInput('7')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               7
             </button>
             <button
               onClick={() => handleInput('8')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               8
             </button>
             <button
               onClick={() => handleInput('9')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               9
             </button>
             <button
               onClick={() => handleInput(' / ')}
-              className="h-12 sm:h-14 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
             >
               ÷
             </button>
             <button
               onClick={() => handleInput('%')}
-              className="h-12 sm:h-14 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#121212] hover:bg-[#18181B] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               %
             </button>
 
-            {/* Scientific Row 5: 4, 5, 6, Operator, |x| */}
+            {/* Scientific Row 5: 4, 5, 6, ×, |x| */}
             <button
               onClick={() => handleInput('4')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               4
             </button>
             <button
               onClick={() => handleInput('5')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               5
             </button>
             <button
               onClick={() => handleInput('6')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               6
             </button>
             <button
               onClick={() => handleInput(' * ')}
-              className="h-12 sm:h-14 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
             >
               ×
             </button>
             <button
               onClick={() => handleInput('abs(')}
-              className="h-12 sm:h-14 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#121212] hover:bg-[#18181B] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
               |x|
             </button>
 
-            {/* Scientific Row 6: 1, 2, 3, Operator, EXP */}
+            {/* Scientific Row 6: 1, 2, 3, −, = */}
             <button
               onClick={() => handleInput('1')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               1
             </button>
             <button
               onClick={() => handleInput('2')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               2
             </button>
             <button
               onClick={() => handleInput('3')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               3
             </button>
             <button
               onClick={() => handleInput(' - ')}
-              className="h-12 sm:h-14 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
             >
               −
             </button>
             <button
-              onClick={() => handleInput('* 10^')}
-              className="h-12 sm:h-14 bg-[#1C2029] hover:bg-[#252A34] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#252A34] transition-all cursor-pointer"
+              onClick={() => handleInput('=')}
+              className="h-12 sm:h-14 bg-[#121212] hover:bg-[#18181B] active:scale-95 text-[#22C55E] hover:text-[#FFFFFF] rounded-xl font-bold text-lg border border-[#27272A] transition-all cursor-pointer"
             >
-              EXP
+              =
             </button>
 
-            {/* Scientific Row 7: 0, ., +, Equals (Span 2) */}
+            {/* Scientific Row 7: 0, ., +, Equals / AI Solve (Span 2) */}
             <button
               onClick={() => handleInput('0')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               0
             </button>
             <button
               onClick={() => handleInput('.')}
-              className="h-12 sm:h-14 bg-[#252A34] hover:bg-[#2F3542] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
             >
               .
             </button>
             <button
               onClick={() => handleInput(' + ')}
-              className="h-12 sm:h-14 bg-[#3B82F6] hover:bg-[#2563EB] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+              className="h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
             >
               +
             </button>
             <button
               onClick={handleCalculate}
+              disabled={isAiLoading}
               className="col-span-2 h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-lg sm:text-xl font-extrabold shadow-lg shadow-emerald-500/30 flex items-center justify-center space-x-2 transition-all cursor-pointer"
             >
-              <Equal className="w-5 h-5 stroke-[3]" />
-              <span>SOLVE</span>
+              {isAiLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin text-[#FFFFFF]" />
+              ) : (
+                <Equal className="w-5 h-5 stroke-[3]" />
+              )}
+              <span>{isAiLoading ? 'SOLVING...' : 'SOLVE'}</span>
             </button>
           </div>
         )}
