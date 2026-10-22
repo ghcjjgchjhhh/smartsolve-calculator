@@ -29,6 +29,7 @@ export const GeminiAiSolverView: React.FC = () => {
   const [solution, setSolution] = useState<StepSolution | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const solutionRef = useRef<HTMLDivElement>(null);
 
   const realProblemSamples = [
     {
@@ -146,14 +147,27 @@ export const GeminiAiSolverView: React.FC = () => {
       clearTimeout(stageTimer1);
       clearTimeout(stageTimer2);
 
-      const data = await response.json();
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch {
+        if (response.status === 404) {
+          throw new Error('AI Solver API (/api/ai/solve) was not found. Please ensure the server is running on port 3000.');
+        }
+        throw new Error(`Server returned status ${response.status}. Please check your connection and try again.`);
+      }
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to generate solution.');
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to generate solution.');
       }
 
       setSolution(data.solution);
       saveToHistory(data.solution);
+
+      // Smoothly scroll down to the solution
+      setTimeout(() => {
+        solutionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
     } catch (err: any) {
       setError(err.message || 'An error occurred while solving the problem with Gemini AI.');
     } finally {
@@ -303,7 +317,7 @@ export const GeminiAiSolverView: React.FC = () => {
           <div className="p-4 rounded-2xl bg-[#EF4444]/15 border border-[#EF4444]/40 text-[#EF4444] text-xs flex items-start space-x-2.5">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <span className="font-bold block">Calculation Error</span>
+              <span className="font-bold block">Calculation Notice</span>
               <span>{error}</span>
             </div>
             <button
@@ -315,6 +329,25 @@ export const GeminiAiSolverView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Verified Solution Display Card (Rendered Immediately Below Input) */}
+      {solution && (
+        <div ref={solutionRef} className="pt-2 animate-fadeIn">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider flex items-center space-x-1.5">
+              <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
+              <span>Verified Gemini AI Solution</span>
+            </span>
+            <button
+              onClick={() => setSolution(null)}
+              className="text-xs text-[#A1A1AA] hover:text-[#FFFFFF] underline cursor-pointer"
+            >
+              Clear Solution
+            </button>
+          </div>
+          <StepSolutionCard solution={solution} />
+        </div>
+      )}
 
       {/* Suggested Real Exam & Math/Physics Problems */}
       <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 shadow-sm space-y-3">
@@ -361,13 +394,6 @@ export const GeminiAiSolverView: React.FC = () => {
           ))}
         </div>
       </div>
-
-      {/* Verified Solution Display Card */}
-      {solution && (
-        <div className="pt-2 animate-fadeIn">
-          <StepSolutionCard solution={solution} />
-        </div>
-      )}
     </div>
   );
 };

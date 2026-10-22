@@ -11,6 +11,17 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 
 app.use(express.json({ limit: '15mb' }));
 
+// CORS middleware for iframe and preview support
+app.use((_req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (_req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Initialize GoogleGenAI SDK server-side
 const apiKey = process.env.GEMINI_API_KEY || '';
 const ai = apiKey
@@ -205,7 +216,13 @@ app.post('/api/ai/solve', async (req: Request, res: Response) => {
       throw lastError || new Error('No response generated from Gemini AI models.');
     }
 
-    const parsedSolution = JSON.parse(resultJson);
+    let cleanJson = resultJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanJson = jsonMatch[0];
+    }
+
+    const parsedSolution = JSON.parse(cleanJson);
 
     return res.json({
       success: true,

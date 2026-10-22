@@ -3,7 +3,7 @@ import { evaluateExpression, formatNum } from '../services/mathEngine';
 import { StepSolutionCard } from './StepSolutionCard';
 import { StepSolution } from '../types';
 import { saveToHistory } from '../services/historyStorage';
-import { Delete, Equal, Sparkles, Loader2, AlertCircle } from 'lucide-react';
+import { Delete, Equal } from 'lucide-react';
 
 export const ScientificCalculator: React.FC = () => {
   const [expression, setExpression] = useState<string>('');
@@ -13,8 +13,6 @@ export const ScientificCalculator: React.FC = () => {
   const [lastSolution, setLastSolution] = useState<StepSolution | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [calcMode, setCalcMode] = useState<'standard' | 'scientific'>('standard');
-  const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
-  const [aiStatusMessage, setAiStatusMessage] = useState<string>('');
   const displayEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll display to the end as user types
@@ -24,17 +22,10 @@ export const ScientificCalculator: React.FC = () => {
     }
   }, [expression]);
 
-  // Live preview evaluation (for purely arithmetic expressions)
+  // Live preview evaluation
   useEffect(() => {
     if (!expression.trim()) {
       setPreviewResult('');
-      setErrorMsg(null);
-      return;
-    }
-
-    // If expression contains algebra or equation (= or variable letters x, y, z), preview shows AI ready
-    if (expression.includes('=') || /[xyz]/i.test(expression)) {
-      setPreviewResult('AI Ready');
       setErrorMsg(null);
       return;
     }
@@ -61,16 +52,16 @@ export const ScientificCalculator: React.FC = () => {
         handleInput(' + ');
       } else if (e.key === '-') {
         handleInput(' - ');
-      } else if (e.key === '*' || e.key === 'x' || e.key === 'X') {
-        handleInput(e.key === '*' ? ' * ' : 'x');
+      } else if (e.key === '*' || e.key === 'x') {
+        handleInput(' * ');
       } else if (e.key === '/') {
         e.preventDefault();
         handleInput(' / ');
       } else if (e.key === '%') {
         handleInput('%');
-      } else if (e.key === '(' || e.key === ')' || e.key === '=') {
+      } else if (e.key === '(' || e.key === ')') {
         handleInput(e.key);
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' || e.key === '=') {
         e.preventDefault();
         handleCalculate();
       } else if (e.key === 'Backspace') {
@@ -113,61 +104,9 @@ export const ScientificCalculator: React.FC = () => {
     setExpression((prev) => prev.slice(0, -1));
   };
 
-  // Real Gemini AI solver invocation
-  const handleAiSolve = async (overridePrompt?: string) => {
-    triggerHaptic();
-    const targetPrompt = overridePrompt || expression;
-    if (!targetPrompt.trim()) {
-      setErrorMsg('Type an equation, math problem, or question to solve with Gemini AI.');
-      return;
-    }
-
-    setIsAiLoading(true);
-    setErrorMsg(null);
-    setAiStatusMessage('Gemini AI is deriving the step-by-step solution...');
-
-    try {
-      const response = await fetch('/api/ai/solve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: targetPrompt,
-          subject: 'Mathematics',
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to solve with Gemini AI.');
-      }
-
-      setLastSolution(data.solution);
-      saveToHistory(data.solution);
-
-      if (data.solution.finalAnswer) {
-        setPreviewResult(data.solution.finalAnswer);
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Gemini AI was unable to solve this problem.');
-    } finally {
-      setIsAiLoading(false);
-      setAiStatusMessage('');
-    }
-  };
-
-  // Main calculate button: solves arithmetic directly, or automatically routes algebra/equations to Gemini AI
-  const handleCalculate = async () => {
+  const handleCalculate = () => {
     triggerHaptic();
     if (!expression.trim()) return;
-
-    // Check if the input contains algebraic equation (=), variables (x, y, z), or word problem
-    const isAlgebraOrEquation = expression.includes('=') || /[xyz]/i.test(expression) || expression.length > 25;
-
-    if (isAlgebraOrEquation) {
-      await handleAiSolve(expression);
-      return;
-    }
 
     try {
       const res = evaluateExpression(expression, angleMode);
@@ -191,9 +130,8 @@ export const ScientificCalculator: React.FC = () => {
       saveToHistory(solution);
       setExpression(finalStr);
       setErrorMsg(null);
-    } catch {
-      // If arithmetic parser fails, automatically attempt real Gemini AI solve!
-      await handleAiSolve(expression);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Syntax error in calculation.');
     }
   };
 
@@ -201,7 +139,7 @@ export const ScientificCalculator: React.FC = () => {
     <div className="max-w-md sm:max-w-lg lg:max-w-xl mx-auto space-y-6">
       {/* Polished Modern Calculator Chassis (Pure Black & Emerald Green) */}
       <div className="bg-[#000000] border border-[#27272A] rounded-3xl p-4 sm:p-6 shadow-2xl shadow-black transition-all">
-        {/* Top Control Bar: Mode Toggle & Gemini AI Button */}
+        {/* Top Control Bar: Mode Toggle & Angle Settings */}
         <div className="flex items-center justify-between gap-2 mb-3.5 pb-2 border-b border-[#27272A]">
           {/* Segmented Mode Switcher */}
           <div className="flex items-center p-1 bg-[#0A0A0A] border border-[#27272A] rounded-xl">
@@ -233,22 +171,7 @@ export const ScientificCalculator: React.FC = () => {
             </button>
           </div>
 
-          {/* Quick Gemini AI Button */}
-          <button
-            onClick={() => handleAiSolve()}
-            disabled={isAiLoading}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#22C55E]/15 hover:bg-[#22C55E]/25 text-[#22C55E] border border-[#22C55E]/40 text-xs font-bold shadow-sm active:scale-95 transition-all cursor-pointer"
-            title="Solve complex math or physics problem using real Gemini AI"
-          >
-            {isAiLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22C55E]" />
-            ) : (
-              <Sparkles className="w-3.5 h-3.5 text-[#22C55E]" />
-            )}
-            <span>{isAiLoading ? 'AI Solving...' : '⚡ Gemini AI Solve'}</span>
-          </button>
-
-          {/* Angle Mode toggle */}
+          {/* Angle Mode & 2nd INV toggles */}
           <div className="flex items-center space-x-1.5">
             <button
               onClick={() => {
@@ -283,7 +206,7 @@ export const ScientificCalculator: React.FC = () => {
           </div>
         </div>
 
-        {/* Calculator Display (Deep Black #0A0A0A with Emerald Accents) */}
+        {/* Calculator Display (Deep Black #0A0A0A with Green Accents) */}
         <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-4 sm:p-5 mb-4 shadow-inner">
           {/* Status line */}
           <div className="flex items-center justify-between text-xs text-[#A1A1AA] font-mono mb-1">
@@ -291,10 +214,7 @@ export const ScientificCalculator: React.FC = () => {
               {calcMode.toUpperCase()} · {angleMode.toUpperCase()}
               {isShift ? ' · INV' : ''}
             </span>
-            <span className="text-[11px] font-semibold text-[#22C55E] flex items-center space-x-1">
-              <Sparkles className="w-3 h-3 text-[#22C55E] inline" />
-              <span>SmartSolve AI Ready</span>
-            </span>
+            <span className="text-[11px] font-semibold text-[#A1A1AA]">SmartSolve FX</span>
           </div>
 
           {/* Main Input Text (#FFFFFF) */}
@@ -306,10 +226,7 @@ export const ScientificCalculator: React.FC = () => {
           {/* Live Preview / Error line */}
           <div className="min-h-6 flex items-center justify-end text-right font-mono text-sm sm:text-base mt-1">
             {errorMsg ? (
-              <span className="text-[#EF4444] text-xs sm:text-sm font-sans font-medium flex items-center space-x-1">
-                <AlertCircle className="w-3.5 h-3.5 text-[#EF4444] inline" />
-                <span>{errorMsg}</span>
-              </span>
+              <span className="text-[#EF4444] text-xs sm:text-sm font-sans font-medium">{errorMsg}</span>
             ) : previewResult ? (
               <span className="text-[#22C55E] flex items-center space-x-1 font-bold">
                 <span className="text-xs text-[#A1A1AA] mr-1 font-normal">=</span> {previewResult}
@@ -319,14 +236,6 @@ export const ScientificCalculator: React.FC = () => {
             )}
           </div>
         </div>
-
-        {/* AI Loading Banner */}
-        {isAiLoading && (
-          <div className="mb-3.5 p-3 rounded-xl bg-[#22C55E]/10 border border-[#22C55E]/30 flex items-center space-x-2.5 text-xs text-[#22C55E] font-semibold animate-pulse">
-            <Loader2 className="w-4 h-4 text-[#22C55E] animate-spin flex-shrink-0" />
-            <span>{aiStatusMessage || 'Gemini AI is deriving the step-by-step solution...'}</span>
-          </div>
-        )}
 
         {/* Keypad Section (White, Black, and Emerald Green) */}
         {calcMode === 'standard' ? (
@@ -347,10 +256,10 @@ export const ScientificCalculator: React.FC = () => {
               <Delete className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             <button
-              onClick={() => handleInput('x')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#22C55E] rounded-2xl font-bold text-lg sm:text-xl border border-[#27272A] shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              onClick={() => handleInput('%')}
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-lg sm:text-xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
-              x
+              %
             </button>
             <button
               onClick={() => handleInput(' / ')}
@@ -439,10 +348,18 @@ export const ScientificCalculator: React.FC = () => {
 
             {/* Row 5 */}
             <button
-              onClick={() => handleInput('=')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#22C55E] rounded-2xl font-bold text-lg sm:text-xl border border-[#27272A] shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              onClick={() => {
+                if (expression.startsWith('-(') && expression.endsWith(')')) {
+                  setExpression(expression.slice(2, -1));
+                } else if (expression.startsWith('-')) {
+                  setExpression(expression.slice(1));
+                } else if (expression) {
+                  setExpression(`-(${expression})`);
+                }
+              }}
+              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-base sm:text-lg border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
             >
-              =
+              ±
             </button>
             <button
               onClick={() => handleInput('0')}
@@ -458,7 +375,6 @@ export const ScientificCalculator: React.FC = () => {
             </button>
             <button
               onClick={handleCalculate}
-              disabled={isAiLoading}
               className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-extrabold text-xl sm:text-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center transition-all cursor-pointer"
             >
               <Equal className="w-6 h-6 stroke-[3]" />
@@ -545,10 +461,10 @@ export const ScientificCalculator: React.FC = () => {
               )
             </button>
             <button
-              onClick={() => handleInput('x')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#22C55E] font-bold text-sm border border-[#27272A] transition-all cursor-pointer"
+              onClick={() => handleInput('!')}
+              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
-              x
+              n!
             </button>
             <button
               onClick={handleClear}
@@ -628,7 +544,7 @@ export const ScientificCalculator: React.FC = () => {
               |x|
             </button>
 
-            {/* Scientific Row 6: 1, 2, 3, −, = */}
+            {/* Scientific Row 6: 1, 2, 3, −, EXP */}
             <button
               onClick={() => handleInput('1')}
               className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
@@ -654,13 +570,13 @@ export const ScientificCalculator: React.FC = () => {
               −
             </button>
             <button
-              onClick={() => handleInput('=')}
-              className="h-12 sm:h-14 bg-[#121212] hover:bg-[#18181B] active:scale-95 text-[#22C55E] hover:text-[#FFFFFF] rounded-xl font-bold text-lg border border-[#27272A] transition-all cursor-pointer"
+              onClick={() => handleInput('* 10^')}
+              className="h-12 sm:h-14 bg-[#121212] hover:bg-[#18181B] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
             >
-              =
+              EXP
             </button>
 
-            {/* Scientific Row 7: 0, ., +, Equals / AI Solve (Span 2) */}
+            {/* Scientific Row 7: 0, ., +, Equals (Span 2) */}
             <button
               onClick={() => handleInput('0')}
               className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
@@ -681,15 +597,10 @@ export const ScientificCalculator: React.FC = () => {
             </button>
             <button
               onClick={handleCalculate}
-              disabled={isAiLoading}
               className="col-span-2 h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-lg sm:text-xl font-extrabold shadow-lg shadow-emerald-500/30 flex items-center justify-center space-x-2 transition-all cursor-pointer"
             >
-              {isAiLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin text-[#FFFFFF]" />
-              ) : (
-                <Equal className="w-5 h-5 stroke-[3]" />
-              )}
-              <span>{isAiLoading ? 'SOLVING...' : 'SOLVE'}</span>
+              <Equal className="w-5 h-5 stroke-[3]" />
+              <span>SOLVE</span>
             </button>
           </div>
         )}
