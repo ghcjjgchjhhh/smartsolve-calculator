@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StepSolution } from '../types';
 import { saveToHistory } from '../services/historyStorage';
-import { Check, Copy, Bookmark, BookmarkCheck, BookOpen } from 'lucide-react';
+import { Check, Copy, Bookmark, BookmarkCheck } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 
 interface Props {
@@ -15,13 +15,9 @@ export const StepSolutionCard: React.FC<Props> = ({ solution }) => {
 
   const copySolutionText = () => {
     const text = `
-[SmartSolve Solution: ${solution.title}]
-Problem: ${solution.problemStatement || ''}
-Formula: ${solution.formula}
-${solution.rearrangedFormula ? `Rearranged: ${solution.rearrangedFormula}\n` : ''}Substitution: ${solution.substitution}
-Steps:
-${solution.steps.map((s, idx) => ` ${idx + 1}. ${s}`).join('\n')}
-Answer: ${solution.finalAnswer} ${solution.unit || ''}
+${solution.problemStatement ? `${solution.problemStatement}\n\n` : ''}${solution.steps.join('\n\n')}
+
+Answer: ${solution.finalAnswer}
     `.trim();
 
     navigator.clipboard.writeText(text);
@@ -35,15 +31,28 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
     setTimeout(() => setSaved(false), 2500);
   };
 
-  // Prepare boxed answer LaTeX
+  // Prepare clean boxed answer LaTeX matching Screenshot 1
   const formatBoxedAnswer = () => {
     let ans = solution.finalAnswer.trim();
-    if (solution.unit && !ans.includes(solution.unit)) {
+
+    // Remove trailing dot
+    if (ans.endsWith('.')) {
+      ans = ans.slice(0, -1).trim();
+    }
+
+    // Ignore 'None', 'none', 'N/A' units
+    if (
+      solution.unit &&
+      solution.unit.toLowerCase() !== 'none' &&
+      solution.unit.toLowerCase() !== 'n/a' &&
+      !ans.includes(solution.unit)
+    ) {
       ans = `${ans}\\text{ ${solution.unit}}`;
     }
-    // If not already boxed, wrap in \boxed{...}
+
+    // If not already wrapped in \boxed{...}
     if (!ans.includes('\\boxed')) {
-      // Check if it's purely text (like "No real value of x")
+      // Check if it's purely text (e.g. "No real value of x" or "No real solution")
       if (/^[a-zA-Z\s]+$/.test(ans)) {
         return `\\boxed{\\text{${ans}}}`;
       }
@@ -52,122 +61,134 @@ Answer: ${solution.finalAnswer} ${solution.unit || ''}
     return ans;
   };
 
-  return (
-    <div className="bg-[#000000] border border-[#27272A] rounded-3xl shadow-2xl overflow-hidden transition-all text-[#FFFFFF]">
-      {/* Top Bar */}
-      <div className="bg-[#0A0A0A] px-5 py-4 flex items-center justify-between border-b border-[#27272A]">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-[#22C55E]/15 border border-[#22C55E]/30 rounded-xl">
-            <BookOpen className="w-5 h-5 text-[#22C55E]" />
+  // Parse each step into clean text label, display equation, or explanation matching Screenshot 1
+  const renderCleanStep = (rawStep: string, idx: number) => {
+    let s = rawStep.trim();
+
+    // Strip "Step 1:", "Step 2:", "1.", "2." prefixes
+    s = s.replace(/^(?:Step\s*\d+[:.]?|\d+[\).])\s*/i, '').trim();
+
+    // 1. Check if it's a short transition label (e.g. "Squaring:", "Square again:")
+    if (/^[A-Za-z\s]+:$/.test(s)) {
+      return (
+        <div key={idx} className="text-sm sm:text-base font-normal text-[#E4E4E7] pt-2">
+          {s}
+        </div>
+      );
+    }
+
+    // 2. Check if it's description followed by an equation (e.g. "Description text: 6 / 2 * 3 = 9")
+    const colonSplit = s.match(/^([^:=]+):\s*([^:]+)$/);
+    if (colonSplit && /[=+\-*/^_\\]/.test(colonSplit[2])) {
+      const desc = colonSplit[1].trim();
+      const eq = colonSplit[2].trim();
+      return (
+        <div key={idx} className="space-y-2 pt-1">
+          <div className="text-sm sm:text-base font-normal text-[#E4E4E7]">
+            {desc}:
           </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#22C55E]">
-                {solution.category}
-              </span>
-              {solution.subCategory && (
-                <span className="text-xs text-[#A1A1AA]">· {solution.subCategory}</span>
-              )}
-            </div>
-            <h3 className="text-base sm:text-lg font-bold text-[#FFFFFF] mt-0.5">{solution.title}</h3>
+          <div className="py-1 text-center">
+            <MathRenderer content={eq} displayMode={true} />
           </div>
         </div>
+      );
+    }
 
-        <div className="flex items-center space-x-1.5">
+    // 3. Pure equation check
+    const isPureEquation =
+      s.startsWith('$$') ||
+      s.startsWith('\\') ||
+      (!s.includes(' ') && /[=]/.test(s)) ||
+      (/^[a-zA-Z0-9\s+\-*/^_.=()\\[\]{}]+$/.test(s) &&
+        /[=]/.test(s) &&
+        !/\b(the|is|and|or|for|to|of|in|at|from|with|by|let|since|therefore|first|finally|substitute)\b/i.test(
+          s
+        ));
+
+    if (isPureEquation) {
+      return (
+        <div key={idx} className="py-1 text-center">
+          <MathRenderer content={s} displayMode={true} />
+        </div>
+      );
+    }
+
+    // 4. Natural text explanation (may contain inline math like "Since the left side is nonnegative, $x \ge 1$.")
+    return (
+      <div key={idx} className="text-sm sm:text-base font-normal text-[#E4E4E7] leading-relaxed py-1">
+        <MathRenderer content={s} />
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-[#000000] border border-[#27272A] rounded-3xl p-6 sm:p-8 shadow-2xl relative transition-all text-[#FFFFFF]">
+      {/* Discreet Action Toolbar in Top Right */}
+      <div className="flex items-center justify-between pb-4 border-b border-[#27272A]/60 mb-6">
+        <div className="flex items-center space-x-2">
+          <span className="w-2 h-2 rounded-full bg-[#22C55E]"></span>
+          <span className="text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider">
+            {solution.category || 'Mathematics'} {solution.subCategory ? `· ${solution.subCategory}` : ''}
+          </span>
+        </div>
+
+        <div className="flex items-center space-x-1">
           <button
             onClick={copySolutionText}
             title="Copy full solution"
-            className="p-2 hover:bg-[#18181B] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-[#18181B] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer"
           >
             {copied ? <Check className="w-4 h-4 text-[#22C55E]" /> : <Copy className="w-4 h-4" />}
           </button>
           <button
             onClick={handleSave}
             title="Save to history"
-            className="p-2 hover:bg-[#18181B] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-[#18181B] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer"
           >
             {saved ? <BookmarkCheck className="w-4 h-4 text-[#22C55E]" /> : <Bookmark className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
-      {/* Main Solution Flow - Textbook & Screenshot Quality */}
-      <div className="p-6 sm:p-8 space-y-5 bg-[#000000]">
-        {/* Problem Statement / Given Question */}
+      {/* Clean Mathematical Solution Flow Matching Screenshot 1 */}
+      <div className="space-y-4 max-w-2xl mx-auto">
+        {/* Given Problem Expression (Centered Display) */}
         {solution.problemStatement && (
-          <div className="pb-3 border-b border-[#27272A]/70">
-            <span className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-wider block mb-1.5">
-              Problem:
-            </span>
-            <div className="text-sm sm:text-base text-[#FFFFFF] leading-relaxed">
-              <MathRenderer content={solution.problemStatement} />
-            </div>
+          <div className="pb-3 text-center">
+            <MathRenderer content={solution.problemStatement} displayMode={true} />
           </div>
         )}
 
-        {/* Governing Formula / Law (if present) */}
-        {solution.formula && (
-          <div className="py-1">
-            <span className="text-xs font-semibold text-[#A1A1AA] block mb-1">
-              Formula used:
-            </span>
-            <div className="text-base sm:text-lg py-1">
-              <MathRenderer content={solution.formula} displayMode={true} />
+        {/* Steps: Clear, unboxed mathematical derivation flow */}
+        {solution.steps && solution.steps.length > 0 ? (
+          solution.steps.map((step, idx) => renderCleanStep(step, idx))
+        ) : (
+          solution.substitution && (
+            <div className="py-2 text-center">
+              <MathRenderer content={solution.substitution} displayMode={true} />
             </div>
-          </div>
+          )
         )}
 
-        {/* Step-by-Step Derivation Flow - Exactly like screenshot */}
-        <div className="space-y-4 pt-1">
-          {solution.steps && solution.steps.length > 0 ? (
-            solution.steps.map((step, idx) => {
-              // Check if step looks like a label/heading e.g. "Squaring:", "Square again:"
-              const isLabel = /^[A-Za-z\s]+:$/.test(step.trim());
-              const isShortText = step.trim().endsWith(':');
-
-              return (
-                <div key={idx} className="space-y-1.5">
-                  {isLabel || isShortText ? (
-                    <div className="text-sm sm:text-base font-semibold text-[#A1A1AA] pt-2">
-                      <MathRenderer content={step} />
-                    </div>
-                  ) : (
-                    <div className="text-sm sm:text-base text-[#FFFFFF] leading-relaxed py-0.5">
-                      <MathRenderer content={step} />
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          ) : (
-            // Fallback to substitution if steps array is empty
-            solution.substitution && (
-              <div className="py-2">
-                <MathRenderer content={solution.substitution} displayMode={true} />
-              </div>
-            )
-          )}
-        </div>
-
-        {/* Boxed Final Answer (Prominently Centered with Crisp White Border Box) */}
+        {/* Boxed Final Answer Exactly Like Screenshot 1 */}
         <div className="pt-6 pb-2 text-center">
           <div className="inline-block py-2">
             <MathRenderer content={formatBoxedAnswer()} displayMode={true} />
           </div>
         </div>
 
-        {/* Conceptual Explanation & Tip (Clean Bottom Accordion) */}
+        {/* Optional Conceptual Note / Exam Tip at bottom */}
         {(solution.explanation || solution.tips) && (
-          <div className="mt-6 pt-4 border-t border-[#27272A] space-y-2.5 text-xs text-[#A1A1AA]">
+          <div className="mt-8 pt-4 border-t border-[#27272A]/60 space-y-2 text-xs text-[#A1A1AA]">
             {solution.explanation && (
               <p className="leading-relaxed">
-                <span className="font-bold text-[#22C55E]">Note: </span>
+                <span className="font-semibold text-[#FFFFFF]">Note: </span>
                 {solution.explanation}
               </p>
             )}
             {solution.tips && (
               <p className="leading-relaxed">
-                <span className="font-bold text-[#FFFFFF]">Exam Tip: </span>
+                <span className="font-semibold text-[#22C55E]">Tip: </span>
                 {solution.tips}
               </p>
             )}

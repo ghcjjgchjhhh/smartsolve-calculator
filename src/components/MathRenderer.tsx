@@ -34,6 +34,15 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
         cleanMath = cleanMath.slice(1, -1).trim();
       }
 
+      // Format common operators into LaTeX equivalents if not already LaTeX
+      cleanMath = cleanMath
+        .replace(/\b\*\b/g, '\\times ')
+        .replace(/ ÷ /g, ' \\div ')
+        .replace(/÷/g, ' \\div ')
+        .replace(/>=/g, ' \\ge ')
+        .replace(/<=/g, ' \\le ')
+        .replace(/\+-/g, ' \\pm ');
+
       try {
         return katex.renderToString(cleanMath, {
           displayMode: true,
