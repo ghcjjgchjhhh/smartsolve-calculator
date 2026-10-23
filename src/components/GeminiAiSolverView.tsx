@@ -133,14 +133,7 @@ export const GeminiAiSolverView: React.FC = () => {
         setLoadingStage('Executing verified mathematical substitution & algebraic derivation...');
       }, 1900);
 
-      const getApiEndpoint = () => {
-        if (typeof window !== 'undefined' && window.location.hostname.includes('github.io')) {
-          return 'https://ais-dev-ggu4bo4rvjv7rwriyk6l3u-301739057489.europe-west3.run.app/api/ai/solve';
-        }
-        return '/api/ai/solve';
-      };
-
-      const response = await fetch(getApiEndpoint(), {
+      const response = await fetch('/api/ai/solve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -159,7 +152,7 @@ export const GeminiAiSolverView: React.FC = () => {
         data = await response.json();
       } catch {
         if (response.status === 404) {
-          throw new Error('AI Solver API (/api/ai/solve) was not found. Please ensure the server is running on port 3000.');
+          throw new Error('AI Solver endpoint (/api/ai/solve) was not found. On Vercel, please ensure serverless functions are enabled.');
         }
         throw new Error(`Server returned status ${response.status}. Please check your connection and try again.`);
       }
