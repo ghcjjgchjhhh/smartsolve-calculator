@@ -47,3 +47,28 @@
   font-family: var(--font-mono);
   letter-spacing: -0.01em;
 }
+
+/* KaTeX textbook-grade display styles */
+.katex {
+  color: #FFFFFF !important;
+  font-size: 1.15em;
+}
+
+.katex-display {
+  margin: 0.85em 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25em 0;
+}
+
+.katex-display > .katex {
+  text-align: center;
+}
+
+/* Crisp white boxed final answer matching screenshot */
+.katex .fbox {
+  border: 1.5px solid #FFFFFF !important;
+  padding: 0.25em 0.75em !important;
+  border-radius: 4px;
+}
+

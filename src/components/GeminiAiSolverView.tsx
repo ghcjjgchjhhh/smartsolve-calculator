@@ -143,33 +143,32 @@ export const GeminiAiSolverView: React.FC = () => {
 
     const promptText = `
 You are SmartSolve AI, a master Mathematics and Physics professor.
-Solve this ${selectedSubject === 'All' ? 'Mathematics or Physics' : selectedSubject} problem with full verified steps:
+Solve this ${selectedSubject === 'All' ? 'Mathematics or Physics' : selectedSubject} problem with crystal-clear, textbook-grade step-by-step mathematical reasoning.
 Problem: "${targetPrompt || 'Solve the question shown in the image.'}"
 
-Requirements:
-1. Identify all given quantities with symbols, values, and SI units.
-2. State the governing theoretical formula or law before solving.
-3. Show formula algebraic rearrangement for target variable if needed.
-4. Show numerical substitution with SI units.
-5. Provide numbered steps with intermediate arithmetic.
-6. State the final answer with correct units.
-7. Provide a concise explanation and practical tip.
+STYLING & NOTATION RULES (MATCHING TEXTBOOK & CHATGPT MATH CLARITY):
+1. Format all equations, fractions, square roots, exponents, and expressions using standard LaTeX notation (e.g. \\frac{a}{b}, \\sqrt{...}, x^2, \\pm, \\approx, \\ge, \\le).
+2. In "steps", present a clean, sequential mathematical derivation:
+   - Alternate between short text labels (e.g. "Squaring:", "Since the left side is nonnegative, $x \\ge 1$.", "Square again:", "Therefore, there is no real solution.") and display equations (e.g. "$$2\\sqrt{(x+6)(2x-1)} = 2x - 2$$", "$$x = \\frac{-13 \\pm \\sqrt{197}}{2}$$").
+3. In "formula", provide the theoretical formula or law in LaTeX (e.g. "$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$" or "$$K = \\frac{1}{2}mv^2$$").
+4. In "finalAnswer", provide the exact clean result (e.g. "$$x = \\frac{-13 \\pm \\sqrt{197}}{2}$$" or "\\text{No real value of } x" or "100\\text{ J}").
 
 You MUST respond with a valid JSON object with EXACTLY this structure:
 {
   "title": "Descriptive title of the problem",
   "category": "${selectedSubject === 'All' ? 'Physics' : selectedSubject}",
   "subCategory": "Topic name (e.g. Kinematics, Algebra, Calculus)",
-  "problemStatement": "Clear formal restatement of question",
-  "formula": "Theoretical formula or law used",
-  "rearrangedFormula": "Formula rearranged for target unknown",
-  "substitution": "Formula with numbers and SI units plugged in",
+  "problemStatement": "Clear restatement of question in LaTeX",
+  "formula": "Theoretical formula or law in LaTeX",
+  "rearrangedFormula": "Formula rearranged for target unknown in LaTeX",
+  "substitution": "Formula with numbers and SI units plugged in LaTeX",
   "steps": [
-    "Step 1: ...",
-    "Step 2: ...",
-    "Step 3: ..."
+    "Step 1 or label (e.g. Squaring:)",
+    "$$equation$$",
+    "Explanation text with $inline math$",
+    "$$next equation$$"
   ],
-  "finalAnswer": "Exact final answer with SI unit",
+  "finalAnswer": "Final answer in LaTeX",
   "unit": "SI unit",
   "explanation": "Clear explanation of why this physical or mathematical law applies",
   "tips": "Pro tip or exam advice for solving this problem"
