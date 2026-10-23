@@ -4,17 +4,13 @@ import { StepSolutionCard } from './StepSolutionCard';
 import { saveToHistory } from '../services/historyStorage';
 import {
   Sparkles,
-  Send,
-  Upload,
   Image as ImageIcon,
   X,
-  RotateCcw,
-  BookOpen,
-  Atom,
-  HelpCircle,
   Loader2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Key,
+  ExternalLink,
 } from 'lucide-react';
 
 export const GeminiAiSolverView: React.FC = () => {
@@ -28,6 +24,11 @@ export const GeminiAiSolverView: React.FC = () => {
   const [loadingStage, setLoadingStage] = useState<string>('');
   const [solution, setSolution] = useState<StepSolution | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [userApiKey, setUserApiKey] = useState<string>(
+    () => localStorage.getItem('gemini_user_api_key') || ''
+  );
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState<boolean>(false);
+  const [tempKeyInput, setTempKeyInput] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const solutionRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +36,7 @@ export const GeminiAiSolverView: React.FC = () => {
     {
       subject: 'Mathematics',
       label: 'Calculus: Quotient Rule Derivative',
-      text: 'Find the derivative of f(x) = (3x² - 4x + 1) / (2x + 3) with step-by-step working and evaluate f\'(1).',
+      text: "Find the derivative of f(x) = (3x² - 4x + 1) / (2x + 3) with step-by-step working and evaluate f'(1).",
     },
     {
       subject: 'Mathematics',
@@ -59,23 +60,23 @@ export const GeminiAiSolverView: React.FC = () => {
     },
     {
       subject: 'Mathematics',
-      label: 'Vectors: Dot & Cross Product',
-      text: 'Given vectors A = 3i - 2j + 4k and B = i + 5j - 2k, find their dot product A·B, the angle between them, and the cross product A × B.',
-    },
-    {
-      subject: 'Mathematics',
-      label: 'Financial: Monthly Compounding',
-      text: 'A principal of $5,000 is invested at an annual interest rate of 6.5% compounded monthly. Calculate the accumulated amount and total compound interest after 4 years.',
+      label: 'Coordinate Geometry: Circle & Tangent',
+      text: 'Find the equation of the tangent line to the circle x² + y² = 25 at the point (3, -4) with complete working.',
     },
     {
       subject: 'Physics',
-      label: 'Free Fall & Energy Conservation',
+      label: 'Free Fall & Kinetic Energy',
       text: 'A stone of mass 0.5 kg is dropped from a cliff 80m high. Calculate its kinetic energy just before hitting the ground (take g = 9.8 m/s²).',
     },
     {
       subject: 'Physics',
-      label: 'Inelastic Vehicle Collision',
-      text: 'A 1500 kg car travelling at 25 m/s collides with a stationary 1000 kg vehicle and they stick together. Calculate their common velocity after impact and the kinetic energy lost.',
+      label: 'Conservation of Momentum (Inelastic)',
+      text: 'A truck of mass 3000 kg moving at 15 m/s collides and locks together with a stationary car of 1000 kg. Find the common final velocity and kinetic energy lost.',
+    },
+    {
+      subject: 'Physics',
+      label: 'Photoelectric Effect & Work Function',
+      text: 'Light of wavelength 400 nm falls on a metal having work function 2.2 eV. Calculate the maximum kinetic energy and stopping potential of emitted photoelectrons.',
     },
     {
       subject: 'Physics',
@@ -113,6 +114,19 @@ export const GeminiAiSolverView: React.FC = () => {
     }
   };
 
+  const handleSaveApiKey = () => {
+    const cleaned = tempKeyInput.trim();
+    if (cleaned) {
+      localStorage.setItem('gemini_user_api_key', cleaned);
+      setUserApiKey(cleaned);
+    } else {
+      localStorage.removeItem('gemini_user_api_key');
+      setUserApiKey('');
+    }
+    setIsKeyModalOpen(false);
+    setError(null);
+  };
+
   const handleSolve = async (overridePrompt?: string) => {
     const targetPrompt = overridePrompt !== undefined ? overridePrompt : prompt;
     if (!targetPrompt.trim() && !imagePreview) {
@@ -127,15 +141,23 @@ export const GeminiAiSolverView: React.FC = () => {
     try {
       const stageTimer1 = setTimeout(() => {
         setLoadingStage('Extracting physical laws, given quantities and units...');
-      }, 900);
+      }, 700);
 
       const stageTimer2 = setTimeout(() => {
         setLoadingStage('Executing verified mathematical substitution & algebraic derivation...');
-      }, 1900);
+      }, 1500);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (userApiKey) {
+        headers['x-gemini-key'] = userApiKey;
+      }
 
       const response = await fetch('/api/ai/solve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           prompt: targetPrompt,
           imageData: imagePreview,
@@ -143,6 +165,9 @@ export const GeminiAiSolverView: React.FC = () => {
           subject: selectedSubject === 'All' ? undefined : selectedSubject,
         }),
       });
+
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
 
       const responseText = await response.text();
       let data: any = null;
@@ -152,20 +177,18 @@ export const GeminiAiSolverView: React.FC = () => {
         if (response.status === 404) {
           throw new Error('AI Solver endpoint (/api/ai/solve) was not found. Please verify your Vercel deployment.');
         }
-        if (response.status === 500) {
-          throw new Error('Server returned 500. Please verify that GEMINI_API_KEY is configured in Vercel Settings > Environment Variables.');
-        }
-        throw new Error(`Server returned status ${response.status}: ${responseText.slice(0, 100)}`);
+        throw new Error(
+          `Server returned status ${response.status}. If GEMINI_API_KEY is not set in Vercel, you can enter it directly via the "Set API Key" button above.`
+        );
       }
 
       if (!response.ok || !data?.success) {
-        throw new Error(data?.error || 'Failed to generate solution.');
+        throw new Error(data?.error || 'Failed to generate solution from Gemini AI.');
       }
 
       setSolution(data.solution);
       saveToHistory(data.solution);
 
-      // Smoothly scroll down to the solution
       setTimeout(() => {
         solutionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 100);
@@ -198,9 +221,28 @@ export const GeminiAiSolverView: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center space-x-2 bg-[#000000] px-3.5 py-2 rounded-xl border border-[#27272A] text-xs text-[#22C55E] font-bold shrink-0">
-            <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
-            <span>Real Step Verification</span>
+          <div className="flex items-center space-x-2">
+            {/* Key Status / Configuration Button */}
+            <button
+              onClick={() => {
+                setTempKeyInput(userApiKey);
+                setIsKeyModalOpen(true);
+              }}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                userApiKey
+                  ? 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30'
+                  : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] border-[#27272A]'
+              }`}
+              title="Configure your Gemini API Key"
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span>{userApiKey ? 'API Key Active' : 'Set API Key'}</span>
+            </button>
+
+            <div className="flex items-center space-x-1.5 bg-[#000000] px-3 py-1.5 rounded-xl border border-[#27272A] text-xs text-[#22C55E] font-bold shrink-0">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#22C55E]" />
+              <span>Verified Steps</span>
+            </div>
           </div>
         </div>
 
@@ -315,18 +357,31 @@ export const GeminiAiSolverView: React.FC = () => {
 
         {/* Error notification */}
         {error && (
-          <div className="p-4 rounded-2xl bg-[#EF4444]/15 border border-[#EF4444]/40 text-[#EF4444] text-xs flex items-start space-x-2.5">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <span className="font-bold block">Calculation Notice</span>
-              <span>{error}</span>
+          <div className="p-4 rounded-2xl bg-[#EF4444]/15 border border-[#EF4444]/40 text-[#EF4444] text-xs flex flex-col sm:flex-row items-start justify-between gap-3">
+            <div className="flex items-start space-x-2.5">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block">Calculation Notice</span>
+                <span>{error}</span>
+              </div>
             </div>
-            <button
-              onClick={() => setError(null)}
-              className="text-xs font-bold underline cursor-pointer"
-            >
-              Dismiss
-            </button>
+            <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+              <button
+                onClick={() => {
+                  setTempKeyInput(userApiKey);
+                  setIsKeyModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold text-xs shadow-sm cursor-pointer whitespace-nowrap"
+              >
+                Paste API Key Here
+              </button>
+              <button
+                onClick={() => setError(null)}
+                className="text-xs font-bold underline cursor-pointer text-[#A1A1AA] hover:text-[#FFFFFF]"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -375,26 +430,105 @@ export const GeminiAiSolverView: React.FC = () => {
               return true;
             })
             .map((item, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                setPrompt(item.text);
-                handleSolve(item.text);
-              }}
-              className="p-3 text-left rounded-2xl bg-[#000000] hover:bg-[#18181B] border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer group"
-            >
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-bold text-[#22C55E]">{item.subject}</span>
-                <span className="text-[11px] text-[#A1A1AA] group-hover:text-[#FFFFFF]">Click to Solve →</span>
-              </div>
-              <div className="text-xs font-semibold text-[#FFFFFF]">{item.label}</div>
-              <div className="text-[11px] text-[#A1A1AA] line-clamp-2 mt-0.5">
-                {item.text}
-              </div>
-            </button>
-          ))}
+              <button
+                key={idx}
+                onClick={() => {
+                  setPrompt(item.text);
+                  handleSolve(item.text);
+                }}
+                className="p-3 text-left rounded-2xl bg-[#000000] hover:bg-[#18181B] border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer group"
+              >
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-[#22C55E]">{item.subject}</span>
+                  <span className="text-[11px] text-[#A1A1AA] group-hover:text-[#FFFFFF]">Click to Solve →</span>
+                </div>
+                <div className="text-xs font-semibold text-[#FFFFFF]">{item.label}</div>
+                <div className="text-[11px] text-[#A1A1AA] line-clamp-2 mt-0.5">
+                  {item.text}
+                </div>
+              </button>
+            ))}
         </div>
       </div>
+
+      {/* Modal: Direct Gemini API Key Setup */}
+      {isKeyModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-[#22C55E]/15 border border-[#22C55E]/30 flex items-center justify-center text-[#22C55E]">
+                  <Key className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-[#FFFFFF]">Google Gemini API Key</h3>
+              </div>
+              <button
+                onClick={() => setIsKeyModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#A1A1AA] leading-relaxed">
+              Paste your Gemini API key below. It will be saved securely in your browser so your solver works immediately on Vercel without configuring environment variables.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#FFFFFF]">API Key (starts with AIzaSy...):</label>
+              <input
+                type="password"
+                value={tempKeyInput}
+                onChange={(e) => setTempKeyInput(e.target.value)}
+                placeholder="AIzaSy..."
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#000000] border border-[#27272A] text-[#FFFFFF] text-sm focus:border-[#22C55E] focus:outline-none font-mono"
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-[#A1A1AA]">
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#22C55E] hover:underline flex items-center space-x-1"
+              >
+                <span>Get a free key from Google AI Studio</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+              {userApiKey && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.removeItem('gemini_user_api_key');
+                    setUserApiKey('');
+                    setTempKeyInput('');
+                  }}
+                  className="text-[#EF4444] hover:underline cursor-pointer"
+                >
+                  Remove Key
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-[#27272A]">
+              <button
+                type="button"
+                onClick={() => setIsKeyModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveApiKey}
+                className="px-5 py-2 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] text-xs font-bold shadow-md shadow-emerald-500/25 cursor-pointer"
+              >
+                Save & Connect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

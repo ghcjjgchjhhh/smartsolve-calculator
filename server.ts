@@ -147,11 +147,16 @@ app.post('/api/ai/solve', async (req: Request, res: Response) => {
       });
     }
 
-    if (!ai) {
-      return res.status(503).json({
-        error: 'Gemini API key is not configured. Please check your GEMINI_API_KEY environment variable.',
+    const headerKey = (req.headers['x-gemini-key'] as string) || '';
+    const activeApiKey = headerKey.trim() || apiKey;
+
+    if (!activeApiKey) {
+      return res.status(400).json({
+        error: 'Gemini API key is not configured. Please check your GEMINI_API_KEY environment variable or enter it in the app.',
       });
     }
+
+    const activeAi = activeApiKey === apiKey && ai ? ai : new GoogleGenAI({ apiKey: activeApiKey });
 
     const contents: any[] = [];
 
@@ -203,7 +208,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
     contents.push({ text: promptText });
 
-    const response = await ai.models.generateContent({
+    const response = await activeAi.models.generateContent({
       model: 'gemini-3.1-flash-lite',
       contents,
       config: {

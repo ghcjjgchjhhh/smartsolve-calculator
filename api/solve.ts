@@ -4,6 +4,15 @@ export const config = {
   maxDuration: 30,
 };
 
+function sendJson(res: any, status: number, data: any) {
+  if (typeof res.status === 'function' && typeof res.json === 'function') {
+    return res.status(status).json(data);
+  }
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(data));
+}
+
 export default async function handler(req: any, res: any) {
   // CORS configuration
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -11,15 +20,16 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-gemini-key'
   );
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    res.statusCode = 200;
+    return res.end();
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return sendJson(res, 405, { error: 'Method Not Allowed' });
   }
 
   // Safely parse body whether it's an object, string, or stream
@@ -40,16 +50,19 @@ export default async function handler(req: any, res: any) {
 
   const { prompt, imageData, mimeType, subject } = body || {};
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Check header key first, then environment variable
+  const headerKey = (req.headers?.['x-gemini-key'] as string) || '';
+  const apiKey = headerKey.trim() || process.env.GEMINI_API_KEY;
+
   if (!apiKey) {
-    return res.status(500).json({
+    return sendJson(res, 400, {
       error:
-        'GEMINI_API_KEY environment variable is missing on Vercel. In Vercel, go to Settings > Environment Variables, add GEMINI_API_KEY, and redeploy.',
+        'Gemini API Key is not set. Please add GEMINI_API_KEY in Vercel Settings > Environment Variables, or enter it directly in the app using the "Set API Key" button.',
     });
   }
 
   if (!prompt && !imageData) {
-    return res.status(400).json({ error: 'Please provide a math or physics question.' });
+    return sendJson(res, 400, { error: 'Please provide a math or physics question.' });
   }
 
   try {
@@ -87,7 +100,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   "subCategory": "Topic name (e.g. Kinematics, Algebra, Calculus)",
   "problemStatement": "Clear formal restatement of question",
   "formula": "Theoretical formula or law used",
-  "rearrangedFormula": "Formula rearranged for the target unknown",
+  "rearrangedFormula": "Formula rearranged for target unknown",
   "substitution": "Formula with numbers and SI units plugged in",
   "steps": [
     "Step 1: ...",
@@ -117,10 +130,10 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
     if (match) cleanJson = match[0];
 
     const parsedSolution = JSON.parse(cleanJson);
-    return res.status(200).json({ success: true, solution: parsedSolution });
+    return sendJson(res, 200, { success: true, solution: parsedSolution });
   } catch (error: any) {
     console.error('Vercel Gemini solver error:', error);
-    return res.status(500).json({
+    return sendJson(res, 500, {
       error: error.message || 'Failed to solve question using Gemini AI on Vercel.',
     });
   }
