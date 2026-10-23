@@ -12,6 +12,7 @@ import {
   Key,
   ExternalLink,
 } from 'lucide-react';
+import { GoogleGenAI } from '@google/genai';
 
 export const GeminiAiSolverView: React.FC = () => {
   const [prompt, setPrompt] = useState<string>(
@@ -127,6 +128,72 @@ export const GeminiAiSolverView: React.FC = () => {
     setError(null);
   };
 
+  const solveDirectWithGemini = async (key: string, targetPrompt: string) => {
+    const ai = new GoogleGenAI({ apiKey: key });
+    const contents: any[] = [];
+    if (imagePreview) {
+      const cleanBase64 = imagePreview.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+      contents.push({
+        inlineData: {
+          mimeType: imageMimeType || 'image/jpeg',
+          data: cleanBase64,
+        },
+      });
+    }
+
+    const promptText = `
+You are SmartSolve AI, a master Mathematics and Physics professor.
+Solve this ${selectedSubject === 'All' ? 'Mathematics or Physics' : selectedSubject} problem with full verified steps:
+Problem: "${targetPrompt || 'Solve the question shown in the image.'}"
+
+Requirements:
+1. Identify all given quantities with symbols, values, and SI units.
+2. State the governing theoretical formula or law before solving.
+3. Show formula algebraic rearrangement for target variable if needed.
+4. Show numerical substitution with SI units.
+5. Provide numbered steps with intermediate arithmetic.
+6. State the final answer with correct units.
+7. Provide a concise explanation and practical tip.
+
+You MUST respond with a valid JSON object with EXACTLY this structure:
+{
+  "title": "Descriptive title of the problem",
+  "category": "${selectedSubject === 'All' ? 'Physics' : selectedSubject}",
+  "subCategory": "Topic name (e.g. Kinematics, Algebra, Calculus)",
+  "problemStatement": "Clear formal restatement of question",
+  "formula": "Theoretical formula or law used",
+  "rearrangedFormula": "Formula rearranged for target unknown",
+  "substitution": "Formula with numbers and SI units plugged in",
+  "steps": [
+    "Step 1: ...",
+    "Step 2: ...",
+    "Step 3: ..."
+  ],
+  "finalAnswer": "Exact final answer with SI unit",
+  "unit": "SI unit",
+  "explanation": "Clear explanation of why this physical or mathematical law applies",
+  "tips": "Pro tip or exam advice for solving this problem"
+}
+`.trim();
+
+    contents.push({ text: promptText });
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-flash-lite',
+      contents,
+      config: {
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const resultText = response.text?.trim() || '{}';
+    let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const match = cleanJson.match(/\{[\s\S]*\}/);
+    if (match) cleanJson = match[0];
+
+    return JSON.parse(cleanJson);
+  };
+
   const handleSolve = async (overridePrompt?: string) => {
     const targetPrompt = overridePrompt !== undefined ? overridePrompt : prompt;
     if (!targetPrompt.trim() && !imagePreview) {
@@ -138,19 +205,36 @@ export const GeminiAiSolverView: React.FC = () => {
     setError(null);
     setLoadingStage('Connecting to Gemini AI reasoning engine...');
 
+    const stageTimer1 = setTimeout(() => {
+      setLoadingStage('Extracting physical laws, given quantities and units...');
+    }, 700);
+
+    const stageTimer2 = setTimeout(() => {
+      setLoadingStage('Executing verified mathematical substitution & algebraic derivation...');
+    }, 1500);
+
     try {
-      const stageTimer1 = setTimeout(() => {
-        setLoadingStage('Extracting physical laws, given quantities and units...');
-      }, 700);
+      // 1. Direct browser solve if user entered API key
+      if (userApiKey) {
+        try {
+          const sol = await solveDirectWithGemini(userApiKey, targetPrompt);
+          clearTimeout(stageTimer1);
+          clearTimeout(stageTimer2);
+          setSolution(sol);
+          saveToHistory(sol);
+          setTimeout(() => {
+            solutionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 100);
+          return;
+        } catch (clientErr: any) {
+          console.warn('Direct browser solve error, falling back to server API:', clientErr);
+        }
+      }
 
-      const stageTimer2 = setTimeout(() => {
-        setLoadingStage('Executing verified mathematical substitution & algebraic derivation...');
-      }, 1500);
-
+      // 2. Fall back to serverless API
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-
       if (userApiKey) {
         headers['x-gemini-key'] = userApiKey;
       }
@@ -174,11 +258,8 @@ export const GeminiAiSolverView: React.FC = () => {
       try {
         data = JSON.parse(responseText);
       } catch {
-        if (response.status === 404) {
-          throw new Error('AI Solver endpoint (/api/ai/solve) was not found. Please verify your Vercel deployment.');
-        }
         throw new Error(
-          `Server returned status ${response.status}. If GEMINI_API_KEY is not set in Vercel, you can enter it directly via the "Set API Key" button above.`
+          'Vercel serverless returned a server error. Tap "Set API Key" above to paste your key directly and solve instantly.'
         );
       }
 
@@ -193,6 +274,8 @@ export const GeminiAiSolverView: React.FC = () => {
         solutionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 100);
     } catch (err: any) {
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
       setError(err.message || 'An error occurred while solving the problem with Gemini AI.');
     } finally {
       setIsLoading(false);
