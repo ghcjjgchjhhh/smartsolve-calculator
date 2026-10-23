@@ -166,55 +166,52 @@ app.post('/api/ai/solve', async (req: Request, res: Response) => {
       });
     }
 
-    const userPrompt = prompt || 'Solve the mathematics or physics problem shown in the image with complete step-by-step working.';
-    contents.push({ text: userPrompt });
+    const promptText = `
+You are SmartSolve AI, a master Mathematics and Physics professor.
+Solve this ${subject || 'Mathematics or Physics'} problem with full verified steps:
+Problem: "${prompt || 'Solve the question shown in the image.'}"
 
-    // Primary fast model (gemini-3.1-flash-lite) with fallbacks and retry
-    const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
-    let lastError: any = null;
-    let resultJson = '';
+Requirements:
+1. Identify all given quantities with symbols, values, and SI units.
+2. State the governing theoretical formula or law before solving.
+3. Show formula algebraic rearrangement for target variable if needed.
+4. Show numerical substitution with SI units.
+5. Provide numbered steps with intermediate arithmetic.
+6. State the final answer with correct units.
+7. Provide a concise explanation and practical tip.
 
-    for (const model of modelsToTry) {
-      // Up to 2 attempts per model to smooth out transient 503 spikes
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          if (attempt > 0) {
-            await new Promise((resolve) => setTimeout(resolve, 600));
-          }
+You MUST respond with a valid JSON object with EXACTLY this structure:
+{
+  "title": "Descriptive title of the problem",
+  "category": "${subject || 'Physics'}",
+  "subCategory": "Topic name (e.g. Kinematics, Algebra, Calculus)",
+  "problemStatement": "Clear formal restatement of question",
+  "formula": "Theoretical formula or law used",
+  "rearrangedFormula": "Formula rearranged for target unknown",
+  "substitution": "Formula with numbers and SI units plugged in",
+  "steps": [
+    "Step 1: ...",
+    "Step 2: ...",
+    "Step 3: ..."
+  ],
+  "finalAnswer": "Exact final answer with SI unit",
+  "unit": "SI unit",
+  "explanation": "Clear explanation of why this physical or mathematical law applies",
+  "tips": "Pro tip or exam advice for solving this problem"
+}
+`.trim();
 
-          const response = await ai.models.generateContent({
-            model,
-            contents,
-            config: {
-              systemInstruction: `${SYSTEM_INSTRUCTION}\nContext subject: ${subject || 'Mathematics and Physics'}.`,
-              responseMimeType: 'application/json',
-              responseSchema: SOLUTION_SCHEMA,
-            },
-          });
+    contents.push({ text: promptText });
 
-          if (response.text) {
-            resultJson = response.text.trim();
-            break;
-          }
-        } catch (err: any) {
-          lastError = err;
-          const status = err?.status || err?.code || '';
-          console.warn(`Model ${model} attempt ${attempt + 1} failed (${status}):`, err.message || err);
-          // If not a transient error (e.g. 400 bad prompt), do not retry
-          if (status === 400 || status === 'INVALID_ARGUMENT') {
-            break;
-          }
-        }
-      }
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-flash-lite',
+      contents,
+      config: {
+        responseMimeType: 'application/json',
+      },
+    });
 
-      if (resultJson) {
-        break;
-      }
-    }
-
-    if (!resultJson) {
-      throw lastError || new Error('No response generated from Gemini AI models.');
-    }
+    const resultJson = response.text?.trim() || '{}';
 
     let cleanJson = resultJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);

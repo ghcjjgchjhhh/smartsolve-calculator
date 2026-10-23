@@ -1,4 +1,8 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
+
+export const config = {
+  maxDuration: 30,
+};
 
 export default async function handler(req: any, res: any) {
   // CORS configuration
@@ -18,21 +22,37 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  // Safely parse body whether it's an object, string, or stream
+  let body = req.body;
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch {}
+  } else if (!body) {
+    try {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        chunks.push(chunk);
+      }
+      body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    } catch {}
+  }
+
+  const { prompt, imageData, mimeType, subject } = body || {};
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({
       error:
-        'GEMINI_API_KEY is not configured in Vercel Environment Variables. Please go to your Vercel Project Settings > Environment Variables, add GEMINI_API_KEY, and redeploy.',
+        'GEMINI_API_KEY environment variable is missing on Vercel. In Vercel, go to Settings > Environment Variables, add GEMINI_API_KEY, and redeploy.',
     });
   }
 
+  if (!prompt && !imageData) {
+    return res.status(400).json({ error: 'Please provide a math or physics question.' });
+  }
+
   try {
-    const { prompt, imageData, mimeType, subject } = req.body || {};
-
-    if (!prompt && !imageData) {
-      return res.status(400).json({ error: 'Please provide a math or physics question.' });
-    }
-
     const ai = new GoogleGenAI({ apiKey });
 
     const contents: any[] = [];
@@ -46,91 +66,48 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    contents.push({
-      text: prompt || 'Solve the mathematics or physics problem shown in the image with complete step-by-step working.',
-    });
+    const promptText = `
+You are SmartSolve AI, a master Mathematics and Physics professor.
+Solve this ${subject || 'Mathematics or Physics'} problem with full verified steps:
+Problem: "${prompt || 'Solve the question shown in the image.'}"
 
-    const SOLUTION_SCHEMA = {
-      type: Type.OBJECT,
-      properties: {
-        title: {
-          type: Type.STRING,
-          description: 'Clear, descriptive title of the problem or concept being solved',
-        },
-        category: {
-          type: Type.STRING,
-          description: 'Primary discipline, e.g. Physics, Mathematics, Calculus, Mechanics',
-        },
-        subCategory: {
-          type: Type.STRING,
-          description: 'Specific topic, e.g. Projectile Motion, Quadratic Equations, Integration',
-        },
-        problemStatement: {
-          type: Type.STRING,
-          description: 'Clean formal restatement of the problem question',
-        },
-        formula: {
-          type: Type.STRING,
-          description: 'The fundamental theoretical formula, law, theorem, or equation applied',
-        },
-        rearrangedFormula: {
-          type: Type.STRING,
-          description: 'Algebraic formula rearranged for target unknown',
-        },
-        substitution: {
-          type: Type.STRING,
-          description: 'Formula with specific values and SI units substituted',
-        },
-        steps: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING },
-          description: 'Step-by-step intermediate calculation working',
-        },
-        finalAnswer: {
-          type: Type.STRING,
-          description: 'Exact final computed answer with SI units',
-        },
-        unit: {
-          type: Type.STRING,
-          description: 'SI unit of the final result',
-        },
-        explanation: {
-          type: Type.STRING,
-          description: 'Clear conceptual explanation of why this physical or mathematical law applies',
-        },
-        tips: {
-          type: Type.STRING,
-          description: 'Pro exam tips or common pitfalls to avoid for this type of problem',
-        },
-      },
-      required: [
-        'title',
-        'category',
-        'problemStatement',
-        'formula',
-        'substitution',
-        'steps',
-        'finalAnswer',
-      ],
-    };
-
-    const SYSTEM_INSTRUCTION = `You are SmartSolve AI, a master Mathematics and Physics professor.
-Solve real-world STEM problems with 100% genuine, verified step-by-step solutions:
+Requirements:
 1. Identify all given quantities with symbols, values, and SI units.
 2. State the governing theoretical formula or law before solving.
 3. Show formula algebraic rearrangement for target variable if needed.
-4. Show numerical substitution with units.
-5. Provide numbered steps with intermediate arithmetic and units.
+4. Show numerical substitution with SI units.
+5. Provide numbered steps with intermediate arithmetic.
 6. State the final answer with correct units.
-7. Provide a concise explanation and practical tip.`;
+7. Provide a concise explanation and practical tip.
+
+You MUST respond with a valid JSON object with EXACTLY this structure:
+{
+  "title": "Descriptive title of the problem",
+  "category": "${subject || 'Physics'}",
+  "subCategory": "Topic name (e.g. Kinematics, Algebra, Calculus)",
+  "problemStatement": "Clear formal restatement of question",
+  "formula": "Theoretical formula or law used",
+  "rearrangedFormula": "Formula rearranged for the target unknown",
+  "substitution": "Formula with numbers and SI units plugged in",
+  "steps": [
+    "Step 1: ...",
+    "Step 2: ...",
+    "Step 3: ..."
+  ],
+  "finalAnswer": "Exact final answer with SI unit",
+  "unit": "SI unit",
+  "explanation": "Clear explanation of why this physical or mathematical law applies",
+  "tips": "Pro tip or exam advice for solving this problem"
+}
+`.trim();
+
+    contents.push({ text: promptText });
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.1-flash-lite',
       contents,
       config: {
-        systemInstruction: `${SYSTEM_INSTRUCTION}\nContext subject: ${subject || 'Mathematics and Physics'}.`,
         responseMimeType: 'application/json',
-        responseSchema: SOLUTION_SCHEMA,
       },
     });
 

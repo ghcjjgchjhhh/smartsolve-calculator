@@ -144,17 +144,18 @@ export const GeminiAiSolverView: React.FC = () => {
         }),
       });
 
-      clearTimeout(stageTimer1);
-      clearTimeout(stageTimer2);
-
+      const responseText = await response.text();
       let data: any = null;
       try {
-        data = await response.json();
+        data = JSON.parse(responseText);
       } catch {
         if (response.status === 404) {
-          throw new Error('AI Solver endpoint (/api/ai/solve) was not found. On Vercel, please ensure serverless functions are enabled.');
+          throw new Error('AI Solver endpoint (/api/ai/solve) was not found. Please verify your Vercel deployment.');
         }
-        throw new Error(`Server returned status ${response.status}. Please check your connection and try again.`);
+        if (response.status === 500) {
+          throw new Error('Server returned 500. Please verify that GEMINI_API_KEY is configured in Vercel Settings > Environment Variables.');
+        }
+        throw new Error(`Server returned status ${response.status}: ${responseText.slice(0, 100)}`);
       }
 
       if (!response.ok || !data?.success) {
