@@ -13,7 +13,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
   const [query, setQuery] = useState('');
 
   const mathEntries = [
-    { name: 'Gemini AI Real-World Solver', sub: 'Solves complex physics & math questions with step-by-step reasoning', tab: 'ai_solver' },
+    { name: 'AI Real-World Solver', sub: 'Solves complex physics & math questions with step-by-step reasoning', tab: 'ai_solver' },
     { name: 'Quadratic Equation Solver', sub: 'ax² + bx + c = 0 (Formula, Factorization, Completing Square)', tab: 'math' },
     { name: 'Linear Equations Solver', sub: 'Single variable ax + b = cx + d', tab: 'math' },
     { name: 'Simultaneous Equations', sub: '2-variable system elimination & Cramer rule', tab: 'math' },

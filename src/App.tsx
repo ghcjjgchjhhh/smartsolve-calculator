@@ -132,7 +132,7 @@ export default function App() {
 
   const navigationTabs = [
     { id: 'scientific', name: 'Scientific', icon: Calculator, badge: 'FX' },
-    { id: 'ai_solver', name: 'Gemini AI Solver', icon: Sparkles, badge: 'Real AI' },
+    { id: 'ai_solver', name: 'AI Solver', icon: Sparkles, badge: 'Smart AI' },
     { id: 'math', name: 'Mathematics', icon: FunctionSquare, badge: '19 Topics' },
     { id: 'physics', name: 'Physics', icon: Atom, badge: '44 Formulas' },
     { id: 'equation', name: 'Equation Solver', icon: Cpu, badge: 'Auto' },

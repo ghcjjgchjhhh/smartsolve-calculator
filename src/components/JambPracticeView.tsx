@@ -213,7 +213,7 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
                   className="px-4 py-2.5 rounded-xl bg-[#22C55E]/15 hover:bg-[#22C55E]/25 text-[#22C55E] border border-[#22C55E]/30 text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
                 >
                   <Sparkles className="w-4 h-4 text-[#22C55E]" />
-                  <span>Solve with Gemini AI</span>
+                  <span>Solve with AI</span>
                 </button>
               )}
             </div>

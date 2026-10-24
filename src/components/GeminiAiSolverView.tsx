@@ -235,7 +235,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
     setIsLoading(true);
     setError(null);
-    setLoadingStage('Connecting to Gemini AI reasoning engine...');
+    setLoadingStage('Connecting to AI reasoning engine...');
 
     const stageTimer1 = setTimeout(() => {
       setLoadingStage('Extracting physical laws, given quantities and units...');
@@ -309,7 +309,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
       }
 
       if (!response.ok || !data?.success) {
-        throw new Error(data?.error || 'Failed to generate solution from Gemini AI.');
+        throw new Error(data?.error || 'Failed to generate solution from AI.');
       }
 
       setSolution(data.solution);
@@ -321,7 +321,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
     } catch (err: any) {
       clearTimeout(stageTimer1);
       clearTimeout(stageTimer2);
-      setError(err.message || 'An error occurred while solving the problem with Gemini AI.');
+      setError(err.message || 'An error occurred while solving the problem with AI.');
     } finally {
       setIsLoading(false);
       setLoadingStage('');
@@ -347,9 +347,9 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
               <span
                 onClick={handleSecretBadgeClick}
                 className="px-2.5 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E] font-bold text-xs uppercase tracking-wider border border-[#22C55E]/30 cursor-default select-none"
-                title="Gemini AI Engine"
+                title="AI Solver Engine"
               >
-                Gemini AI Engine
+                AI Solver Engine
               </span>
               <span className="text-xs text-[#A1A1AA]">· 100% Real Problem Solving</span>
             </div>
@@ -428,7 +428,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
               />
               <div>
                 <span className="text-xs font-bold text-[#FFFFFF] block">Attached Problem Image</span>
-                <span className="text-[11px] text-[#A1A1AA]">Gemini Vision will read and extract the problem</span>
+                <span className="text-[11px] text-[#A1A1AA]">AI Vision will read and extract the problem</span>
               </div>
               <button
                 onClick={handleClearImage}
@@ -483,7 +483,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Solve with Gemini AI</span>
+                  <span>Solve with AI</span>
                 </>
               )}
             </button>
@@ -494,7 +494,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         {isLoading && (
           <div className="p-4 rounded-2xl bg-[#000000] border border-[#22C55E]/40 flex items-center space-x-3 text-xs text-[#FFFFFF] animate-pulse">
             <Loader2 className="w-4 h-4 text-[#22C55E] animate-spin flex-shrink-0" />
-            <span>{loadingStage || 'Gemini AI is deriving the step-by-step solution...'}</span>
+            <span>{loadingStage || 'AI is deriving the step-by-step solution...'}</span>
           </div>
         )}
 
@@ -537,7 +537,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           <div className="flex items-center justify-between mb-2 px-1">
             <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider flex items-center space-x-1.5">
               <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
-              <span>Verified Gemini AI Solution</span>
+              <span>Verified AI Solution</span>
             </span>
             <button
               onClick={() => setSolution(null)}

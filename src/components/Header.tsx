@@ -73,7 +73,7 @@ export const Header: React.FC<Props> = ({
 
             {/* Actions */}
             <div className="flex items-center space-x-1.5 sm:space-x-2">
-              {/* Direct Gemini AI Button */}
+              {/* Direct AI Solver Button */}
               <button
                 onClick={() => setActiveTab('ai_solver')}
                 className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -81,10 +81,10 @@ export const Header: React.FC<Props> = ({
                     ? 'bg-[#22C55E] text-[#FFFFFF] shadow-md shadow-emerald-500/25'
                     : 'bg-[#18181B] hover:bg-[#27272A] text-[#22C55E] border border-[#22C55E]/30'
                 }`}
-                title="Open real Gemini AI Mathematics and Physics Solver"
+                title="Open AI Mathematics and Physics Solver"
               >
                 <Sparkles className="w-3.5 h-3.5 text-inherit" />
-                <span className="hidden sm:inline">Gemini AI Solver</span>
+                <span className="hidden sm:inline">AI Solver</span>
                 <span className="sm:hidden">AI</span>
               </button>
 
