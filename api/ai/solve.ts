@@ -38,11 +38,79 @@ export default async function handler(req: any, res: any) {
       return res.end(
         JSON.stringify({
           error:
-            'Gemini API Key is not configured on the server. Please add GEMINI_API_KEY in Vercel Settings > Environment Variables and redeploy.',
+            'API Key is not configured on the server. Please add GEMINI_API_KEY in Vercel Settings > Environment Variables and redeploy.',
         })
       );
     }
 
+    const ai = new GoogleGenAI({ apiKey });
+
+    // 1. GENERATE JAMB / WAEC CUSTOM EXAM QUESTIONS
+    if (body.action === 'generate_questions' || body.action === 'generate_exam') {
+      const subject = body.subject || 'Physics';
+      const topic = body.topic || 'General Syllabus';
+      const count = Math.min(Math.max(body.count || 10, 5), 40);
+
+      const promptText = `
+You are an expert Nigerian JAMB & WAEC examination setter for ${subject}.
+Generate exactly ${count} realistic, standard JAMB UTME multiple-choice questions on:
+Topic / Formula: "${topic}".
+
+STYLING & NOTATION RULES:
+1. Grade the questions from easy foundational questions to realistic exam calculations and conceptual traps.
+2. Use clear standard LaTeX notation for all formulas, powers, fractions, and symbols ($...$, \\frac{a}{b}, \\sqrt{...}, x^2).
+3. Every question must have exactly 4 plausible options labeled A, B, C, D.
+4. Specify the exact correct answer ('A', 'B', 'C', or 'D').
+5. Provide the governing theoretical formula and a verified step-by-step mathematical derivation showing substitutions and intermediate arithmetic.
+
+Respond with ONLY a valid JSON object matching this exact structure:
+{
+  "subject": "${subject}",
+  "topic": "${topic}",
+  "total": ${count},
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Question statement in LaTeX notation...",
+      "options": {
+        "A": "Option A text with math",
+        "B": "Option B text with math",
+        "C": "Option C text with math",
+        "D": "Option D text with math"
+      },
+      "correctAnswer": "A",
+      "formula": "Governing formula in LaTeX",
+      "steps": [
+        "Given: ...",
+        "Formula: ...",
+        "Substitution: ...",
+        "Final: ..."
+      ]
+    }
+  ]
+}
+`.trim();
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite',
+        contents: [{ text: promptText }],
+        config: {
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const resultText = response.text?.trim() || '{}';
+      let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      const match = cleanJson.match(/\{[\s\S]*\}/);
+      if (match) cleanJson = match[0];
+
+      const parsedData = JSON.parse(cleanJson);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ success: true, ...parsedData }));
+    }
+
+    // 2. SOLVE INDIVIDUAL PROBLEM
     const { prompt, imageData, mimeType, subject } = body;
     if (!prompt && !imageData) {
       res.statusCode = 400;
@@ -50,7 +118,6 @@ export default async function handler(req: any, res: any) {
       return res.end(JSON.stringify({ error: 'Please enter a math or physics question.' }));
     }
 
-    const ai = new GoogleGenAI({ apiKey });
     const contents: any[] = [];
     if (imageData) {
       const cleanBase64 = imageData.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
@@ -121,7 +188,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
     res.setHeader('Content-Type', 'application/json');
     return res.end(
       JSON.stringify({
-        error: error.message || 'Failed to solve question using Gemini AI on Vercel.',
+        error: error.message || 'Failed to solve question using AI.',
       })
     );
   }
