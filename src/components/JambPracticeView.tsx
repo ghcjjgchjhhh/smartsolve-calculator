@@ -12,9 +12,14 @@ import {
   Filter,
   Lightbulb,
   Clock,
+  Sparkles,
 } from 'lucide-react';
 
-export const JambPracticeView: React.FC = () => {
+interface JambPracticeViewProps {
+  onOpenInGemini?: (prompt: string, subject?: string) => void;
+}
+
+export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemini }) => {
   const [subjectFilter, setSubjectFilter] = useState<'All' | 'Mathematics' | 'Physics'>('All');
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
@@ -190,13 +195,28 @@ export const JambPracticeView: React.FC = () => {
 
           {/* Action Row */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#27272A]">
-            <button
-              onClick={handleToggleSolution}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#18181B] hover:bg-slate-200 dark:hover:bg-slate-700 text-[#FFFFFF] text-xs font-bold transition-colors flex items-center justify-center space-x-2"
-            >
-              <Lightbulb className="w-4 h-4 text-amber-500" />
-              <span>{isRevealed ? 'Hide Step-by-Step Solution' : 'Show Step-by-Step Solution'}</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={handleToggleSolution}
+                className="px-4 py-2.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#FFFFFF] text-xs font-bold transition-colors flex items-center justify-center space-x-2 cursor-pointer"
+              >
+                <Lightbulb className="w-4 h-4 text-amber-500" />
+                <span>{isRevealed ? 'Hide Solution' : 'Show Answer'}</span>
+              </button>
+
+              {onOpenInGemini && (
+                <button
+                  onClick={() => {
+                    const fullQ = `${currentQ.subject} — ${currentQ.topic}: ${currentQ.question}\nOptions:\nA. ${currentQ.options.A}\nB. ${currentQ.options.B}\nC. ${currentQ.options.C}\nD. ${currentQ.options.D}\n\nSolve step-by-step with complete mathematical derivation and verify the correct option.`;
+                    onOpenInGemini(fullQ, currentQ.subject);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-[#22C55E]/15 hover:bg-[#22C55E]/25 text-[#22C55E] border border-[#22C55E]/30 text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
+                >
+                  <Sparkles className="w-4 h-4 text-[#22C55E]" />
+                  <span>Solve with Gemini AI</span>
+                </button>
+              )}
+            </div>
 
             {/* Pagination buttons */}
             <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">

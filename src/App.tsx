@@ -45,6 +45,14 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [aiSolverInitialPrompt, setAiSolverInitialPrompt] = useState<string>('');
+  const [aiSolverInitialSubject, setAiSolverInitialSubject] = useState<string>('All');
+
+  const handleOpenInGemini = (prompt: string, subject?: string) => {
+    setAiSolverInitialPrompt(prompt);
+    if (subject) setAiSolverInitialSubject(subject);
+    setActiveTab('ai_solver');
+  };
   
   // Track if mobile banner was dismissed in this session
   const [isBannerDismissed, setIsBannerDismissed] = useState<boolean>(() => {
@@ -227,12 +235,18 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {activeTab === 'scientific' && <ScientificCalculator />}
-        {activeTab === 'ai_solver' && <GeminiAiSolverView />}
+        {activeTab === 'ai_solver' && (
+          <GeminiAiSolverView
+            initialPrompt={aiSolverInitialPrompt}
+            initialSubject={aiSolverInitialSubject}
+            onClearInitialPrompt={() => setAiSolverInitialPrompt('')}
+          />
+        )}
         {activeTab === 'math' && <MathHub />}
         {activeTab === 'physics' && <PhysicsHub />}
         {activeTab === 'equation' && <EquationSolverView />}
         {activeTab === 'converter' && <UnitConverterView />}
-        {activeTab === 'jamb' && <JambPracticeView />}
+        {activeTab === 'jamb' && <JambPracticeView onOpenInGemini={handleOpenInGemini} />}
         {activeTab === 'smart_input' && <SmartInputView />}
       </main>
 

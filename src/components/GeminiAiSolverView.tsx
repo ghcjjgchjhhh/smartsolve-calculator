@@ -14,11 +14,22 @@ import {
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 
-export const GeminiAiSolverView: React.FC = () => {
+interface GeminiAiSolverViewProps {
+  initialPrompt?: string;
+  initialSubject?: string;
+  onClearInitialPrompt?: () => void;
+}
+
+export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
+  initialPrompt,
+  initialSubject,
+  onClearInitialPrompt,
+}) => {
   const [prompt, setPrompt] = useState<string>(
-    'A stone of mass 0.5 kg is dropped from a cliff 80m high. Calculate its kinetic energy just before hitting the ground (take g = 9.8 m/s²).'
+    initialPrompt ||
+      'A stone of mass 0.5 kg is dropped from a cliff 80m high. Calculate its kinetic energy just before hitting the ground (take g = 9.8 m/s²).'
   );
-  const [selectedSubject, setSelectedSubject] = useState<string>('All');
+  const [selectedSubject, setSelectedSubject] = useState<string>(initialSubject || 'All');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageMimeType, setImageMimeType] = useState<string>('image/jpeg');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -316,6 +327,15 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
       setLoadingStage('');
     }
   };
+
+  React.useEffect(() => {
+    if (initialPrompt && initialPrompt.trim()) {
+      setPrompt(initialPrompt);
+      if (initialSubject) setSelectedSubject(initialSubject);
+      handleSolve(initialPrompt);
+      onClearInitialPrompt?.();
+    }
+  }, [initialPrompt]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
