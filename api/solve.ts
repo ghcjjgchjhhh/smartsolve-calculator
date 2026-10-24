@@ -38,7 +38,7 @@ export default async function handler(req: any, res: any) {
       return res.end(
         JSON.stringify({
           error:
-            'Gemini API Key is not configured. Please tap "Set API Key" in the app to paste your key.',
+            'Gemini API Key is not configured on the server. Please add GEMINI_API_KEY in Vercel Settings > Environment Variables and redeploy.',
         })
       );
     }

@@ -260,7 +260,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         headers['x-gemini-key'] = userApiKey;
       }
 
-      const response = await fetch('/api/ai/solve', {
+      let response = await fetch('/api/solve', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -271,6 +271,19 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         }),
       });
 
+      if (response.status === 404) {
+        response = await fetch('/api/ai/solve', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            prompt: targetPrompt,
+            imageData: imagePreview,
+            mimeType: imageMimeType,
+            subject: selectedSubject === 'All' ? undefined : selectedSubject,
+          }),
+        });
+      }
+
       clearTimeout(stageTimer1);
       clearTimeout(stageTimer2);
 
@@ -280,7 +293,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         data = JSON.parse(responseText);
       } catch {
         throw new Error(
-          'Vercel serverless returned a server error. Tap "Set API Key" above to paste your key directly and solve instantly.'
+          'Vercel serverless function could not run. If you recently saved GEMINI_API_KEY in Vercel, please click "Redeploy" in your Vercel Deployments tab so the key takes effect.'
         );
       }
 
