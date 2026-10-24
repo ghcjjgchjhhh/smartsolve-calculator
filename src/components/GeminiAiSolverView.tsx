@@ -30,8 +30,30 @@ export const GeminiAiSolverView: React.FC = () => {
   );
   const [isKeyModalOpen, setIsKeyModalOpen] = useState<boolean>(false);
   const [tempKeyInput, setTempKeyInput] = useState<string>('');
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return (
+        window.location.search.includes('admin=1') ||
+        !!localStorage.getItem('gemini_user_api_key')
+      );
+    }
+    return false;
+  });
+  const [badgeClicks, setBadgeClicks] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const solutionRef = useRef<HTMLDivElement>(null);
+
+  const handleSecretBadgeClick = () => {
+    setBadgeClicks((prev) => {
+      const next = prev + 1;
+      if (next >= 5) {
+        setIsAdminMode(true);
+        setIsKeyModalOpen(true);
+        return 0;
+      }
+      return next;
+    });
+  };
 
   const realProblemSamples = [
     {
@@ -289,7 +311,11 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E] font-bold text-xs uppercase tracking-wider border border-[#22C55E]/30">
+              <span
+                onClick={handleSecretBadgeClick}
+                className="px-2.5 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E] font-bold text-xs uppercase tracking-wider border border-[#22C55E]/30 cursor-default select-none"
+                title="Gemini AI Engine"
+              >
                 Gemini AI Engine
               </span>
               <span className="text-xs text-[#A1A1AA]">· 100% Real Problem Solving</span>
@@ -304,22 +330,24 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Key Status / Configuration Button */}
-            <button
-              onClick={() => {
-                setTempKeyInput(userApiKey);
-                setIsKeyModalOpen(true);
-              }}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                userApiKey
-                  ? 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30'
-                  : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] border-[#27272A]'
-              }`}
-              title="Configure your Gemini API Key"
-            >
-              <Key className="w-3.5 h-3.5" />
-              <span>{userApiKey ? 'API Key Active' : 'Set API Key'}</span>
-            </button>
+            {/* Key Status / Configuration Button (Visible only to admin) */}
+            {isAdminMode && (
+              <button
+                onClick={() => {
+                  setTempKeyInput(userApiKey);
+                  setIsKeyModalOpen(true);
+                }}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  userApiKey
+                    ? 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30'
+                    : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] border-[#27272A]'
+                }`}
+                title="Configure your Gemini API Key"
+              >
+                <Key className="w-3.5 h-3.5" />
+                <span>{userApiKey ? 'API Key Active' : 'Set API Key'}</span>
+              </button>
+            )}
 
             <div className="flex items-center space-x-1.5 bg-[#000000] px-3 py-1.5 rounded-xl border border-[#27272A] text-xs text-[#22C55E] font-bold shrink-0">
               <CheckCircle2 className="w-3.5 h-3.5 text-[#22C55E]" />
@@ -448,15 +476,17 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
               </div>
             </div>
             <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
-              <button
-                onClick={() => {
-                  setTempKeyInput(userApiKey);
-                  setIsKeyModalOpen(true);
-                }}
-                className="px-3 py-1.5 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold text-xs shadow-sm cursor-pointer whitespace-nowrap"
-              >
-                Paste API Key Here
-              </button>
+              {isAdminMode && (
+                <button
+                  onClick={() => {
+                    setTempKeyInput(userApiKey);
+                    setIsKeyModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold text-xs shadow-sm cursor-pointer whitespace-nowrap"
+                >
+                  Configure Key
+                </button>
+              )}
               <button
                 onClick={() => setError(null)}
                 className="text-xs font-bold underline cursor-pointer text-[#A1A1AA] hover:text-[#FFFFFF]"
