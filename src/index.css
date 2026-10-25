@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --color-bg-main: #000000;
+    --color-calc-display: #0A0A0A;
+    --color-btn-number: #18181B;
+    --color-btn-operator: #22C55E;
+    --color-btn-equals: #22C55E;
+    --color-btn-clear: #EF4444;
+    --color-text-main: #FFFFFF;
+    --color-text-secondary: #A1A1AA;
+  }
+
+  body {
+    background-color: #000000;
+    color: #FFFFFF;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(161, 161, 170, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(161, 161, 170, 0.45);
+}
+
+/* Mathematical styling */
+.math-display {
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+}
+
+/* KaTeX textbook-grade display styles */
+.katex {
+  color: #FFFFFF !important;
+  font-size: 1.15em;
+}
+
+.katex-display {
+  margin: 0.85em 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25em 0;
+}
+
+.katex-display > .katex {
+  text-align: center;
+}
+
+/* Crisp white boxed final answer matching screenshot */
+.katex .fbox {
+  border: 1.5px solid #FFFFFF !important;
+  padding: 0.25em 0.75em !important;
+  border-radius: 4px;
+}
+
