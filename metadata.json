@@ -1,6 +1,0 @@
-{
-  "name": "SmartSolve Calculator",
-  "description": "A modern, powerful calculator for Mathematics and Physics with step-by-step solutions, equation solver, JAMB/WAEC practice, unit converter, and smart natural language input.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
