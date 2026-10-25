@@ -23,6 +23,9 @@ import {
   Flame,
   ChevronRight,
   Eye,
+  Key,
+  ExternalLink,
+  X,
 } from 'lucide-react';
 
 interface JambPracticeViewProps {
@@ -63,6 +66,24 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
   const [showResultsModal, setShowResultsModal] = useState<boolean>(false);
   const [resultsFilter, setResultsFilter] = useState<'all' | 'wrong' | 'correct'>('all');
   const [studyMode, setStudyMode] = useState<boolean>(false);
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState<boolean>(false);
+  const [tempKeyInput, setTempKeyInput] = useState<string>('');
+  const [savedApiKey, setSavedApiKey] = useState<string>(() => {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem('gemini_user_api_key') || '' : '';
+  });
+
+  const handleSaveApiKey = () => {
+    const cleaned = tempKeyInput.trim();
+    if (cleaned) {
+      localStorage.setItem('gemini_user_api_key', cleaned);
+      setSavedApiKey(cleaned);
+    } else {
+      localStorage.removeItem('gemini_user_api_key');
+      setSavedApiKey('');
+    }
+    setIsKeyModalOpen(false);
+    setGenerationError(null);
+  };
 
   // CBT Countdown Timer (in seconds)
   const [initialDuration, setInitialDuration] = useState<number>(40 * 60);
@@ -273,9 +294,14 @@ Respond with ONLY a valid JSON object matching this exact structure:
       }
 
       // 2. Serverless API call
+      const reqHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (storedKey) {
+        reqHeaders['x-gemini-key'] = storedKey;
+      }
+
       let response = await fetch('/api/solve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: reqHeaders,
         body: JSON.stringify({
           action: 'generate_questions',
           subject: aiSubject,
@@ -283,13 +309,14 @@ Respond with ONLY a valid JSON object matching this exact structure:
           difficulty: difficulty,
           topic: targetTopic,
           count: aiCount,
+          apiKey: storedKey || undefined,
         }),
       });
 
       if (response.status === 404) {
         response = await fetch('/api/ai/solve', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: reqHeaders,
           body: JSON.stringify({
             action: 'generate_questions',
             subject: aiSubject,
@@ -297,6 +324,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
             difficulty: difficulty,
             topic: targetTopic,
             count: aiCount,
+            apiKey: storedKey || undefined,
           }),
         });
       }
@@ -489,7 +517,21 @@ Respond with ONLY a valid JSON object matching this exact structure:
               <Sparkles className="w-5 h-5 text-[#22C55E]" />
               <h3 className="text-base font-bold text-[#FFFFFF]">Configure AI Examination Setter</h3>
             </div>
-            <span className="text-xs text-[#A1A1AA]">Syllabus-Accurate Generation</span>
+            <button
+              onClick={() => {
+                setTempKeyInput(savedApiKey);
+                setIsKeyModalOpen(true);
+              }}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                savedApiKey
+                  ? 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30'
+                  : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] border-[#27272A]'
+              }`}
+              title="Configure API Key"
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span>{savedApiKey ? 'API Key Active' : 'Set API Key'}</span>
+            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -625,9 +667,28 @@ Respond with ONLY a valid JSON object matching this exact structure:
 
           {/* Error notice */}
           {generationError && (
-            <div className="p-3.5 rounded-xl bg-[#EF4444]/15 border border-[#EF4444]/30 text-xs text-[#EF4444] flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{generationError}</span>
+            <div className="p-4 rounded-2xl bg-[#EF4444]/15 border border-[#EF4444]/30 text-xs text-[#EF4444] flex flex-col sm:flex-row items-start justify-between gap-3">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{generationError}</span>
+              </div>
+              <div className="flex items-center space-x-2 shrink-0 w-full sm:w-auto justify-end">
+                <button
+                  onClick={() => {
+                    setTempKeyInput(savedApiKey);
+                    setIsKeyModalOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold text-xs shadow-md shadow-emerald-500/20 cursor-pointer whitespace-nowrap transition-all"
+                >
+                  Set API Key
+                </button>
+                <button
+                  onClick={() => setGenerationError(null)}
+                  className="text-xs font-bold underline cursor-pointer text-[#A1A1AA] hover:text-[#FFFFFF]"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1083,6 +1144,95 @@ Respond with ONLY a valid JSON object matching this exact structure:
                   <span>Review All Derivations</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Direct API Key Setup */}
+      {isKeyModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-[#22C55E]/15 border border-[#22C55E]/30 flex items-center justify-center text-[#22C55E]">
+                  <Key className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-[#FFFFFF]">Configure AI API Key</h3>
+              </div>
+              <button
+                onClick={() => setIsKeyModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs text-[#A1A1AA] leading-relaxed">
+              <p>
+                To generate custom 40-question mock exams on Vercel, you can either paste your free key below or set it in your Vercel project:
+              </p>
+              <div className="p-3 rounded-xl bg-[#18181B] border border-white/5 space-y-1">
+                <span className="font-bold text-[#FFFFFF] block">Option 1: Paste Key Directly (Fastest)</span>
+                <p>Paste your key below. It saves securely in your browser and connects immediately.</p>
+              </div>
+              <div className="p-3 rounded-xl bg-[#18181B] border border-white/5 space-y-1">
+                <span className="font-bold text-[#FFFFFF] block">Option 2: Add to Vercel Server (For all visitors)</span>
+                <p>In Vercel Dashboard → Project Settings → <b>Environment Variables</b> → add <code className="text-[#22C55E]">GEMINI_API_KEY</code> → then click <b>Deployments &gt; Redeploy</b>.</p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#FFFFFF]">Google AI API Key (starts with AIzaSy...):</label>
+              <input
+                type="password"
+                value={tempKeyInput}
+                onChange={(e) => setTempKeyInput(e.target.value)}
+                placeholder="AIzaSy..."
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#000000] border border-[#27272A] text-[#FFFFFF] text-sm focus:border-[#22C55E] focus:outline-none font-mono"
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-[#A1A1AA]">
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#22C55E] hover:underline flex items-center space-x-1"
+              >
+                <span>Get a free key from Google AI Studio</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+              {savedApiKey && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.removeItem('gemini_user_api_key');
+                    setSavedApiKey('');
+                    setTempKeyInput('');
+                  }}
+                  className="text-[#EF4444] hover:underline cursor-pointer"
+                >
+                  Remove Key
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-[#27272A]">
+              <button
+                type="button"
+                onClick={() => setIsKeyModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveApiKey}
+                className="px-5 py-2 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] text-xs font-bold shadow-md shadow-emerald-500/25 cursor-pointer"
+              >
+                Save & Connect
+              </button>
             </div>
           </div>
         </div>

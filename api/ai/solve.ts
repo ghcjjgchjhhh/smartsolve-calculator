@@ -30,7 +30,17 @@ export default async function handler(req: any, res: any) {
       (req.headers?.['x-gemini-key'] as string) ||
       (req.headers?.['authorization'] as string)?.replace(/^Bearer\s+/i, '') ||
       '';
-    const apiKey = (headerKey && headerKey.trim()) ? headerKey.trim() : process.env.GEMINI_API_KEY;
+    const serverKey =
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_GENAI_API_KEY ||
+      process.env.GOOGLE_API_KEY ||
+      process.env.VITE_GEMINI_API_KEY ||
+      process.env.API_KEY ||
+      '';
+    const apiKey =
+      (headerKey && headerKey.trim()) ||
+      (body.apiKey && String(body.apiKey).trim()) ||
+      serverKey;
 
     if (!apiKey) {
       res.statusCode = 400;
@@ -38,7 +48,7 @@ export default async function handler(req: any, res: any) {
       return res.end(
         JSON.stringify({
           error:
-            'API Key is not configured on the server. Please add GEMINI_API_KEY in Vercel Settings > Environment Variables and redeploy.',
+            'API Key is not configured on the server. Please add GEMINI_API_KEY in Vercel Settings > Environment Variables and redeploy, or tap "Set API Key" to use it instantly.',
         })
       );
     }

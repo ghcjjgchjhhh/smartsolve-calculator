@@ -390,24 +390,22 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Key Status / Configuration Button (Visible only to admin) */}
-            {isAdminMode && (
-              <button
-                onClick={() => {
-                  setTempKeyInput(userApiKey);
-                  setIsKeyModalOpen(true);
-                }}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                  userApiKey
-                    ? 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30'
-                    : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] border-[#27272A]'
-                }`}
-                title="Configure your AI API Key"
-              >
-                <Key className="w-3.5 h-3.5" />
-                <span>{userApiKey ? 'API Key Active' : 'Set API Key'}</span>
-              </button>
-            )}
+            {/* Key Status / Configuration Button */}
+            <button
+              onClick={() => {
+                setTempKeyInput(userApiKey);
+                setIsKeyModalOpen(true);
+              }}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                userApiKey
+                  ? 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30'
+                  : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] border-[#27272A]'
+              }`}
+              title="Configure your AI API Key"
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span>{userApiKey ? 'API Key Active' : 'Set API Key'}</span>
+            </button>
 
             <div className="flex items-center space-x-1.5 bg-[#000000] px-3 py-1.5 rounded-xl border border-[#27272A] text-xs text-[#22C55E] font-bold shrink-0">
               <CheckCircle2 className="w-3.5 h-3.5 text-[#22C55E]" />
@@ -536,17 +534,15 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
               </div>
             </div>
             <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
-              {isAdminMode && (
-                <button
-                  onClick={() => {
-                    setTempKeyInput(userApiKey);
-                    setIsKeyModalOpen(true);
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold text-xs shadow-sm cursor-pointer whitespace-nowrap"
-                >
-                  Configure Key
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  setTempKeyInput(userApiKey);
+                  setIsKeyModalOpen(true);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold text-xs shadow-md shadow-emerald-500/20 cursor-pointer whitespace-nowrap transition-all"
+              >
+                Set API Key
+              </button>
               <button
                 onClick={() => setError(null)}
                 className="text-xs font-bold underline cursor-pointer text-[#A1A1AA] hover:text-[#FFFFFF]"
