@@ -9,6 +9,8 @@ export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isIOSSafari, setIsIOSSafari] = useState(false);
+  const [isIOSOtherBrowser, setIsIOSOtherBrowser] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
 
@@ -21,11 +23,18 @@ export function usePWAInstall() {
 
     setIsInstalled(isStandalone);
 
-    // 2. Detect platform
+    // 2. Detect platform & browser
     const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isIPadOS = (navigator as any).platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1;
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent) || isIPadOS;
     const isAndroidDevice = /android/.test(userAgent);
+    const isSafari = /safari/.test(userAgent) && !/crios|fxios|opios|mercury|instagram|fbav|messenger/.test(userAgent);
+    const isSafariOnIOS = isIOSDevice && isSafari;
+    const isOtherOnIOS = isIOSDevice && !isSafari;
+
     setIsIOS(isIOSDevice);
+    setIsIOSSafari(isSafariOnIOS);
+    setIsIOSOtherBrowser(isOtherOnIOS);
     setIsAndroid(isAndroidDevice);
 
     // 3. Capture beforeinstallprompt (Android Chrome, Edge, Chromium)
@@ -73,6 +82,8 @@ export function usePWAInstall() {
     canInstall,
     isInstalled,
     isIOS,
+    isIOSSafari,
+    isIOSOtherBrowser,
     isAndroid,
     triggerInstall,
     deferredPrompt,

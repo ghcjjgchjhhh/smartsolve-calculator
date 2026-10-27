@@ -262,6 +262,9 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           contents,
           config: {
             responseMimeType: 'application/json',
+            thinkingConfig: {
+              thinkingLevel: 'LOW' as any,
+            },
           },
         });
 

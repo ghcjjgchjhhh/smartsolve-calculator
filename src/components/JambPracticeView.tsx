@@ -550,7 +550,12 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 const generatePromise = ai.models.generateContent({
                   model,
                   contents: [{ text: promptText }],
-                  config: { responseMimeType: 'application/json' },
+                  config: {
+                    responseMimeType: 'application/json',
+                    thinkingConfig: {
+                      thinkingLevel: 'LOW' as any,
+                    },
+                  },
                 });
                 const timeoutPromise = new Promise((_, reject) =>
                   setTimeout(() => reject(new Error('Batch timeout')), 10000)

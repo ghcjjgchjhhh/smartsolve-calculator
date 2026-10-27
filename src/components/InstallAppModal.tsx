@@ -10,7 +10,10 @@ import {
   WifiOff,
   Maximize2,
   MoreVertical,
-  Laptop
+  Laptop,
+  Copy,
+  Check,
+  AlertTriangle,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
@@ -20,7 +23,8 @@ interface Props {
 }
 
 export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  const { canInstall, isInstalled, isIOS, isAndroid, triggerInstall } = usePWAInstall();
+  const { canInstall, isInstalled, isIOS, isIOSSafari, isIOSOtherBrowser, isAndroid, triggerInstall } = usePWAInstall();
+  const [copiedLink, setCopiedLink] = useState(false);
   const [activeTab, setActiveTab] = useState<'android' | 'ios' | 'pc'>(() => {
     if (isIOS) return 'ios';
     if (isAndroid) return 'android';
@@ -28,6 +32,16 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
   });
 
   if (!isOpen) return null;
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch {
+      // fallback
+    }
+  };
 
   const handleInstallClick = async () => {
     if (canInstall) {
@@ -213,47 +227,95 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             {/* iOS Instructions */}
             {activeTab === 'ios' && (
-              <div className="space-y-3 text-xs sm:text-sm text-[#A1A1AA]">
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#27272A]">
+              <div className="space-y-3.5 text-xs sm:text-sm text-[#A1A1AA]">
+                {/* Explanation why iPhone works this way */}
+                <div className="p-3.5 rounded-2xl bg-[#18181B] border border-white/10 text-xs space-y-1">
+                  <div className="flex items-center space-x-1.5 text-[#FFFFFF] font-bold">
+                    <Smartphone className="w-3.5 h-3.5 text-[#22C55E]" />
+                    <span>How iPhone / iPad Installation Works</span>
+                  </div>
+                  <p className="text-[#A1A1AA] leading-relaxed">
+                    Apple iOS does not allow web browsers to pop up 1-tap install buttons. Instead, Apple provides an official <strong>"Add to Home Screen"</strong> option inside <strong>Safari</strong>.
+                  </p>
+                </div>
+
+                {/* Non-Safari Warning (e.g. Chrome on iOS or In-App Browser) */}
+                {isIOSOtherBrowser && (
+                  <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs space-y-2">
+                    <div className="flex items-start space-x-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-amber-300">You are not using Safari</p>
+                        <p className="text-amber-200/90 mt-0.5">
+                          Apple blocks "Add to Home Screen" inside Chrome, Google App, or Instagram/WhatsApp. You must open this link in <strong>Safari</strong>.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="w-full py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 font-bold text-xs flex items-center justify-center space-x-1.5 cursor-pointer active:scale-95 transition-all"
+                    >
+                      {copiedLink ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-[#22C55E]" />
+                          <span>Link Copied! Open Safari & Paste</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy App Link to Open in Safari</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-start space-x-3 p-3.5 rounded-xl bg-[#000000] border border-[#27272A]">
                   <div className="w-6 h-6 rounded-lg bg-[#18181B] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     1
                   </div>
                   <div>
                     <p className="font-semibold text-[#FFFFFF]">
-                      Open in Apple Safari
+                      Open this URL in Apple Safari
                     </p>
                     <p className="text-[#A1A1AA] text-xs mt-0.5">
-                      Apple requires using Safari on iOS to install home screen web apps.
+                      Ensure you are viewing this page in Safari (not Chrome or an in-app browser).
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#27272A]">
+                <div className="flex items-start space-x-3 p-3.5 rounded-xl bg-[#000000] border border-[#27272A]">
                   <div className="w-6 h-6 rounded-lg bg-[#18181B] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5 border border-white/5">
                     2
                   </div>
                   <div>
                     <p className="font-semibold text-[#FFFFFF] flex items-center gap-1.5">
-                      Tap the <Share2 className="w-4 h-4 text-[#22C55E] inline" /> Share button
+                      Tap the <Share2 className="w-4 h-4 text-[#22C55E] inline" /> Share button in Safari
                     </p>
                     <p className="text-[#A1A1AA] text-xs mt-0.5">
-                      The square icon with an upward arrow at the bottom of Safari.
+                      Look at the bottom navigation bar of Safari for the square icon with an arrow pointing upward.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 rounded-xl bg-[#000000] border border-[#22C55E]/40">
+                <div className="flex items-start space-x-3 p-3.5 rounded-xl bg-[#000000] border border-[#22C55E]/40">
                   <div className="w-6 h-6 rounded-lg bg-[#22C55E] text-[#FFFFFF] font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                     3
                   </div>
                   <div>
                     <p className="font-semibold text-[#FFFFFF] flex items-center gap-1.5">
-                      Tap <PlusSquare className="w-4 h-4 text-[#22C55E] inline" /> <span className="font-bold underline text-[#22C55E]">“Add to Home Screen”</span>
+                      Scroll down and tap <PlusSquare className="w-4 h-4 text-[#22C55E] inline" /> <span className="font-bold underline text-[#22C55E]">“Add to Home Screen”</span>
                     </p>
                     <p className="text-[#A1A1AA] text-xs mt-0.5">
-                      Then tap “Add” in the top-right corner. SmartSolve will appear as a full standalone phone app.
+                      If you don't see it, swipe down in the share sheet. Then tap <strong>“Add”</strong> in the top-right corner.
                     </p>
                   </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#22C55E]/10 border border-[#22C55E]/20 text-xs text-[#22C55E] flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-[#22C55E]" />
+                  <span>The app will appear with its icon on your iPhone home screen and run standalone!</span>
                 </div>
               </div>
             )}

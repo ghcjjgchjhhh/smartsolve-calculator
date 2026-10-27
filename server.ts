@@ -150,6 +150,9 @@ async function generateWithModelFallback(ai: GoogleGenAI, contents: any[], timeo
         contents,
         config: {
           responseMimeType: 'application/json',
+          thinkingConfig: {
+            thinkingLevel: 'LOW' as any,
+          },
         },
       });
 
