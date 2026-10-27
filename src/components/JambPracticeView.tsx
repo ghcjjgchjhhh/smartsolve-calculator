@@ -24,6 +24,8 @@ import {
   ChevronRight,
   Eye,
   Zap,
+  ArrowLeft,
+  X,
 } from 'lucide-react';
 
 interface JambPracticeViewProps {
@@ -243,6 +245,26 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
     if (!initialSession || initialSession.examSubmitted) return false;
     return Boolean(initialSession.isTimerRunning);
   });
+
+  // Handle back gesture / history back when results modal is open
+  useEffect(() => {
+    if (!showResultsModal) return;
+
+    try {
+      window.history.pushState({ modal: 'cbt_results' }, '', window.location.href);
+    } catch {
+      // ignore
+    }
+
+    const handlePopState = () => {
+      setShowResultsModal(false);
+    };
+
+    window.addEventListener('popstate', handlePopState, { once: true });
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [showResultsModal]);
 
   // Persistent Storage Sync: Keep localStorage updated on every state change
   useEffect(() => {
@@ -834,19 +856,54 @@ Respond with ONLY a valid JSON object matching this exact structure:
             </p>
           </div>
 
-          {/* Real-time CBT Timer / Score */}
+          {/* Real-time CBT Timer / Score & Review Room Button */}
           <div className="flex items-center space-x-2 shrink-0">
-            <div className="bg-[#000000] p-3 rounded-2xl border border-[#27272A] text-center min-w-[110px]">
-              <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider block">
-                {examSubmitted ? 'Score' : 'CBT Timer'}
-              </span>
-              <div className="text-xl font-black text-[#FFFFFF] mt-0.5 font-mono">
-                {examSubmitted ? `${correctCount}/${totalQuestions}` : formatTimer(timeLeft)}
+            {examSubmitted ? (
+              <button
+                type="button"
+                onClick={() => setShowResultsModal(true)}
+                className="bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] p-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-lg shadow-emerald-500/25 flex items-center space-x-2.5 transition-all active:scale-95 cursor-pointer text-left border border-emerald-400/40"
+                title="Open Submit Review Room & Results Breakdown"
+              >
+                <div className="w-8 h-8 rounded-xl bg-black/30 flex items-center justify-center shrink-0">
+                  <Award className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-wider text-black/80 flex items-center space-x-1">
+                    <ArrowLeft className="w-3 h-3 text-black/80" />
+                    <span>Submit Review Room</span>
+                  </div>
+                  <div className="text-sm sm:text-base font-black font-mono leading-tight">
+                    {correctCount}/{totalQuestions} ({scorePercent}%)
+                  </div>
+                </div>
+              </button>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <div className="bg-[#000000] p-3 rounded-2xl border border-[#27272A] text-center min-w-[110px]">
+                  <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider block">
+                    CBT Timer
+                  </span>
+                  <div className="text-xl font-black text-[#FFFFFF] mt-0.5 font-mono">
+                    {formatTimer(timeLeft)}
+                  </div>
+                  <span className="text-[10px] font-bold text-[#22C55E]">
+                    {questions.length} Questions
+                  </span>
+                </div>
+                {questions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleFinalizeExam}
+                    className="bg-[#EF4444]/20 hover:bg-[#EF4444]/30 text-[#EF4444] border border-[#EF4444]/40 px-3 py-3 rounded-2xl text-xs font-bold transition-all active:scale-95 cursor-pointer flex flex-col items-center justify-center"
+                    title="Submit exam and open review room"
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span className="text-[10px] font-black mt-0.5">Submit</span>
+                  </button>
+                )}
               </div>
-              <span className="text-[10px] font-bold text-[#22C55E]">
-                {examSubmitted ? `${scorePercent}%` : `${questions.length} Questions`}
-              </span>
-            </div>
+            )}
           </div>
         </div>
 
@@ -1142,7 +1199,17 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 Exam Question Palette ({questions.length} Questions Total)
               </span>
             </div>
-            <div className="flex items-center space-x-3 text-[11px] text-[#A1A1AA]">
+            <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#A1A1AA]">
+              {examSubmitted && (
+                <button
+                  type="button"
+                  onClick={() => setShowResultsModal(true)}
+                  className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-[#22C55E]/15 hover:bg-[#22C55E]/25 text-[#22C55E] border border-[#22C55E]/30 text-xs font-bold transition-all cursor-pointer active:scale-95"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Submit Review Room</span>
+                </button>
+              )}
               <span className="flex items-center space-x-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] inline-block"></span>
                 <span>{Object.keys(selectedAnswers).length} Answered</span>
@@ -1216,6 +1283,18 @@ Respond with ONLY a valid JSON object matching this exact structure:
             </div>
 
             <div className="flex items-center space-x-2">
+              {examSubmitted && (
+                <button
+                  type="button"
+                  onClick={() => setShowResultsModal(true)}
+                  className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] text-xs font-black shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
+                  title="Return to the Submit Review Room"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Submit Review Room</span>
+                </button>
+              )}
+
               {/* Study mode toggle */}
               <button
                 onClick={() => setStudyMode((prev) => !prev)}
@@ -1311,7 +1390,19 @@ Respond with ONLY a valid JSON object matching this exact structure:
             </div>
 
             {/* Navigation & Submit */}
-            <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+              {examSubmitted && (
+                <button
+                  type="button"
+                  onClick={() => setShowResultsModal(true)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#22C55E]/20 hover:bg-[#22C55E]/30 text-[#22C55E] border border-[#22C55E]/40 flex items-center space-x-1.5 cursor-pointer active:scale-95 transition-all"
+                  title="Return to the Submit Review Room"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Submit Review Room</span>
+                </button>
+              )}
+
               <button
                 disabled={currentIndex === 0}
                 onClick={() => handleNavigateQuestion(Math.max(0, currentIndex - 1))}
@@ -1321,20 +1412,35 @@ Respond with ONLY a valid JSON object matching this exact structure:
               </button>
 
               {currentIndex < questions.length - 1 ? (
-                <button
-                  onClick={() => handleNavigateQuestion(Math.min(questions.length - 1, currentIndex + 1))}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] cursor-pointer"
-                >
-                  Next
-                </button>
+                <>
+                  <button
+                    onClick={() => handleNavigateQuestion(Math.min(questions.length - 1, currentIndex + 1))}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] cursor-pointer"
+                  >
+                    Next
+                  </button>
+                  {!examSubmitted && (
+                    <button
+                      type="button"
+                      onClick={handleFinalizeExam}
+                      className="px-3 py-2 rounded-xl text-xs font-bold bg-[#EF4444]/20 hover:bg-[#EF4444]/30 text-[#EF4444] border border-[#EF4444]/40 flex items-center space-x-1 cursor-pointer"
+                      title="Submit exam and review results"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Submit</span>
+                    </button>
+                  )}
+                </>
               ) : (
-                <button
-                  onClick={handleFinalizeExam}
-                  className="px-5 py-2.5 rounded-xl text-xs font-black bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] flex items-center space-x-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer"
-                >
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>Submit & View Result</span>
-                </button>
+                !examSubmitted && (
+                  <button
+                    onClick={handleFinalizeExam}
+                    className="px-5 py-2.5 rounded-xl text-xs font-black bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] flex items-center space-x-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>Submit & View Result</span>
+                  </button>
+                )
               )}
             </div>
           </div>
@@ -1440,11 +1546,13 @@ Respond with ONLY a valid JSON object matching this exact structure:
               </span>
               {examSubmitted && (
                 <button
+                  type="button"
                   onClick={() => setShowResultsModal(true)}
-                  className="text-xs font-bold text-[#22C55E] hover:underline flex items-center space-x-1 cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-[#22C55E]/15 hover:bg-[#22C55E]/25 text-[#22C55E] border border-[#22C55E]/30 text-xs font-bold flex items-center space-x-1.5 cursor-pointer active:scale-95 transition-all"
+                  title="Return to the Submit Review Room"
                 >
-                  <Award className="w-3.5 h-3.5" />
-                  <span>View Full Results</span>
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Submit Review Room</span>
                 </button>
               )}
             </div>
@@ -1488,6 +1596,30 @@ Respond with ONLY a valid JSON object matching this exact structure:
       {showResultsModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
           <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative text-[#FFFFFF] space-y-6 max-h-[90vh] overflow-y-auto">
+            {/* Top Back & Close Bar */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#27272A]">
+              <button
+                type="button"
+                onClick={() => setShowResultsModal(false)}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#22C55E] hover:text-[#4ADE80] border border-[#22C55E]/30 text-xs font-bold transition-all cursor-pointer active:scale-95"
+                title="Go back to question workstation"
+              >
+                <ArrowLeft className="w-4 h-4 text-[#22C55E]" />
+                <span>Back to Questions</span>
+              </button>
+              <span className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-wider hidden sm:inline">
+                Submit & Review Room
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowResultsModal(false)}
+                className="p-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] cursor-pointer"
+                title="Close Review Room"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
             {/* Header Badge & Title */}
             <div className="text-center space-y-2">
               <div className="inline-flex p-3 rounded-2xl bg-[#22C55E]/20 border border-[#22C55E]/30 text-[#22C55E] mb-1">
@@ -1639,10 +1771,18 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 <span>Retake This Exam</span>
               </button>
 
-              <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+              <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowResultsModal(false)}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#27272A] text-xs font-bold flex items-center justify-center space-x-1.5 cursor-pointer active:scale-95 transition-all"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Questions</span>
+                </button>
                 <button
                   onClick={() => setShowResultsModal(false)}
-                  className="px-5 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] text-xs font-black shadow-lg shadow-emerald-500/25 flex items-center space-x-1.5 cursor-pointer"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] text-xs font-black shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-1.5 cursor-pointer active:scale-95 transition-all"
                 >
                   <Eye className="w-4 h-4" />
                   <span>Review All Derivations</span>
