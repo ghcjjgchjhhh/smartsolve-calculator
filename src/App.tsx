@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { ScientificCalculator } from './components/ScientificCalculator';
 import { MathHub } from './components/MathHub';
@@ -25,6 +25,7 @@ import {
   X,
   Smartphone,
   Sparkles,
+  ArrowLeft,
 } from 'lucide-react';
 
 export default function App() {
@@ -53,6 +54,13 @@ export default function App() {
     }
   }, [activeTab]);
 
+  const [tabHistory, setTabHistory] = useState<string[]>([activeTab]);
+  const tabHistoryRef = useRef<string[]>([activeTab]);
+  tabHistoryRef.current = tabHistory;
+
+  const activeTabRef = useRef<string>(activeTab);
+  activeTabRef.current = activeTab;
+
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
@@ -60,10 +68,199 @@ export default function App() {
   const [aiSolverInitialPrompt, setAiSolverInitialPrompt] = useState<string>('');
   const [aiSolverInitialSubject, setAiSolverInitialSubject] = useState<string>('All');
 
+  const isHistoryOpenRef = useRef<boolean>(isHistoryOpen);
+  isHistoryOpenRef.current = isHistoryOpen;
+
+  const isSearchOpenRef = useRef<boolean>(isSearchOpen);
+  isSearchOpenRef.current = isSearchOpen;
+
+  const isInstallModalOpenRef = useRef<boolean>(isInstallModalOpen);
+  isInstallModalOpenRef.current = isInstallModalOpen;
+
+  const navigateTab = (targetTab: string, replace = false) => {
+    if (targetTab === activeTab) return;
+
+    if (replace) {
+      setTabHistory((prev) => {
+        const copy = [...prev];
+        copy[copy.length - 1] = targetTab;
+        return copy;
+      });
+      try {
+        window.history.replaceState({ tab: targetTab, time: Date.now() }, '', '?tab=' + targetTab);
+      } catch {
+        // ignore
+      }
+    } else {
+      setTabHistory((prev) => [...prev, targetTab]);
+      try {
+        window.history.pushState({ tab: targetTab, time: Date.now() }, '', '?tab=' + targetTab);
+      } catch {
+        // ignore
+      }
+    }
+
+    setActiveTab(targetTab);
+  };
+
+  const handleGoBack = () => {
+    // 1. If search modal is open, close it
+    if (isSearchOpenRef.current) {
+      setIsSearchOpen(false);
+      return;
+    }
+    // 2. If history drawer is open, close it
+    if (isHistoryOpenRef.current) {
+      setIsHistoryOpen(false);
+      return;
+    }
+    // 3. If install modal is open, close it
+    if (isInstallModalOpenRef.current) {
+      setIsInstallModalOpen(false);
+      return;
+    }
+
+    // 4. Return to previous tab if available
+    if (tabHistoryRef.current.length > 1) {
+      const updated = [...tabHistoryRef.current];
+      updated.pop();
+      const prevTab = updated[updated.length - 1];
+      setTabHistory(updated);
+      setActiveTab(prevTab);
+      try {
+        window.history.replaceState({ tab: prevTab }, '', '?tab=' + prevTab);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    // 5. If at root tab but not scientific, return to scientific
+    if (activeTabRef.current !== 'scientific') {
+      setTabHistory(['scientific']);
+      setActiveTab('scientific');
+      try {
+        window.history.replaceState({ tab: 'scientific' }, '', '?tab=scientific');
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  // Seed history state & intercept back navigation so app never closes on side gesture
+  useEffect(() => {
+    try {
+      window.history.replaceState({ tab: activeTab, root: true }, '', window.location.search || '?tab=' + activeTab);
+      window.history.pushState({ tab: activeTab, root: false }, '', window.location.search || '?tab=' + activeTab);
+    } catch {
+      // ignore
+    }
+
+    const handlePopState = () => {
+      // If modal is open, close it without exiting the app
+      if (isSearchOpenRef.current) {
+        setIsSearchOpen(false);
+        try {
+          window.history.pushState({ tab: activeTabRef.current }, '', '?tab=' + activeTabRef.current);
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      if (isHistoryOpenRef.current) {
+        setIsHistoryOpen(false);
+        try {
+          window.history.pushState({ tab: activeTabRef.current }, '', '?tab=' + activeTabRef.current);
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      if (isInstallModalOpenRef.current) {
+        setIsInstallModalOpen(false);
+        try {
+          window.history.pushState({ tab: activeTabRef.current }, '', '?tab=' + activeTabRef.current);
+        } catch {
+          // ignore
+        }
+        return;
+      }
+
+      // Check tab history
+      if (tabHistoryRef.current.length > 1) {
+        const updated = [...tabHistoryRef.current];
+        updated.pop();
+        const prevTab = updated[updated.length - 1];
+        setTabHistory(updated);
+        setActiveTab(prevTab);
+      } else {
+        // Root: re-push so user remains in the app
+        try {
+          window.history.pushState({ tab: activeTabRef.current, root: true }, '', '?tab=' + activeTabRef.current);
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // Edge swipe touch listener: swiping from the left side goes back to previous screen
+  useEffect(() => {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isEdgeSwipeCandidate = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      // Touch starts within 50px of the left edge
+      if (touch.clientX <= 50) {
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        isEdgeSwipeCandidate = true;
+      } else {
+        isEdgeSwipeCandidate = false;
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!isEdgeSwipeCandidate) return;
+      if (e.changedTouches.length !== 1) return;
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = Math.abs(touch.clientY - touchStartY);
+
+      // Distinct swipe right (>= 42px) with horizontal dominance
+      if (deltaX > 42 && deltaY < deltaX * 0.8) {
+        handleGoBack();
+      }
+      isEdgeSwipeCandidate = false;
+    };
+
+    const handleTouchCancel = () => {
+      isEdgeSwipeCandidate = false;
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchCancel);
+    };
+  }, []);
+
   const handleOpenInGemini = (prompt: string, subject?: string) => {
     setAiSolverInitialPrompt(prompt);
     if (subject) setAiSolverInitialSubject(subject);
-    setActiveTab('ai_solver');
+    navigateTab('ai_solver');
   };
   
   // Track if mobile banner was dismissed in this session
@@ -119,7 +316,7 @@ export default function App() {
   };
 
   const handleSelectFromSearch = (tab: string) => {
-    setActiveTab(tab);
+    navigateTab(tab);
   };
 
   const handleDismissBanner = () => {
@@ -153,6 +350,11 @@ export default function App() {
     { id: 'smart_input', name: 'Smart Input', icon: MessageSquareCode, badge: 'AI Parser' },
   ];
 
+  const getTabName = (tabId: string) => {
+    const found = navigationTabs.find((t) => t.id === tabId);
+    return found ? found.name : 'Previous';
+  };
+
   return (
     <div className="min-h-screen w-full bg-[#000000] text-[#FFFFFF] flex flex-col font-sans">
       {/* Offline Status Toast */}
@@ -170,7 +372,7 @@ export default function App() {
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={navigateTab}
       />
 
       {/* Main Tab Navigation Ribbon */}
@@ -183,7 +385,7 @@ export default function App() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => navigateTab(tab.id)}
                   className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
                     isActive
                       ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-md shadow-emerald-500/25 scale-[1.02]'
@@ -209,6 +411,25 @@ export default function App() {
           </nav>
         </div>
       </div>
+
+      {/* Back Navigation Bar (shown when user navigated from another tab or feature) */}
+      {tabHistory.length > 1 && (
+        <div className="bg-[#0D0D0E] border-b border-[#27272A] px-4 py-1.5 transition-all">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <button
+              onClick={handleGoBack}
+              className="flex items-center space-x-1.5 text-xs font-bold text-[#22C55E] hover:text-[#4ADE80] bg-[#18181B] hover:bg-[#27272A] px-2.5 py-1 rounded-lg border border-[#22C55E]/30 transition-all active:scale-95 cursor-pointer shadow-sm"
+              title="Slide from the left edge of your screen or tap here to go back"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-[#22C55E]" />
+              <span>Back to {getTabName(tabHistory[tabHistory.length - 2])}</span>
+            </button>
+            <span className="text-[11px] text-[#71717A] hidden sm:inline">
+              Slide from left screen edge or tap back to return
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Install Promotion Banner (if not installed and not dismissed) */}
       {!isInstalled && !isBannerDismissed && (

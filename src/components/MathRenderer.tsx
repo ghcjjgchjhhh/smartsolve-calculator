@@ -78,7 +78,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
   }, [content, displayMode]);
 
   return (
-    <div className={`w-full max-w-full overflow-x-auto touch-pan-x scrollbar-thin py-0.5 ${displayMode ? 'text-center' : ''}`}>
+    <div className={`w-full max-w-full overflow-x-auto scrollbar-thin py-0.5 ${displayMode ? 'text-center' : ''}`}>
       <div
         className={`math-rendered-block text-white leading-relaxed break-words ${displayMode ? 'text-center' : ''} ${className}`}
         dangerouslySetInnerHTML={{ __html: renderedHtml }}

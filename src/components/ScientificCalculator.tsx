@@ -225,7 +225,7 @@ export const ScientificCalculator: React.FC = () => {
           </div>
 
           {/* Main Input Text (#FFFFFF) */}
-          <div className="min-h-12 flex items-center justify-end overflow-x-auto text-right math-display text-2xl sm:text-3xl text-[#FFFFFF] font-bold whitespace-nowrap tracking-wide scrollbar-none touch-pan-x">
+          <div className="min-h-12 flex items-center justify-end overflow-x-auto text-right math-display text-2xl sm:text-3xl text-[#FFFFFF] font-bold whitespace-nowrap tracking-wide scrollbar-none">
             {expression || <span className="text-[#A1A1AA]/50 font-normal">0</span>}
             <div ref={displayEndRef} />
           </div>
