@@ -35,11 +35,23 @@ export default function App() {
       if (tabParam && ['scientific', 'ai_solver', 'math', 'physics', 'equation', 'converter', 'jamb', 'smart_input'].includes(tabParam)) {
         return tabParam;
       }
+      const savedTab = localStorage.getItem('smartsolve_active_tab');
+      if (savedTab && ['scientific', 'ai_solver', 'math', 'physics', 'equation', 'converter', 'jamb', 'smart_input'].includes(savedTab)) {
+        return savedTab;
+      }
     } catch {
       // fallback
     }
     return 'scientific';
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('smartsolve_active_tab', activeTab);
+    } catch {
+      // ignore
+    }
+  }, [activeTab]);
 
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
@@ -232,22 +244,36 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Content Area */}
+      {/* Main Content Area: Preserved tabs keep DOM state intact across navigation */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
-        {activeTab === 'scientific' && <ScientificCalculator />}
-        {activeTab === 'ai_solver' && (
+        <div className={activeTab === 'scientific' ? 'block' : 'hidden'}>
+          <ScientificCalculator />
+        </div>
+        <div className={activeTab === 'ai_solver' ? 'block' : 'hidden'}>
           <GeminiAiSolverView
             initialPrompt={aiSolverInitialPrompt}
             initialSubject={aiSolverInitialSubject}
             onClearInitialPrompt={() => setAiSolverInitialPrompt('')}
           />
-        )}
-        {activeTab === 'math' && <MathHub />}
-        {activeTab === 'physics' && <PhysicsHub />}
-        {activeTab === 'equation' && <EquationSolverView />}
-        {activeTab === 'converter' && <UnitConverterView />}
-        {activeTab === 'jamb' && <JambPracticeView onOpenInGemini={handleOpenInGemini} />}
-        {activeTab === 'smart_input' && <SmartInputView />}
+        </div>
+        <div className={activeTab === 'math' ? 'block' : 'hidden'}>
+          <MathHub />
+        </div>
+        <div className={activeTab === 'physics' ? 'block' : 'hidden'}>
+          <PhysicsHub />
+        </div>
+        <div className={activeTab === 'equation' ? 'block' : 'hidden'}>
+          <EquationSolverView />
+        </div>
+        <div className={activeTab === 'converter' ? 'block' : 'hidden'}>
+          <UnitConverterView />
+        </div>
+        <div className={activeTab === 'jamb' ? 'block' : 'hidden'}>
+          <JambPracticeView onOpenInGemini={handleOpenInGemini} />
+        </div>
+        <div className={activeTab === 'smart_input' ? 'block' : 'hidden'}>
+          <SmartInputView />
+        </div>
       </main>
 
       {/* Global Modals / Drawers */}

@@ -88,24 +88,80 @@ export const TOPIC_PRESETS: Record<'Mathematics' | 'Physics' | 'Chemistry' | 'Bi
   ],
 };
 
+const CBT_STORAGE_KEY = 'smartsolve_cbt_session_v3';
+
+interface CbtPersistedSession {
+  activeMode?: 'ai_exam' | 'bank';
+  examType?: 'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice';
+  aiSubject?: 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English';
+  levelClass?: string;
+  difficulty?: 'Easy' | 'Medium' | 'Hard' | 'Very Hard';
+  aiTopic?: string;
+  aiCount?: number;
+  subjectFilter?: 'All' | 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English';
+  aiQuestions?: JambQuestion[];
+  currentIndex?: number;
+  selectedAnswers?: Record<string, 'A' | 'B' | 'C' | 'D'>;
+  showSolution?: Record<string, boolean>;
+  examSubmitted?: boolean;
+  showResultsModal?: boolean;
+  resultsFilter?: 'all' | 'wrong' | 'correct';
+  studyMode?: boolean;
+  initialDuration?: number;
+  timeLeft?: number;
+  isTimerRunning?: boolean;
+  lastSavedTimestamp?: number;
+}
+
+const loadPersistedCbtSession = (): CbtPersistedSession | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(CBT_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemini }) => {
   const topicPresets = TOPIC_PRESETS;
-  // Mode: AI Custom Exam Generator vs Standard Questions Bank
-  const [activeMode, setActiveMode] = useState<'ai_exam' | 'bank'>('ai_exam');
+  const initialSession = useRef(loadPersistedCbtSession()).current;
+
+  // Mode: AI Custom Exam Generator vs Standard Questions Bank (Restored from localStorage)
+  const [activeMode, setActiveMode] = useState<'ai_exam' | 'bank'>(
+    () => initialSession?.activeMode || 'ai_exam'
+  );
 
   // Exam Configuration Settings (Flow: Exam -> Subject -> Level/Class -> Topic -> Difficulty -> Number of Questions)
-  const [examType, setExamType] = useState<'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice'>('JAMB/UTME');
-  const [aiSubject, setAiSubject] = useState<'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English'>('Mathematics');
-  const [levelClass, setLevelClass] = useState<string>('UTME Candidate');
-  const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Very Hard'>('Medium');
-  const [aiTopic, setAiTopic] = useState<string>('Calculus (Differentiation & Integration)');
-  const [aiCount, setAiCount] = useState<number>(10);
+  const [examType, setExamType] = useState<'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice'>(
+    () => initialSession?.examType || 'JAMB/UTME'
+  );
+  const [aiSubject, setAiSubject] = useState<'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English'>(
+    () => initialSession?.aiSubject || 'Mathematics'
+  );
+  const [levelClass, setLevelClass] = useState<string>(
+    () => initialSession?.levelClass || 'UTME Candidate'
+  );
+  const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Very Hard'>(
+    () => initialSession?.difficulty || 'Medium'
+  );
+  const [aiTopic, setAiTopic] = useState<string>(
+    () => initialSession?.aiTopic || 'Calculus (Differentiation & Integration)'
+  );
+  const [aiCount, setAiCount] = useState<number>(
+    () => (typeof initialSession?.aiCount === 'number' ? initialSession.aiCount : 10)
+  );
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [aiQuestions, setAiQuestions] = useState<JambQuestion[]>([]);
+  const [aiQuestions, setAiQuestions] = useState<JambQuestion[]>(
+    () => (Array.isArray(initialSession?.aiQuestions) ? initialSession.aiQuestions : [])
+  );
 
   // Bank Filter
-  const [subjectFilter, setSubjectFilter] = useState<'All' | 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English'>('All');
+  const [subjectFilter, setSubjectFilter] = useState<'All' | 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English'>(
+    () => initialSession?.subjectFilter || 'All'
+  );
 
   // Helper for available levels per examination target
   const getLevelsForExam = (exam: string): string[] => {
@@ -144,35 +200,170 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
           return q.subject === subjectFilter;
         });
 
-  // Exam Interaction States
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
-  const [showSolution, setShowSolution] = useState<Record<string, boolean>>({});
-  const [examSubmitted, setExamSubmitted] = useState<boolean>(false);
-  const [showResultsModal, setShowResultsModal] = useState<boolean>(false);
-  const [resultsFilter, setResultsFilter] = useState<'all' | 'wrong' | 'correct'>('all');
-  const [studyMode, setStudyMode] = useState<boolean>(false);
+  // Exam Interaction States (Restored seamlessly from localStorage)
+  const [currentIndex, setCurrentIndex] = useState<number>(
+    () => (typeof initialSession?.currentIndex === 'number' ? initialSession.currentIndex : 0)
+  );
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>(
+    () => initialSession?.selectedAnswers || {}
+  );
+  const [showSolution, setShowSolution] = useState<Record<string, boolean>>(
+    () => initialSession?.showSolution || {}
+  );
+  const [examSubmitted, setExamSubmitted] = useState<boolean>(
+    () => Boolean(initialSession?.examSubmitted)
+  );
+  const [showResultsModal, setShowResultsModal] = useState<boolean>(
+    () => Boolean(initialSession?.showResultsModal)
+  );
+  const [resultsFilter, setResultsFilter] = useState<'all' | 'wrong' | 'correct'>(
+    () => initialSession?.resultsFilter || 'all'
+  );
+  const [studyMode, setStudyMode] = useState<boolean>(
+    () => Boolean(initialSession?.studyMode)
+  );
   const savedApiKey = typeof window !== 'undefined'
     ? (import.meta as any).env?.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_user_api_key') || ''
     : '';
 
   // CBT Countdown Timer (in seconds)
-  const [initialDuration, setInitialDuration] = useState<number>(40 * 60);
-  const [timeLeft, setTimeLeft] = useState<number>(40 * 60);
-  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  const [initialDuration, setInitialDuration] = useState<number>(
+    () => initialSession?.initialDuration || 40 * 60
+  );
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    if (!initialSession) return 40 * 60;
+    if (initialSession.examSubmitted) return typeof initialSession.timeLeft === 'number' ? initialSession.timeLeft : 0;
+    if (initialSession.isTimerRunning && initialSession.lastSavedTimestamp) {
+      const elapsed = Math.floor((Date.now() - initialSession.lastSavedTimestamp) / 1000);
+      return Math.max(0, (initialSession.timeLeft ?? 40 * 60) - elapsed);
+    }
+    return initialSession.timeLeft ?? 40 * 60;
+  });
+  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(() => {
+    if (!initialSession || initialSession.examSubmitted) return false;
+    return Boolean(initialSession.isTimerRunning);
+  });
 
-  // Timer Effect
+  // Persistent Storage Sync: Keep localStorage updated on every state change
+  useEffect(() => {
+    try {
+      const sessionData: CbtPersistedSession = {
+        activeMode,
+        examType,
+        aiSubject,
+        levelClass,
+        difficulty,
+        aiTopic,
+        aiCount,
+        subjectFilter,
+        aiQuestions,
+        currentIndex,
+        selectedAnswers,
+        showSolution,
+        examSubmitted,
+        showResultsModal,
+        resultsFilter,
+        studyMode,
+        initialDuration,
+        timeLeft,
+        isTimerRunning,
+        lastSavedTimestamp: Date.now(),
+      };
+      localStorage.setItem(CBT_STORAGE_KEY, JSON.stringify(sessionData));
+    } catch {
+      // ignore
+    }
+  }, [
+    activeMode,
+    examType,
+    aiSubject,
+    levelClass,
+    difficulty,
+    aiTopic,
+    aiCount,
+    subjectFilter,
+    aiQuestions,
+    currentIndex,
+    selectedAnswers,
+    showSolution,
+    examSubmitted,
+    showResultsModal,
+    resultsFilter,
+    studyMode,
+    initialDuration,
+    timeLeft,
+    isTimerRunning,
+  ]);
+
+  // App Lifecycle / Visibility handler: Flush and recalculate timer when app goes to background/foreground
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        try {
+          const raw = localStorage.getItem(CBT_STORAGE_KEY);
+          const current = raw ? JSON.parse(raw) : {};
+          current.lastSavedTimestamp = Date.now();
+          current.timeLeft = timeLeft;
+          current.isTimerRunning = isTimerRunning;
+          localStorage.setItem(CBT_STORAGE_KEY, JSON.stringify(current));
+        } catch {
+          // ignore
+        }
+      } else if (document.visibilityState === 'visible') {
+        try {
+          const raw = localStorage.getItem(CBT_STORAGE_KEY);
+          if (raw) {
+            const saved = JSON.parse(raw);
+            if (saved.isTimerRunning && !saved.examSubmitted && saved.lastSavedTimestamp) {
+              const elapsed = Math.floor((Date.now() - saved.lastSavedTimestamp) / 1000);
+              if (elapsed > 0) {
+                setTimeLeft((prev) => {
+                  const updated = Math.max(0, prev - elapsed);
+                  if (updated === 0) {
+                    setExamSubmitted(true);
+                    setIsTimerRunning(false);
+                    setShowResultsModal(true);
+                  }
+                  return updated;
+                });
+              }
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handleVisibility);
+    window.addEventListener('beforeunload', handleVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handleVisibility);
+      window.removeEventListener('beforeunload', handleVisibility);
+    };
+  }, [timeLeft, isTimerRunning]);
+
+  // Timer Tick Effect
   useEffect(() => {
     let interval: any = null;
-    if (isTimerRunning && timeLeft > 0 && !examSubmitted) {
+    if (isTimerRunning && !examSubmitted) {
       interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            setExamSubmitted(true);
+            setIsTimerRunning(false);
+            setShowResultsModal(true);
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
-    } else if (timeLeft === 0 && !examSubmitted && questions.length > 0) {
-      handleFinalizeExam();
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning, timeLeft, examSubmitted, questions.length]);
+  }, [isTimerRunning, examSubmitted]);
 
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -248,6 +439,24 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
     setInitialDuration(dur);
     setTimeLeft(dur);
     setIsTimerRunning(true);
+  };
+
+  const handleClearAndStartFresh = () => {
+    setSelectedAnswers({});
+    setShowSolution({});
+    setExamSubmitted(false);
+    setShowResultsModal(false);
+    setCurrentIndex(0);
+    setIsTimerRunning(false);
+    setAiQuestions([]);
+    const dur = aiCount * 60;
+    setInitialDuration(dur);
+    setTimeLeft(dur);
+    try {
+      localStorage.removeItem(CBT_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
   };
 
   const questionCardRef = useRef<HTMLDivElement>(null);
@@ -636,30 +845,49 @@ Respond with ONLY a valid JSON object matching this exact structure:
           </div>
         </div>
 
-        {/* Mode Selector Tabs */}
-        <div className="flex items-center space-x-2 pt-2 border-t border-[#27272A]">
-          <button
-            onClick={() => setActiveMode('ai_exam')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
-              activeMode === 'ai_exam'
-                ? 'bg-[#22C55E] text-[#FFFFFF] shadow-md shadow-emerald-500/25'
-                : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF]'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>AI Exam Setter (40 Questions)</span>
-          </button>
-          <button
-            onClick={() => setActiveMode('bank')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
-              activeMode === 'bank'
-                ? 'bg-[#22C55E] text-[#FFFFFF] shadow-md shadow-emerald-500/25'
-                : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF]'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>Standard Question Bank</span>
-          </button>
+        {/* Mode Selector Tabs & Auto-Save Status */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#27272A]">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setActiveMode('ai_exam')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+                activeMode === 'ai_exam'
+                  ? 'bg-[#22C55E] text-[#FFFFFF] shadow-md shadow-emerald-500/25'
+                  : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF]'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>AI Exam Setter ({aiCount} Questions)</span>
+            </button>
+            <button
+              onClick={() => setActiveMode('bank')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+                activeMode === 'bank'
+                  ? 'bg-[#22C55E] text-[#FFFFFF] shadow-md shadow-emerald-500/25'
+                  : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF]'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Standard Question Bank</span>
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <span className="px-2.5 py-1 rounded-lg bg-[#22C55E]/10 text-[#22C55E] text-[11px] font-semibold border border-[#22C55E]/20 flex items-center space-x-1">
+              <Check className="w-3 h-3 text-[#22C55E]" />
+              <span>Session Auto-Saved</span>
+            </span>
+            {aiQuestions.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAndStartFresh}
+                className="px-3 py-1 rounded-lg bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold border border-[#27272A] cursor-pointer active:scale-95 transition-all"
+                title="Clear current exam and reconfigure"
+              >
+                Start Fresh
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
