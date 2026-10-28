@@ -28,11 +28,13 @@ import {
   X,
 } from 'lucide-react';
 
+import { generateProceduralQuestion } from '../services/proceduralExamGenerator';
+
 interface JambPracticeViewProps {
   onOpenInGemini?: (prompt: string, subject?: string) => void;
 }
 
-export const TOPIC_PRESETS: Record<'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English', string[]> = {
+export const TOPIC_PRESETS: Record<string, string[]> = {
   Mathematics: [
     'Calculus (Differentiation & Integration)',
     'Quadratic Equations & Polynomials',
@@ -88,6 +90,31 @@ export const TOPIC_PRESETS: Record<'Mathematics' | 'Physics' | 'Chemistry' | 'Bi
     'Oral English, Stress & Vowel Patterns',
     'Prepositions & Phrasal Verbs',
   ],
+  Literature: [
+    'Literary Appreciation & Figures of Speech',
+    'African Prose (Achebe, Soyinka, Emecheta)',
+    'Non-African Prose & Classical Novels',
+    'African Poetry (Structure, Tone & Imagery)',
+    'Non-African Poetry & Romantic Verses',
+    'African Drama & Traditional Spectacle',
+    'Shakespearean Drama & Tragic Flaws (Hamartia)',
+    'Unseen Prose & Poetry Analysis',
+    'Literary Terms (Irony, Satire, Soliloquy, Metaphor)',
+  ],
+  Economics: [
+    'Theory of Demand & Supply and Price Determination',
+    'Elasticity of Demand & Supply (Price, Income & Cross)',
+    'Theory of Consumer Behaviour & Utility',
+    'Theory of Production & Law of Diminishing Returns',
+    'Cost & Revenue Analysis (TC, MC, AC, MR)',
+    'Market Structures (Perfect Competition, Monopoly, Oligopoly)',
+    'National Income Accounting (GDP, GNP, NNP & Multiplier)',
+    'Money, Banking & Central Bank Monetary Policy',
+    'Inflation, Deflation & Unemployment in Nigeria',
+    'Public Finance, Taxation & Government Budget',
+    'International Trade & Balance of Payments (BOP)',
+    'Petroleum & The Nigerian Economy',
+  ],
 };
 
 const CBT_STORAGE_KEY = 'smartsolve_cbt_session_v3';
@@ -95,12 +122,14 @@ const CBT_STORAGE_KEY = 'smartsolve_cbt_session_v3';
 interface CbtPersistedSession {
   activeMode?: 'ai_exam' | 'bank';
   examType?: 'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice';
-  aiSubject?: 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English';
+  aiSubject?: 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English' | 'Literature' | 'Economics' | string;
+  isCustomSubject?: boolean;
+  customSubjectName?: string;
   levelClass?: string;
   difficulty?: 'Easy' | 'Medium' | 'Hard' | 'Very Hard';
   aiTopic?: string;
   aiCount?: number;
-  subjectFilter?: 'All' | 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English';
+  subjectFilter?: 'All' | 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English' | 'Literature' | 'Economics' | string;
   aiQuestions?: JambQuestion[];
   currentIndex?: number;
   selectedAnswers?: Record<string, 'A' | 'B' | 'C' | 'D'>;
@@ -139,8 +168,14 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
   const [examType, setExamType] = useState<'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice'>(
     () => initialSession?.examType || 'JAMB/UTME'
   );
-  const [aiSubject, setAiSubject] = useState<'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English'>(
+  const [aiSubject, setAiSubject] = useState<'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English' | 'Literature' | 'Economics' | string>(
     () => initialSession?.aiSubject || 'Mathematics'
+  );
+  const [isCustomSubject, setIsCustomSubject] = useState<boolean>(
+    () => Boolean(initialSession?.isCustomSubject)
+  );
+  const [customSubjectName, setCustomSubjectName] = useState<string>(
+    () => initialSession?.customSubjectName || ''
   );
   const [levelClass, setLevelClass] = useState<string>(
     () => initialSession?.levelClass || 'UTME Candidate'
@@ -160,9 +195,12 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
     () => (Array.isArray(initialSession?.aiQuestions) ? initialSession.aiQuestions : [])
   );
 
+  // Effective Subject Name (evaluates typed custom subject or selected standard subject)
+  const effectiveSubject = (isCustomSubject && customSubjectName.trim() ? customSubjectName.trim() : aiSubject).trim() || 'Mathematics';
+
   // Bank Filter
-  const [subjectFilter, setSubjectFilter] = useState<'All' | 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English'>(
-    () => initialSession?.subjectFilter || 'All'
+  const [subjectFilter, setSubjectFilter] = useState<'All' | 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English' | 'Literature' | 'Economics' | string>(
+    () => (initialSession?.subjectFilter as any) || 'All'
   );
 
   // Helper for available levels per examination target
@@ -186,10 +224,16 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
     setLevelClass(levels[0]);
   };
 
-  const handleSubjectChange = (newSubject: 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English') => {
-    setAiSubject(newSubject);
-    if (topicPresets[newSubject]?.[0]) {
-      setAiTopic(topicPresets[newSubject][0]);
+  const handleSubjectChange = (newSubject: string) => {
+    if (newSubject === 'CUSTOM') {
+      setIsCustomSubject(true);
+      return;
+    }
+    setIsCustomSubject(false);
+    setAiSubject(newSubject as any);
+    const presets = topicPresets[newSubject as keyof typeof topicPresets];
+    if (presets && presets[0]) {
+      setAiTopic(presets[0]);
     }
   };
 
@@ -491,7 +535,11 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
   };
 
   // Generate 10, 20, or 40 questions with AI
-  const handleGenerateAiExam = async (overrideCount?: number) => {
+  const handleGenerateAiExam = async (
+    overrideCount?: number,
+    overrideTopic?: string,
+    overrideSubject?: string
+  ) => {
     setIsGenerating(true);
     setGenerationError(null);
 
@@ -499,7 +547,22 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
     if (overrideCount && overrideCount !== aiCount) {
       setAiCount(overrideCount);
     }
-    const targetTopic = aiTopic.trim() || 'General Syllabus';
+    if (overrideTopic && overrideTopic !== aiTopic) {
+      setAiTopic(overrideTopic);
+    }
+    const targetSubject = (
+      overrideSubject !== undefined
+        ? overrideSubject
+        : isCustomSubject && customSubjectName.trim()
+        ? customSubjectName.trim()
+        : aiSubject
+    ).trim() || 'Mathematics';
+
+    const targetTopic = (
+      overrideTopic !== undefined ? overrideTopic : aiTopic
+    ).trim() || 'General Syllabus';
+
+    const randomNonce = `${Date.now()}_${Math.floor(Math.random() * 100000)}_${Math.random().toString(36).substring(2, 7)}`;
 
     try {
       const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('gemini_user_api_key') || '' : '';
@@ -521,18 +584,21 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
             const partFocus = partDescriptions[idx] || `Part ${idx + 1}: Core topic questions`;
 
             const promptText = `
-You are SmartSolve AI, an expert examination tutor and university professor for ${examType} in ${aiSubject}.
+You are SmartSolve AI, an expert examination tutor and university professor for ${examType} in ${targetSubject}.
 Target Level / Class: ${levelClass}
 Selected Difficulty: ${difficulty}
-Topic / Formula: "${targetTopic}"
+Topic / Formula / Scope: "${targetTopic}"
 Section / Subtopic Focus: ${partFocus}
+Uniqueness Nonce / Seed: ${randomNonce}_${idx}
 Number of Questions in this section: Exactly ${batchSize}
 
 CRITICAL RULES:
-1. Generate EXACTLY ${batchSize} realistic, distinct multiple-choice questions for ${examType}. Do not return fewer.
-2. Format all formulas, powers, fractions, and symbols using standard LaTeX notation ($...$, \\frac{a}{b}, \\sqrt{...}, x^2).
-3. Every question must have exactly 4 plausible options labeled A, B, C, D with 1 unambiguous correct answer.
-4. Keep step derivations concise (1-2 lines per step) and clear.
+1. Generate EXACTLY ${batchSize} realistic, distinct multiple-choice questions for ${examType}. Do NOT repeat previous questions; provide a FRESH, UNIQUE test on "${targetTopic}".
+2. Format all formulas, powers, fractions, and symbols using standard LaTeX notation ($...$, \\frac{a}{b}, \\sqrt{...}, x^2, \\text{₦}).
+3. For Literature in English: test figures of speech (personification, oxymoron, paradox, metaphor), dramatic terms (soliloquy, aside, comic relief), and African/Non-African prose/poetry.
+4. For Economics: test price elasticity, demand/supply functions, market equilibrium, cost/revenue, national income multiplier, inflation, and monetary/fiscal policy.
+5. Every question must have exactly 4 plausible options labeled A, B, C, D with 1 unambiguous correct answer.
+6. Keep step derivations concise (1-2 lines per step) and clear.
 
 Respond with ONLY a valid JSON object matching this exact structure:
 {
@@ -574,13 +640,11 @@ Respond with ONLY a valid JSON object matching this exact structure:
                   contents: [{ text: promptText }],
                   config: {
                     responseMimeType: 'application/json',
-                    thinkingConfig: {
-                      thinkingLevel: 'LOW' as any,
-                    },
+                    temperature: 0.85,
                   },
                 });
                 const timeoutPromise = new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error('Batch timeout')), 10000)
+                  setTimeout(() => reject(new Error('Batch timeout')), 20000)
                 );
                 const response = await Promise.race([generatePromise, timeoutPromise]) as any;
 
@@ -607,7 +671,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
             let formatted = allQuestions.map((q: any, i: number) => ({
               ...q,
               id: `ai_${Date.now()}_${i + 1}`,
-              subject: aiSubject,
+              subject: targetSubject,
               exam: examType,
               level: levelClass,
               difficulty: difficulty,
@@ -615,25 +679,17 @@ Respond with ONLY a valid JSON object matching this exact structure:
               examYear: `${examType} (${levelClass}) AI Mock`,
             }));
 
-            // Guarantee EXACT effectiveCount questions (top up with syllabus bank if short)
-            if (formatted.length < effectiveCount) {
-              const subjectPool = JAMB_QUESTIONS.filter((q) => q.subject === aiSubject);
-              const pool = subjectPool.length > 0 ? subjectPool : JAMB_QUESTIONS;
-              let poolIdx = 0;
-              while (formatted.length < effectiveCount) {
-                const base = pool[poolIdx % pool.length];
-                formatted.push({
-                  ...base,
-                  id: `ai_${Date.now()}_comp_${formatted.length + 1}`,
-                  subject: aiSubject,
-                  exam: examType,
-                  level: levelClass,
-                  difficulty: difficulty,
-                  topic: base.topic || targetTopic,
-                  examYear: `${examType} (${levelClass}) AI Mock`,
-                });
-                poolIdx++;
-              }
+            // Top up if any batch returned short using procedural topic generator
+            while (formatted.length < effectiveCount) {
+              const freshQ = generateProceduralQuestion(
+                targetSubject,
+                targetTopic,
+                examType,
+                levelClass,
+                difficulty,
+                formatted.length + 1
+              );
+              formatted.push(freshQ);
             }
 
             const guaranteedQuestions = formatted.slice(0, effectiveCount);
@@ -666,12 +722,14 @@ Respond with ONLY a valid JSON object matching this exact structure:
         headers: reqHeaders,
         body: JSON.stringify({
           action: 'generate_questions',
-          subject: aiSubject,
+          subject: targetSubject,
           exam: examType,
           level: levelClass,
           difficulty: difficulty,
           topic: targetTopic,
           count: effectiveCount,
+          seed: randomNonce,
+          nonce: randomNonce,
           apiKey: storedKey || undefined,
         }),
       });
@@ -682,12 +740,14 @@ Respond with ONLY a valid JSON object matching this exact structure:
           headers: reqHeaders,
           body: JSON.stringify({
             action: 'generate_questions',
-            subject: aiSubject,
+            subject: targetSubject,
             exam: examType,
             level: levelClass,
             difficulty: difficulty,
             topic: targetTopic,
             count: effectiveCount,
+            seed: randomNonce,
+            nonce: randomNonce,
             apiKey: storedKey || undefined,
           }),
         });
@@ -701,14 +761,14 @@ Respond with ONLY a valid JSON object matching this exact structure:
         throw new Error('AI examination setter is currently unavailable. Please try again in a few moments.');
       }
 
-      if (!response.ok || !data?.success || !data?.questions) {
+      if (!response.ok || !data?.success || !data?.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
         throw new Error(data?.error || 'Unable to generate questions right now. Please try again shortly.');
       }
 
       let formatted = data.questions.map((q: any, i: number) => ({
         ...q,
         id: `ai_${Date.now()}_${i + 1}`,
-        subject: aiSubject,
+        subject: targetSubject,
         exam: examType,
         level: levelClass,
         difficulty: difficulty,
@@ -716,25 +776,17 @@ Respond with ONLY a valid JSON object matching this exact structure:
         examYear: `${examType} (${levelClass}) AI Mock`,
       }));
 
-      // Guarantee EXACT effectiveCount questions (top up with syllabus bank if short)
-      if (formatted.length < effectiveCount) {
-        const subjectPool = JAMB_QUESTIONS.filter((q) => q.subject === aiSubject);
-        const pool = subjectPool.length > 0 ? subjectPool : JAMB_QUESTIONS;
-        let poolIdx = 0;
-        while (formatted.length < effectiveCount) {
-          const base = pool[poolIdx % pool.length];
-          formatted.push({
-            ...base,
-            id: `ai_${Date.now()}_comp_${formatted.length + 1}`,
-            subject: aiSubject,
-            exam: examType,
-            level: levelClass,
-            difficulty: difficulty,
-            topic: base.topic || targetTopic,
-            examYear: `${examType} (${levelClass}) AI Mock`,
-          });
-          poolIdx++;
-        }
+      // Top up if short
+      while (formatted.length < effectiveCount) {
+        const freshQ = generateProceduralQuestion(
+          targetSubject,
+          targetTopic,
+          examType,
+          levelClass,
+          difficulty,
+          formatted.length + 1
+        );
+        formatted.push(freshQ);
       }
 
       const guaranteedQuestions = formatted.slice(0, effectiveCount);
@@ -750,32 +802,83 @@ Respond with ONLY a valid JSON object matching this exact structure:
       setTimeLeft(duration);
       setIsTimerRunning(true);
     } catch (err: any) {
-      console.warn('AI exam generation encountered an error; seamlessly fulfilling full exam from verified syllabus bank:', err);
-      // Auto-fallback immediately so candidate receives complete exam questions without waiting or error notices
-      handleLoadInstantBank(effectiveCount);
+      console.warn('AI exam generation fell back to topic-specific procedural questions:', err);
+      handleLoadInstantBank(effectiveCount, targetTopic, targetSubject);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleLoadInstantBank = (overrideCount?: number) => {
+  const handleLoadInstantBank = (
+    overrideCount?: number,
+    targetTopicOverride?: string,
+    targetSubjectOverride?: string
+  ) => {
     const targetCount = overrideCount || aiCount;
-    const bankMatches = JAMB_QUESTIONS.filter((q) => q.subject === aiSubject);
-    const pool = bankMatches.length > 0 ? bankMatches : JAMB_QUESTIONS;
+    const activeTargetSubject = (
+      targetSubjectOverride !== undefined
+        ? targetSubjectOverride
+        : isCustomSubject && customSubjectName.trim()
+        ? customSubjectName.trim()
+        : aiSubject
+    ).trim() || 'Mathematics';
+
+    const activeTargetTopic = (targetTopicOverride || aiTopic).trim();
+
+    // 1. Filter bank matches for this subject (case-insensitive with aliases)
+    const subjectMatches = JAMB_QUESTIONS.filter((q) => {
+      const qSub = (q.subject || '').toLowerCase();
+      const sSub = activeTargetSubject.toLowerCase();
+      return (
+        qSub === sSub ||
+        (sSub.includes('lit') && qSub.includes('lit')) ||
+        (sSub.includes('econ') && qSub.includes('econ'))
+      );
+    });
+
+    // 2. Prioritize exact or partial topic matches
+    const topicMatches = subjectMatches.filter((q) =>
+      activeTargetTopic && (
+        q.topic.toLowerCase().includes(activeTargetTopic.toLowerCase()) ||
+        activeTargetTopic.toLowerCase().includes(q.topic.toLowerCase())
+      )
+    );
+
+    // 3. Shuffle pool randomly so pressing again produces DIFFERENT questions!
+    const pool = (topicMatches.length > 0 ? topicMatches : subjectMatches)
+      .slice()
+      .sort(() => Math.random() - 0.5);
+
     let formatted: JambQuestion[] = [];
     let poolIdx = 0;
+
     while (formatted.length < targetCount) {
-      const base = pool[poolIdx % pool.length];
-      formatted.push({
-        ...base,
-        id: `bank_${Date.now()}_${formatted.length + 1}`,
-        level: levelClass,
-        difficulty: difficulty,
-        topic: base.topic || aiTopic,
-        examYear: `${examType} Official Syllabus Bank`,
-      });
-      poolIdx++;
+      if (pool.length > 0 && poolIdx < pool.length) {
+        const base = pool[poolIdx % pool.length];
+        formatted.push({
+          ...base,
+          id: `bank_${Date.now()}_${formatted.length + 1}_${Math.random().toString(36).substring(2, 6)}`,
+          subject: activeTargetSubject,
+          level: levelClass,
+          difficulty: difficulty,
+          topic: activeTargetTopic || base.topic,
+          examYear: `${examType} Official Practice`,
+        });
+        poolIdx++;
+      } else {
+        // Procedurally synthesize a fresh question matching this exact topic and subject
+        const freshQ = generateProceduralQuestion(
+          activeTargetSubject,
+          activeTargetTopic,
+          examType,
+          levelClass,
+          difficulty,
+          formatted.length + 1
+        );
+        formatted.push(freshQ);
+      }
     }
+
     const guaranteedQuestions = formatted.slice(0, targetCount);
     setAiQuestions(guaranteedQuestions);
     setActiveMode('ai_exam');
@@ -845,7 +948,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
               <span className="px-2.5 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E] text-xs font-bold uppercase tracking-wider border border-[#22C55E]/30">
                 {examType} · AI CBT Simulator
               </span>
-              <span className="text-xs text-[#A1A1AA]">· Mathematics, Physics & Chemistry</span>
+              <span className="text-xs text-[#A1A1AA]">· 7 Subjects: Maths, Physics, Chem, Bio, English, Literature & Economics</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black mt-1 flex items-center space-x-2">
               <GraduationCap className="w-6 h-6 text-[#22C55E]" />
@@ -994,8 +1097,8 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 <span>Subject</span>
               </label>
               <select
-                value={aiSubject}
-                onChange={(e) => handleSubjectChange(e.target.value as any)}
+                value={isCustomSubject ? 'CUSTOM' : aiSubject}
+                onChange={(e) => handleSubjectChange(e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-[#000000] border border-[#27272A] text-xs font-bold text-[#FFFFFF] focus:border-[#22C55E] focus:outline-none transition-colors"
               >
                 <option value="Mathematics">Mathematics</option>
@@ -1003,7 +1106,27 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 <option value="Chemistry">Chemistry</option>
                 <option value="Biology">Biology</option>
                 <option value="English">English Language</option>
+                <option value="Literature">Literature in English</option>
+                <option value="Economics">Economics</option>
+                <option value="CUSTOM">✍️ Other Subject (Type Custom Subject Below)...</option>
               </select>
+              {isCustomSubject && (
+                <div className="pt-1.5">
+                  <input
+                    type="text"
+                    value={customSubjectName}
+                    onChange={(e) => setCustomSubjectName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleGenerateAiExam(undefined, aiTopic, customSubjectName);
+                      }
+                    }}
+                    placeholder="Enter subject name (e.g. Government, Commerce, Further Maths)..."
+                    className="w-full p-2.5 rounded-xl bg-[#000000] border border-[#22C55E]/60 text-xs font-bold text-[#FFFFFF] placeholder:text-[#A1A1AA]/50 focus:border-[#22C55E] focus:outline-none transition-colors"
+                  />
+                </div>
+              )}
             </div>
 
             {/* 3. Level / Class Selector (Dynamic) */}
@@ -1070,47 +1193,85 @@ Respond with ONLY a valid JSON object matching this exact structure:
 
           {/* 6. Topic / Formula Input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
-              <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">6</span>
-              <span>Topic or Governing Formula (Type any custom syllabus topic or formula)</span>
-            </label>
-            <input
-              type="text"
-              value={aiTopic}
-              onChange={(e) => setAiTopic(e.target.value)}
-              placeholder="e.g. Mole Concept, Projectiles, Ohm's Law, Quadratic Equations, Calculus..."
-              className="w-full p-3 rounded-xl bg-[#000000] border border-[#27272A] text-sm text-[#FFFFFF] font-medium placeholder:text-[#A1A1AA]/50 focus:border-[#22C55E] focus:outline-none transition-all"
-            />
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
+                <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">6</span>
+                <span>Topic or Governing Formula (Type any custom topic and tap Set Topic or Enter)</span>
+              </label>
+              {aiTopic && (
+                <button
+                  type="button"
+                  onClick={() => setAiTopic('')}
+                  className="text-[11px] text-[#A1A1AA] hover:text-[#FFFFFF] cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={aiTopic}
+                onChange={(e) => setAiTopic(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleGenerateAiExam(undefined, aiTopic, effectiveSubject);
+                  }
+                }}
+                placeholder="e.g. Price Elasticity of Demand, Literary Devices & Figures of Speech, Projectiles, Calculus..."
+                className="flex-1 p-3 rounded-xl bg-[#000000] border border-[#27272A] text-sm text-[#FFFFFF] font-medium placeholder:text-[#A1A1AA]/50 focus:border-[#22C55E] focus:outline-none transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => handleGenerateAiExam(undefined, aiTopic, effectiveSubject)}
+                disabled={isGenerating}
+                className="px-4 py-3 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50 shrink-0 shadow-md shadow-emerald-500/20"
+                title="Generate fresh questions for this topic immediately"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Set Topic</span>
+              </button>
+            </div>
           </div>
 
           {/* Quick Topic Chips for Selected Subject */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-            <span className="text-[11px] font-bold text-[#A1A1AA] mr-1">Recommended Topics:</span>
-            {topicPresets[aiSubject].map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => setAiTopic(preset)}
-                className={`px-2.5 py-1 rounded-lg text-xs transition-all cursor-pointer ${
-                  aiTopic === preset
-                    ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40 font-bold'
-                    : 'bg-[#000000] text-[#A1A1AA] border border-[#27272A] hover:text-[#FFFFFF]'
-                }`}
-              >
-                {preset}
-              </button>
-            ))}
+          <div className="space-y-1 pt-1">
+            <div className="flex items-center justify-between text-[11px] text-[#A1A1AA]">
+              <span className="font-bold text-[#FFFFFF]">Recommended Syllabus Topics:</span>
+              <span className="text-[#22C55E]">Tap any topic to set fresh questions instantly</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(topicPresets[effectiveSubject] || topicPresets[aiSubject] || topicPresets['Literature'] || []).map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => {
+                    setAiTopic(preset);
+                    handleGenerateAiExam(undefined, preset, effectiveSubject);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs transition-all cursor-pointer active:scale-95 ${
+                    aiTopic === preset
+                      ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40 font-bold'
+                      : 'bg-[#000000] text-[#A1A1AA] border border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/40'
+                  }`}
+                  title={`Tap to generate fresh questions on: ${preset}`}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Action Row */}
           <div className="pt-2 flex flex-col md:flex-row items-center justify-between gap-3 border-t border-[#27272A]">
             <span className="text-xs text-[#A1A1AA]">
-              {examType} · {aiSubject} ({levelClass}) · {difficulty} · {aiCount} Questions
+              {examType} · {effectiveSubject} ({levelClass}) · {difficulty} · {aiCount} Questions
             </span>
             <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
               <button
                 type="button"
-                onClick={() => handleLoadInstantBank()}
+                onClick={() => handleLoadInstantBank(undefined, aiTopic, effectiveSubject)}
                 className="w-full sm:w-auto px-5 py-3 rounded-xl bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#22C55E] border border-[#22C55E]/40 font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-md"
                 title="Launch full 40 questions immediately in 0.2s using the official Nigerian syllabus bank"
               >
@@ -1119,7 +1280,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
               </button>
 
               <button
-                onClick={() => handleGenerateAiExam()}
+                onClick={() => handleGenerateAiExam(undefined, aiTopic, effectiveSubject)}
                 disabled={isGenerating}
                 className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 disabled:opacity-50 text-[#FFFFFF] font-black text-xs sm:text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
               >
@@ -1186,6 +1347,52 @@ Respond with ONLY a valid JSON object matching this exact structure:
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* STANDARD QUESTION BANK CONTROLS */}
+      {activeMode === 'bank' && (
+        <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-[#27272A]">
+            <div className="flex items-center space-x-2">
+              <BookOpen className="w-5 h-5 text-[#22C55E]" />
+              <h3 className="text-base font-bold text-[#FFFFFF]">Official Nigerian Exam Question Bank</h3>
+            </div>
+            <span className="text-xs text-[#A1A1AA]">
+              {questions.length} questions available in current filter
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
+              <Filter className="w-3.5 h-3.5 text-[#22C55E]" />
+              <span>Filter by Subject:</span>
+            </label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(['All', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Literature', 'Economics'] as const).map((subj) => {
+                const count = subj === 'All'
+                  ? JAMB_QUESTIONS.length
+                  : JAMB_QUESTIONS.filter(q => q.subject === subj).length;
+                return (
+                  <button
+                    key={subj}
+                    type="button"
+                    onClick={() => {
+                      setSubjectFilter(subj);
+                      setCurrentIndex(0);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border active:scale-95 ${
+                      subjectFilter === subj
+                        ? 'bg-[#22C55E] text-[#FFFFFF] border-[#22C55E] shadow-sm shadow-emerald-500/20'
+                        : 'bg-[#18181B] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/40'
+                    }`}
+                  >
+                    {subj === 'Literature' ? 'Literature in English' : subj} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1476,7 +1683,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                   <span className="text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider block mb-1">
                     2. Governing Law & Formula:
                   </span>
-                  <div className="text-base text-[#FFFFFF] py-1 text-center">
+                  <div className="text-base text-[#FFFFFF] py-1 text-center formula-scroll-container">
                     <MathRenderer content={currentQ.formula} displayMode={true} />
                   </div>
                 </div>
@@ -1488,7 +1695,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                   <span className="text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider block mb-1">
                     3. Value Substitution:
                   </span>
-                  <div className="text-sm sm:text-base text-[#FFFFFF] py-1 text-center">
+                  <div className="text-sm sm:text-base text-[#FFFFFF] py-1 text-center formula-scroll-container">
                     <MathRenderer content={currentQ.substitution} displayMode={true} />
                   </div>
                 </div>
@@ -1501,7 +1708,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                     4. Mathematical Working:
                   </span>
                   {currentQ.steps.map((st, i) => (
-                    <div key={i} className="text-sm text-[#FFFFFF] py-0.5">
+                    <div key={i} className="text-sm text-[#FFFFFF] py-0.5 formula-scroll-container">
                       <MathRenderer content={st} />
                     </div>
                   ))}
@@ -1509,7 +1716,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
               )}
 
               {/* 5. Boxed Final Answer */}
-              <div className="pt-3 pb-1 text-center">
+              <div className="pt-3 pb-1 text-center formula-scroll-container">
                 <div className="inline-block py-1">
                   <MathRenderer
                     content={`\\boxed{\\text{Option } ${currentQ.correctAnswer}: ${currentQ.options[currentQ.correctAnswer]}}`}

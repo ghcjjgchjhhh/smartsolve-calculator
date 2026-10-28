@@ -137,23 +137,33 @@ Rules for your solution:
 8. Include an expert tip or common exam pitfall to avoid.`;
 
 // Resilient model fallback across modern @google/genai supported models
-async function generateWithModelFallback(ai: GoogleGenAI, contents: any[], timeoutMs: number = 20000) {
-  // Candidate models: gemini-3.1-flash-lite (fast, ~1.2s), gemini-3.8-flash (official recommended), gemini-flash-latest
+async function generateWithModelFallback(
+  ai: GoogleGenAI,
+  contents: any[],
+  timeoutMs: number = 25000,
+  temperature: number = 0.8,
+  useThinking: boolean = false
+) {
+  // Candidate models: gemini-3.1-flash-lite (fast ~2s), gemini-3.8-flash, gemini-flash-latest
   const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {
     const model = candidateModels[i];
     try {
+      const config: any = {
+        responseMimeType: 'application/json',
+        temperature,
+      };
+      if (useThinking) {
+        config.thinkingConfig = {
+          thinkingLevel: 'LOW' as any,
+        };
+      }
       const generatePromise = ai.models.generateContent({
         model,
         contents,
-        config: {
-          responseMimeType: 'application/json',
-          thinkingConfig: {
-            thinkingLevel: 'LOW' as any,
-          },
-        },
+        config,
       });
 
       const timeoutPromise = new Promise((_, reject) =>
@@ -209,21 +219,25 @@ const handleSolveRequest = async (req: Request, res: Response) => {
       const batchPromises = Array.from({ length: batchCount }, async (_, idx) => {
         const batchSize = Math.min(10, count - idx * 10);
         const partFocus = partDescriptions[idx] || `Part ${idx + 1}: Core topic questions`;
+        const randomNonce = `${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`;
 
         const promptText = `
 You are SmartSolve AI, an expert examination tutor and university professor for ${exam} in ${subject}.
 Target Level / Class: ${level}
 Selected Difficulty: ${difficulty}
-Topic / Formula: "${topic}"
+Topic / Formula / Scope: "${topic}"
 Section / Subtopic Focus: ${partFocus}
+Batch Nonce (Uniqueness Seed): ${randomNonce}
 Number of Questions in this section: Exactly ${batchSize}
 
 CRITICAL RULES:
-1. Generate EXACTLY ${batchSize} realistic, distinct multiple-choice questions for ${exam}. Do not return fewer than ${batchSize}.
-2. Format all formulas, powers, fractions, and symbols using standard LaTeX notation ($...$, \\frac{a}{b}, \\sqrt{...}, x^2).
-3. Every question must have exactly 4 plausible options labeled A, B, C, D with 1 unambiguous correct answer.
-4. For calculation questions show given values, formula, substitution, concise steps, and final answer.
-5. Keep derivations concise (1-2 lines per step) and clear.
+1. Generate EXACTLY ${batchSize} realistic, distinct multiple-choice questions for ${exam}. Do NOT repeat questions or cliches; ensure this is a FRESH, UNIQUE set of questions on "${topic}".
+2. For subjects with math/calculations (Mathematics, Physics, Chemistry, Economics): format all formulas, powers, fractions, and symbols using standard LaTeX notation ($...$, \\frac{a}{b}, \\sqrt{...}, x^2, \\text{₦}).
+3. For Literature in English: test literary devices, African prose (e.g. Things Fall Apart), non-African prose, African poetry, drama/Shakespeare, figures of speech (oxymoron, paradox, metaphor, personification), dramatic techniques (soliloquy, aside, dramatic irony).
+4. For Economics: test both calculation problems (elasticity, equilibrium price/quantity, marginal/average cost, multiplier, inflation rate) and conceptual analysis (opportunity cost, production possibility curve, market structures, public finance, monetary policy).
+5. Every question must have exactly 4 plausible options labeled A, B, C, D with 1 unambiguous correct answer.
+6. For calculation questions show given values, formula, substitution, concise steps, and final answer.
+7. Keep derivations concise (1-2 lines per step) and clear.
 
 Respond with ONLY a valid JSON object matching this exact structure:
 {
@@ -257,7 +271,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
 `.trim();
 
         try {
-          const response = await generateWithModelFallback(activeAi, [{ text: promptText }], 14000);
+          const response = await generateWithModelFallback(activeAi, [{ text: promptText }], 25000, 0.85, false);
           const resultText = response.text?.trim() || '{}';
           let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
           const match = cleanJson.match(/\{[\s\S]*\}/);

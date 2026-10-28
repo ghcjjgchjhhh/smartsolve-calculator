@@ -66,7 +66,7 @@ export interface PhysicsFormulaDefinition {
 
 export interface JambQuestion {
   id: string;
-  subject: 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English' | string;
+  subject: 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English' | 'Literature' | 'Economics' | string;
   year?: string;
   examYear?: string;
   exam: 'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice' | 'JAMB UTME' | 'WAEC SSCE' | 'University Level' | string;
