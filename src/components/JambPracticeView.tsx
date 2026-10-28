@@ -243,7 +243,13 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
       ? aiQuestions
       : JAMB_QUESTIONS.filter((q) => {
           if (subjectFilter === 'All') return true;
-          return q.subject === subjectFilter;
+          const qSub = (q.subject || '').toLowerCase();
+          const fSub = subjectFilter.toLowerCase();
+          return (
+            qSub === fSub ||
+            (fSub.includes('lit') && qSub.includes('lit')) ||
+            (fSub.includes('econ') && qSub.includes('econ'))
+          );
         });
 
   // Exam Interaction States (Restored seamlessly from localStorage)
@@ -1372,7 +1378,15 @@ Respond with ONLY a valid JSON object matching this exact structure:
               {(['All', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Literature', 'Economics'] as const).map((subj) => {
                 const count = subj === 'All'
                   ? JAMB_QUESTIONS.length
-                  : JAMB_QUESTIONS.filter(q => q.subject === subj).length;
+                  : JAMB_QUESTIONS.filter((q) => {
+                      const qSub = (q.subject || '').toLowerCase();
+                      const sSub = subj.toLowerCase();
+                      return (
+                        qSub === sSub ||
+                        (sSub.includes('lit') && qSub.includes('lit')) ||
+                        (sSub.includes('econ') && qSub.includes('econ'))
+                      );
+                    }).length;
                 return (
                   <button
                     key={subj}
@@ -1552,7 +1566,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 <button
                   key={opt}
                   onClick={() => handleSelectOption(opt)}
-                  className={`w-full text-left p-3.5 sm:p-4 rounded-2xl border transition-all flex items-start space-x-3 cursor-pointer ${style}`}
+                  className={`w-full text-left p-3.5 sm:p-4 rounded-2xl border transition-all flex items-start space-x-3 cursor-pointer min-w-0 ${style}`}
                 >
                   <span
                     className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
@@ -1563,7 +1577,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                   >
                     {opt}
                   </span>
-                  <div className="pt-0.5 text-sm sm:text-base flex-1 formula-scroll-container">
+                  <div className="pt-0.5 text-sm sm:text-base flex-1 min-w-0 overflow-x-auto touch-pan-x overscroll-x-contain formula-scroll-container">
                     <MathRenderer content={optText} />
                   </div>
                 </button>
