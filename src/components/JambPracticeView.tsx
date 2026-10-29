@@ -1782,43 +1782,46 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 type="button"
                 onClick={handleToggleSolution}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm ${
-                  isRevealed || alwaysShowDerivations
+                  isRevealed
                     ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40'
                     : 'bg-[#18181B] hover:bg-[#27272A] text-[#FFFFFF] border border-white/5'
                 }`}
-                title="Toggle derivation and full mathematical working for this question"
+                title="Only shows derivation when you click here"
               >
-                <Lightbulb className={`w-3.5 h-3.5 ${isRevealed || alwaysShowDerivations ? 'text-[#22C55E]' : 'text-amber-400'}`} />
-                <span>{isRevealed || alwaysShowDerivations ? 'Hide Derivation' : '💡 Show Derivation'}</span>
+                <Lightbulb className={`w-3.5 h-3.5 ${isRevealed ? 'text-[#22C55E]' : 'text-amber-400'}`} />
+                <span>{isRevealed ? 'Hide Derivation' : '💡 Show Derivation'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleToggleSolution}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm ${
+                  isRevealed
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    : 'bg-[#18181B] hover:bg-[#27272A] text-amber-400 border border-amber-500/20'
+                }`}
+                title="Stuck or confused on this question? Click to reveal full working steps"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isRevealed ? 'Hide Working' : '🤔 Confused? Show Working'}</span>
               </button>
 
               {onOpenInGemini && (
                 <button
                   type="button"
                   onClick={() => {
+                    // Reveal the derivation for this question when clicking AI Solver
+                    setShowSolution((prev) => ({ ...prev, [currentQ.id]: true }));
                     const fullQ = `[Examination: ${examType} | Level: ${levelClass} | Difficulty: ${currentQ.difficulty || difficulty}]\nSubject: ${currentQ.subject} — Topic: ${currentQ.topic || 'General'}\n\nQuestion:\n${currentQ.question}\n\nOptions:\nA. ${currentQ.options.A}\nB. ${currentQ.options.B}\nC. ${currentQ.options.C}\nD. ${currentQ.options.D}\n\nTask: Solve this question with complete step-by-step mathematical derivation, governing laws/formulas in LaTeX, value substitution, clear step calculations, final boxed answer, and exam tips.`;
                     onOpenInGemini(fullQ, currentQ.subject);
                   }}
                   className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600/25 via-[#22C55E]/20 to-teal-500/25 hover:from-emerald-600/35 hover:to-teal-500/35 text-[#22C55E] border border-[#22C55E]/40 text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm active:scale-95"
-                  title="Open this question directly in AI Solver with complete instant derivation"
+                  title="Click to solve with AI and reveal verified step-by-step derivation"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-[#22C55E] animate-pulse" />
                   <span>✨ AI Solver</span>
                 </button>
               )}
-
-              <button
-                type="button"
-                onClick={() => setAlwaysShowDerivations((prev) => !prev)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  alwaysShowDerivations
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
-                    : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#27272A]'
-                }`}
-                title="When ON, derivations and step-by-step workings automatically appear under every question"
-              >
-                Auto-Derivations: {alwaysShowDerivations ? 'ON' : 'OFF'}
-              </button>
             </div>
 
             {/* Navigation & Submit */}
@@ -1877,8 +1880,8 @@ Respond with ONLY a valid JSON object matching this exact structure:
             </div>
           </div>
 
-          {/* Step-by-Step Rigorous Derivation Panel */}
-          {(isRevealed || alwaysShowDerivations || studyMode || examSubmitted) && (
+          {/* Step-by-Step Rigorous Derivation Panel (ONLY on-demand when clicked) */}
+          {isRevealed && (
             <div className="p-5 sm:p-6 rounded-2xl bg-[#000000] border border-[#27272A] space-y-4 animate-fadeIn text-[#FFFFFF] shadow-inner">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#27272A]">
                 <div className="flex items-center space-x-2">
