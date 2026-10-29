@@ -26,6 +26,7 @@ import {
   Zap,
   ArrowLeft,
   X,
+  Layers,
 } from 'lucide-react';
 
 import { generateProceduralQuestion } from '../services/proceduralExamGenerator';
@@ -45,17 +46,19 @@ export const TOPIC_PRESETS: Record<string, string[]> = {
     'Coordinate Geometry & Circle',
     'Statistics & Probability',
     'Vectors & 3D Geometry',
+    'Commercial Arithmetic & Percentages',
   ],
   Physics: [
     'Projectiles & Equations of Motion',
-    'Newton\'s Laws, Momentum & Impulse',
+    "Newton's Laws, Momentum & Impulse",
     'Work, Energy, Power & Friction',
-    'Current Electricity & Ohm\'s Law',
+    "Current Electricity & Ohm's Law",
     'Electromagnetic Induction & Transformers',
     'Waves, Sound & Light Optics',
     'Thermal Physics, Heat & Gas Laws',
     'Atomic, Nuclear & Photoelectric Physics',
     'Gravitational & Electric Fields',
+    'Simple Harmonic Motion (SHM)',
   ],
   Chemistry: [
     'Mole Concept & Stoichiometry',
@@ -115,6 +118,75 @@ export const TOPIC_PRESETS: Record<string, string[]> = {
     'International Trade & Balance of Payments (BOP)',
     'Petroleum & The Nigerian Economy',
   ],
+  Government: [
+    'Basic Concepts of Government & Rule of Law',
+    'Constitutional Developments in Nigeria (1922-1999)',
+    'Federalism, Decentralization & State Creation',
+    'Arms of Government: Legislature, Executive & Judiciary',
+    'Political Parties, Pressure Groups & Electoral Systems',
+    'Public Administration & Civil Service Reforms',
+    'Nigeria Foreign Policy & International Organizations (ECOWAS, AU, UN)',
+    'Local Government Administration in Nigeria',
+  ],
+  Commerce: [
+    'Introduction to Commerce, Trade & Aids to Trade',
+    'Home Trade (Wholesale & Retail Distributions)',
+    'Foreign Trade, Export, Import & Customs',
+    'Banking, Financial Institutions & Capital Markets',
+    'Insurance & Principles of Indemnity',
+    'Advertising, Sales Promotion & Consumer Protection',
+  ],
+  Accounting: [
+    'Principles of Double Entry & Ledger Accounts',
+    'Cash Book, Petty Cash & Bank Reconciliation',
+    'Trial Balance & Correction of Errors',
+    'Final Accounts of Sole Trader (Trading, P&L, Balance Sheet)',
+    'Partnership Accounts (Appropriation & Goodwill)',
+    'Company Accounts, Shares & Debentures',
+    'Manufacturing Accounts & Production Costs',
+  ],
+  'Agricultural Science': [
+    'Basic Concepts, Soil Formation & Fertility',
+    'Crop Production, Agronomy & Pest Control',
+    'Animal Science, Nutrition & Livestock Diseases',
+    'Agricultural Economics & Extension Services',
+    'Farm Mechanization, Surveying & Irrigation',
+  ],
+  Geography: [
+    'Earth Surface, Rotation, Revolution & Latitudes/Longitudes',
+    'Rocks, Weathering & Landforms',
+    'Climatology, Weather Elements & Vegetation Zones',
+    'Map Reading, Contours & Scale Interpretation',
+    'Economic Geography of Nigeria & Mineral Resources',
+  ],
+  'Computer Studies': [
+    'Computer Hardware, Architecture & Logic Gates',
+    'System Software, Operating Systems & File Management',
+    'Data Processing, Number Systems & Binary Conversions',
+    'Networking, Internet & Cyber Security',
+    'Algorithms, Flowcharts & Programming Concepts',
+  ],
+  CRS: [
+    'Sovereignty of God & Creation',
+    'Leadership Qualities (Moses, Joshua, Deborah, Gideon)',
+    'The Early Life, Ministry & Teachings of Jesus Christ',
+    'Passion, Death, Resurrection & Ascension of Christ',
+    'Fellowship in the Early Church & Mission of Paul',
+  ],
+  IRS: [
+    'Tawheed (Faith & Oneness of Allah)',
+    'The Holy Quran: Revelation, Preservation & Exegesis',
+    'Hadith: Authenticity, Six Canonical Books & Sunnah',
+    'Fiqh (Islamic Jurisprudence): Taharah, Salat, Zakat & Hajj',
+    'Sirah (Life of Prophet Muhammad SAW in Makkah & Madinah)',
+  ],
+  'Civic Education': [
+    'Values, Moral Obligations & Youth Empowerment',
+    'Human Rights, Universal Declaration of Human Rights (UDHR)',
+    'Democracy, Rule of Law & Citizen Participation',
+    'Combating Social Vices (Cultism, Drug Abuse, Human Trafficking)',
+    'Structure of Governance & National Consciousness in Nigeria',
+  ],
 };
 
 const CBT_STORAGE_KEY = 'smartsolve_cbt_session_v3';
@@ -122,6 +194,8 @@ const CBT_STORAGE_KEY = 'smartsolve_cbt_session_v3';
 interface CbtPersistedSession {
   activeMode?: 'ai_exam' | 'bank';
   examType?: 'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice';
+  courseDuration?: number;
+  alwaysShowDerivations?: boolean;
   aiSubject?: 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English' | 'Literature' | 'Economics' | string;
   isCustomSubject?: boolean;
   customSubjectName?: string;
@@ -168,6 +242,12 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
   const [examType, setExamType] = useState<'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice'>(
     () => initialSession?.examType || 'JAMB/UTME'
   );
+  const [courseDuration, setCourseDuration] = useState<number>(
+    () => initialSession?.courseDuration || 4
+  );
+  const [alwaysShowDerivations, setAlwaysShowDerivations] = useState<boolean>(
+    () => Boolean(initialSession?.alwaysShowDerivations)
+  );
   const [aiSubject, setAiSubject] = useState<'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English' | 'Literature' | 'Economics' | string>(
     () => initialSession?.aiSubject || 'Mathematics'
   );
@@ -203,25 +283,39 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
     () => (initialSession?.subjectFilter as any) || 'All'
   );
 
-  // Helper for available levels per examination target
-  const getLevelsForExam = (exam: string): string[] => {
+  // Helper for available levels per examination target (supports course duration: 100L - 600L)
+  const getLevelsForExam = (exam: string, duration: number = 4): string[] => {
     switch (exam) {
       case 'University Practice':
-        return ['100 Level', '200 Level', '300 Level', '400 Level'];
+        if (duration === 6) {
+          return ['100L (100 Level)', '200L (200 Level)', '300L (300 Level)', '400L (400 Level)', '500L (500 Level)', '600L (600 Level)'];
+        }
+        if (duration === 5) {
+          return ['100L (100 Level)', '200L (200 Level)', '300L (300 Level)', '400L (400 Level)', '500L (500 Level)'];
+        }
+        return ['100L (100 Level)', '200L (200 Level)', '300L (300 Level)', '400L (400 Level)'];
       case 'WAEC/WASSCE':
-        return ['SS1', 'SS2', 'SS3'];
+        return ['SS1 (Senior Secondary 1)', 'SS2 (Senior Secondary 2)', 'SS3 (Senior Secondary 3)'];
       case 'JUPEB':
-        return ['JUPEB Foundation Year', 'Advanced Level'];
+        return ['JUPEB Foundation Year (100L Direct Entry)', 'JUPEB Advanced Level (A-Level)'];
       case 'JAMB/UTME':
       default:
-        return ['UTME Candidate', 'Advanced Preparatory'];
+        return ['UTME Candidate', 'Pre-Degree / Post-UTME Preparatory'];
     }
   };
 
   const handleExamChange = (newExam: 'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice') => {
     setExamType(newExam);
-    const levels = getLevelsForExam(newExam);
+    const levels = getLevelsForExam(newExam, courseDuration);
     setLevelClass(levels[0]);
+  };
+
+  const handleCourseDurationChange = (newDuration: number) => {
+    setCourseDuration(newDuration);
+    const levels = getLevelsForExam(examType, newDuration);
+    if (!levels.includes(levelClass)) {
+      setLevelClass(levels[0]);
+    }
   };
 
   const handleSubjectChange = (newSubject: string) => {
@@ -322,6 +416,8 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
       const sessionData: CbtPersistedSession = {
         activeMode,
         examType,
+        courseDuration,
+        alwaysShowDerivations,
         aiSubject,
         levelClass,
         difficulty,
@@ -348,6 +444,8 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
   }, [
     activeMode,
     examType,
+    courseDuration,
+    alwaysShowDerivations,
     aiSubject,
     levelClass,
     difficulty,
@@ -1076,30 +1174,118 @@ Respond with ONLY a valid JSON object matching this exact structure:
             </div>
           </div>
 
-          {/* Stepped Selection Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* 1. Exam Target */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
+          {/* 1. Examination Target Selection */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[#A1A1AA] flex items-center justify-between">
+              <span className="flex items-center space-x-1.5">
                 <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">1</span>
-                <span>Examination Target</span>
-              </label>
-              <select
-                value={examType}
-                onChange={(e) => handleExamChange(e.target.value as any)}
-                className="w-full p-2.5 rounded-xl bg-[#000000] border border-[#27272A] text-xs font-bold text-[#FFFFFF] focus:border-[#22C55E] focus:outline-none transition-colors"
-              >
-                <option value="JAMB/UTME">JAMB / UTME (Entrance Examination)</option>
-                <option value="WAEC/WASSCE">WAEC / WASSCE (Senior School Certificate)</option>
-                <option value="JUPEB">JUPEB (University Foundation / A-Level)</option>
-                <option value="University Practice">University Practice (Undergraduate Level)</option>
-              </select>
+                <span>Select Examination Target</span>
+              </span>
+              <span className="text-[11px] text-[#22C55E] font-medium">JAMB · WAEC · JUPEB · University</span>
+            </label>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {[
+                { id: 'JAMB/UTME', label: 'JAMB / UTME', desc: 'UTME Entrance Exam', icon: GraduationCap },
+                { id: 'WAEC/WASSCE', label: 'WAEC / WASSCE', desc: 'Senior School Certificate', icon: BookOpen },
+                { id: 'JUPEB', label: 'JUPEB', desc: 'A-Level Foundation Year', icon: Layers },
+                { id: 'University Practice', label: 'University Practice', desc: '100L – 600L Undergrad', icon: Target },
+              ].map((item) => {
+                const Icon = item.icon;
+                const isSelected = examType === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleExamChange(item.id as any)}
+                    className={`p-3 rounded-2xl text-left transition-all border cursor-pointer active:scale-95 ${
+                      isSelected
+                        ? 'bg-[#22C55E] text-black border-[#22C55E] shadow-md shadow-emerald-500/25 font-bold'
+                        : 'bg-[#000000] text-[#FFFFFF] border-[#27272A] hover:border-[#22C55E]/60'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Icon className={`w-4 h-4 ${isSelected ? 'text-black' : 'text-[#22C55E]'}`} />
+                      <span className="text-xs font-black">{item.label}</span>
+                    </div>
+                    <p className={`text-[11px] mt-1 line-clamp-1 ${isSelected ? 'text-black/80 font-medium' : 'text-[#A1A1AA]'}`}>
+                      {item.desc}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
-            {/* 2. Subject Selector */}
-            <div className="space-y-1.5">
+          {/* 2. Course Duration & Level / Class Selection */}
+          <div className="space-y-2.5 p-4 rounded-2xl bg-[#000000] border border-[#27272A]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
                 <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">2</span>
+                <span>
+                  {examType === 'University Practice'
+                    ? 'Select Course Duration & Academic Level (100L – 600L)'
+                    : examType === 'WAEC/WASSCE'
+                    ? 'Select Class Level (SS1, SS2, SS3)'
+                    : examType === 'JUPEB'
+                    ? 'Select JUPEB Program Level'
+                    : 'Candidate Status / Level'}
+                </span>
+              </label>
+
+              {/* Course Duration Selector for University Practice */}
+              {examType === 'University Practice' && (
+                <div className="flex items-center space-x-1.5 bg-[#18181B] p-1 rounded-xl border border-[#27272A]">
+                  <span className="text-[10px] text-[#A1A1AA] uppercase font-bold px-1.5">Course Length:</span>
+                  {[
+                    { years: 4, label: '4-Year Degree' },
+                    { years: 5, label: '5-Year (Engr/Law/Pharm)' },
+                    { years: 6, label: '6-Year (MBBS)' },
+                  ].map((dur) => (
+                    <button
+                      key={dur.years}
+                      type="button"
+                      onClick={() => handleCourseDurationChange(dur.years)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        courseDuration === dur.years
+                          ? 'bg-[#22C55E] text-black shadow-xs'
+                          : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
+                      }`}
+                    >
+                      {dur.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Level Pills Grid */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {getLevelsForExam(examType, courseDuration).map((lvl) => {
+                const isSelected = levelClass === lvl;
+                return (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setLevelClass(lvl)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border active:scale-95 ${
+                      isSelected
+                        ? 'bg-[#22C55E] text-black border-[#22C55E] shadow-sm font-black'
+                        : 'bg-[#18181B] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/50'
+                    }`}
+                  >
+                    {lvl}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Stepped Selection Grid: Subject & Difficulty & Count */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* 3. Subject Selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
+                <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">3</span>
                 <span>Subject</span>
               </label>
               <select
@@ -1114,6 +1300,15 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 <option value="English">English Language</option>
                 <option value="Literature">Literature in English</option>
                 <option value="Economics">Economics</option>
+                <option value="Government">Government</option>
+                <option value="Commerce">Commerce</option>
+                <option value="Accounting">Accounting / Principles of Accounts</option>
+                <option value="Agricultural Science">Agricultural Science</option>
+                <option value="Geography">Geography</option>
+                <option value="Computer Studies">Computer Studies</option>
+                <option value="CRS">CRS (Christian Religious Studies)</option>
+                <option value="IRS">IRS (Islamic Religious Studies)</option>
+                <option value="Civic Education">Civic Education</option>
                 <option value="CUSTOM">✍️ Other Subject (Type Custom Subject Below)...</option>
               </select>
               {isCustomSubject && (
@@ -1128,69 +1323,64 @@ Respond with ONLY a valid JSON object matching this exact structure:
                         handleGenerateAiExam(undefined, aiTopic, customSubjectName);
                       }
                     }}
-                    placeholder="Enter subject name (e.g. Government, Commerce, Further Maths)..."
+                    placeholder="Enter subject name (e.g. Further Maths, Anatomy, Mechanical Engr)..."
                     className="w-full p-2.5 rounded-xl bg-[#000000] border border-[#22C55E]/60 text-xs font-bold text-[#FFFFFF] placeholder:text-[#A1A1AA]/50 focus:border-[#22C55E] focus:outline-none transition-colors"
                   />
                 </div>
               )}
             </div>
 
-            {/* 3. Level / Class Selector (Dynamic) */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
-                <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">3</span>
-                <span>Level / Class</span>
-              </label>
-              <select
-                value={levelClass}
-                onChange={(e) => setLevelClass(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-[#000000] border border-[#27272A] text-xs font-bold text-[#FFFFFF] focus:border-[#22C55E] focus:outline-none transition-colors"
-              >
-                {getLevelsForExam(examType).map((lvl) => (
-                  <option key={lvl} value={lvl}>
-                    {lvl}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 4. Difficulty Level */}
+            {/* 4. Difficulty Selector (Easy, Medium, Hard, Very Hard) */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
                 <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">4</span>
-                <span>Difficulty Level</span>
+                <span>Difficulty (Tap to Pick)</span>
               </label>
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value as any)}
-                className="w-full p-2.5 rounded-xl bg-[#000000] border border-[#27272A] text-xs font-bold text-[#FFFFFF] focus:border-[#22C55E] focus:outline-none transition-colors"
-              >
-                <option value="Easy">Easy (Foundational & Direct Recall)</option>
-                <option value="Medium">Medium (Standard Examination Past Question Standard)</option>
-                <option value="Hard">Hard (Multi-Step Calculations & Subtle Distractors)</option>
-                <option value="Very Hard">Very Hard (Challenging & University Olympiad Tier)</option>
-              </select>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { id: 'Easy', label: 'Easy', color: 'text-emerald-400' },
+                  { id: 'Medium', label: 'Medium', color: 'text-sky-400' },
+                  { id: 'Hard', label: 'Hard', color: 'text-amber-400' },
+                  { id: 'Very Hard', label: 'Very Hard', color: 'text-rose-400' },
+                ].map((diff) => {
+                  const isSelected = difficulty === diff.id;
+                  return (
+                    <button
+                      key={diff.id}
+                      type="button"
+                      onClick={() => setDifficulty(diff.id as any)}
+                      className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border active:scale-95 text-center ${
+                        isSelected
+                          ? 'bg-[#22C55E] text-black border-[#22C55E] shadow-sm font-black'
+                          : 'bg-[#000000] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/50'
+                      }`}
+                    >
+                      {diff.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* 5. Question Count Selector (10, 20, 40) */}
-            <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
+            <div className="space-y-1.5">
               <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
                 <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">5</span>
-                <span>Number of Questions (Tap to Set)</span>
+                <span>Question Count</span>
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 {[10, 20, 40].map((count) => (
                   <button
                     key={count}
                     type="button"
                     onClick={() => setAiCount(count)}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border active:scale-95 ${
+                    className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border active:scale-95 text-center ${
                       aiCount === count
-                        ? 'bg-[#22C55E] text-[#FFFFFF] border-[#22C55E] shadow-sm shadow-emerald-500/25'
+                        ? 'bg-[#22C55E] text-black border-[#22C55E] shadow-sm font-black'
                         : 'bg-[#000000] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/50'
                     }`}
                   >
-                    {count === 40 ? '40 (Full Exam Mock)' : `${count} Questions`}
+                    {count === 40 ? '40 (Mock)' : `${count} Qs`}
                   </button>
                 ))}
               </div>
@@ -1585,29 +1775,50 @@ Respond with ONLY a valid JSON object matching this exact structure:
             })}
           </div>
 
-          {/* Action Row */}
+          {/* Action Row: Derivations, AI Solver & Navigation */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#27272A]">
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <button
+                type="button"
                 onClick={handleToggleSolution}
-                className="px-4 py-2.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#FFFFFF] text-xs font-bold transition-colors flex items-center justify-center space-x-2 cursor-pointer"
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm ${
+                  isRevealed || alwaysShowDerivations
+                    ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40'
+                    : 'bg-[#18181B] hover:bg-[#27272A] text-[#FFFFFF] border border-white/5'
+                }`}
+                title="Toggle derivation and full mathematical working for this question"
               >
-                <Lightbulb className="w-4 h-4 text-amber-500" />
-                <span>{isRevealed ? 'Hide Derivation' : 'Show 8-Step Working'}</span>
+                <Lightbulb className={`w-3.5 h-3.5 ${isRevealed || alwaysShowDerivations ? 'text-[#22C55E]' : 'text-amber-400'}`} />
+                <span>{isRevealed || alwaysShowDerivations ? 'Hide Derivation' : '💡 Show Derivation'}</span>
               </button>
 
               {onOpenInGemini && (
                 <button
+                  type="button"
                   onClick={() => {
-                    const fullQ = `${currentQ.subject} — ${currentQ.topic || ''}: ${currentQ.question}\nOptions:\nA. ${currentQ.options.A}\nB. ${currentQ.options.B}\nC. ${currentQ.options.C}\nD. ${currentQ.options.D}\n\nSolve with complete 8-step verified derivation.`;
+                    const fullQ = `[Examination: ${examType} | Level: ${levelClass} | Difficulty: ${currentQ.difficulty || difficulty}]\nSubject: ${currentQ.subject} — Topic: ${currentQ.topic || 'General'}\n\nQuestion:\n${currentQ.question}\n\nOptions:\nA. ${currentQ.options.A}\nB. ${currentQ.options.B}\nC. ${currentQ.options.C}\nD. ${currentQ.options.D}\n\nTask: Solve this question with complete step-by-step mathematical derivation, governing laws/formulas in LaTeX, value substitution, clear step calculations, final boxed answer, and exam tips.`;
                     onOpenInGemini(fullQ, currentQ.subject);
                   }}
-                  className="px-4 py-2.5 rounded-xl bg-[#22C55E]/15 hover:bg-[#22C55E]/25 text-[#22C55E] border border-[#22C55E]/30 text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600/25 via-[#22C55E]/20 to-teal-500/25 hover:from-emerald-600/35 hover:to-teal-500/35 text-[#22C55E] border border-[#22C55E]/40 text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm active:scale-95"
+                  title="Open this question directly in AI Solver with complete instant derivation"
                 >
-                  <Sparkles className="w-4 h-4 text-[#22C55E]" />
-                  <span>Solve with AI</span>
+                  <Sparkles className="w-3.5 h-3.5 text-[#22C55E] animate-pulse" />
+                  <span>✨ AI Solver</span>
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => setAlwaysShowDerivations((prev) => !prev)}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  alwaysShowDerivations
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
+                    : 'bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#27272A]'
+                }`}
+                title="When ON, derivations and step-by-step workings automatically appear under every question"
+              >
+                Auto-Derivations: {alwaysShowDerivations ? 'ON' : 'OFF'}
+              </button>
             </div>
 
             {/* Navigation & Submit */}
@@ -1666,16 +1877,34 @@ Respond with ONLY a valid JSON object matching this exact structure:
             </div>
           </div>
 
-          {/* Step-by-Step 8-Step Derivation Revealed Panel */}
-          {(isRevealed || (examSubmitted && studyMode)) && (
-            <div className="p-6 rounded-2xl bg-[#000000] border border-[#27272A] space-y-4 animate-fadeIn text-[#FFFFFF]">
-              <div className="flex items-center justify-between pb-2 border-b border-[#27272A]">
-                <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider flex items-center space-x-1.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Correct Answer: Option {currentQ.correctAnswer}</span>
-                </span>
-                {currentQ.difficulty && (
-                  <span className="text-xs text-[#A1A1AA]">Level: {currentQ.difficulty}</span>
+          {/* Step-by-Step Rigorous Derivation Panel */}
+          {(isRevealed || alwaysShowDerivations || studyMode || examSubmitted) && (
+            <div className="p-5 sm:p-6 rounded-2xl bg-[#000000] border border-[#27272A] space-y-4 animate-fadeIn text-[#FFFFFF] shadow-inner">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#27272A]">
+                <div className="flex items-center space-x-2">
+                  <span className="px-3 py-1 rounded-lg bg-[#22C55E]/15 border border-[#22C55E]/30 text-xs font-black text-[#22C55E] flex items-center space-x-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Correct Answer: Option {currentQ.correctAnswer}</span>
+                  </span>
+                  {currentQ.difficulty && (
+                    <span className="text-[11px] font-semibold text-amber-400 px-2 py-0.5 rounded-md bg-[#18181B] border border-amber-500/20">
+                      {currentQ.difficulty}
+                    </span>
+                  )}
+                </div>
+
+                {onOpenInGemini && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const fullQ = `[Deep AI Derivation Request]\nQuestion: ${currentQ.question}\nOptions:\nA: ${currentQ.options.A}\nB: ${currentQ.options.B}\nC: ${currentQ.options.C}\nD: ${currentQ.options.D}\nCorrect Answer: Option ${currentQ.correctAnswer}\n\nPlease explain alternative derivation methods and in-depth conceptual breakdown.`;
+                      onOpenInGemini(fullQ, currentQ.subject);
+                    }}
+                    className="text-xs text-[#22C55E] hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>AI Deep Explanation</span>
+                  </button>
                 )}
               </div>
 
