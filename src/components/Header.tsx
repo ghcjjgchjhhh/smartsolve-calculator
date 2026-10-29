@@ -96,7 +96,7 @@ export const Header: React.FC<Props> = ({
                   title="Install SmartSolve as a phone or desktop app"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Install App</span>
+                  <span>Install</span>
                 </button>
               ) : (
                 <div className="hidden sm:flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-[#22C55E]/15 text-[#22C55E] text-[11px] font-semibold border border-[#22C55E]/30">

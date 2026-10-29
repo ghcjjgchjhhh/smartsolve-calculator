@@ -27,6 +27,8 @@ import {
   ArrowLeft,
   X,
   Layers,
+  Pause,
+  Play,
 } from 'lucide-react';
 
 import { generateProceduralQuestion } from '../services/proceduralExamGenerator';
@@ -1087,16 +1089,41 @@ Respond with ONLY a valid JSON object matching this exact structure:
               </button>
             ) : (
               <div className="flex items-center space-x-2">
-                <div className="bg-[#000000] p-3 rounded-2xl border border-[#27272A] text-center min-w-[110px]">
-                  <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider block">
-                    CBT Timer
-                  </span>
-                  <div className="text-xl font-black text-[#FFFFFF] mt-0.5 font-mono">
+                <div className="bg-[#000000] p-2.5 sm:p-3 rounded-2xl border border-[#27272A] text-center min-w-[125px] flex flex-col items-center">
+                  <div className="flex items-center space-x-1">
+                    <Clock className="w-3 h-3 text-[#22C55E]" />
+                    <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider">
+                      CBT Timer
+                    </span>
+                    {!isTimerRunning && (
+                      <span className="text-[10px] font-black text-amber-400 animate-pulse">PAUSED</span>
+                    )}
+                  </div>
+                  <div className={`text-xl font-black mt-0.5 font-mono ${!isTimerRunning ? 'text-amber-400' : 'text-[#FFFFFF]'}`}>
                     {formatTimer(timeLeft)}
                   </div>
-                  <span className="text-[10px] font-bold text-[#22C55E]">
-                    {questions.length} Questions
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsTimerRunning((prev) => !prev)}
+                    className={`mt-1 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-all active:scale-95 ${
+                      isTimerRunning
+                        ? 'bg-[#18181B] hover:bg-[#27272A] text-amber-400 border border-amber-500/20'
+                        : 'bg-[#22C55E] hover:bg-[#16A34A] text-black font-black shadow-md shadow-emerald-500/20'
+                    }`}
+                    title={isTimerRunning ? 'Pause countdown timer' : 'Resume countdown timer'}
+                  >
+                    {isTimerRunning ? (
+                      <>
+                        <Pause className="w-2.5 h-2.5 fill-current" />
+                        <span>Pause Time</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-2.5 h-2.5 fill-current" />
+                        <span>Resume Time</span>
+                      </>
+                    )}
+                  </button>
                 </div>
                 {questions.length > 0 && (
                   <button
@@ -1694,6 +1721,36 @@ Respond with ONLY a valid JSON object matching this exact structure:
             </div>
 
             <div className="flex items-center space-x-2">
+              {/* Live In-Question Timer & Pause/Resume Control */}
+              {!examSubmitted && (
+                <button
+                  type="button"
+                  onClick={() => setIsTimerRunning((prev) => !prev)}
+                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer active:scale-95 ${
+                    isTimerRunning
+                      ? 'bg-[#18181B] hover:bg-[#27272A] text-[#FFFFFF] border border-[#27272A]'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                  }`}
+                  title={isTimerRunning ? 'Click to Pause Exam Timer' : 'Click to Resume Exam Timer'}
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{formatTimer(timeLeft)}</span>
+                  <span className="text-[10px] font-sans px-1.5 py-0.5 rounded bg-white/10 uppercase flex items-center space-x-1">
+                    {isTimerRunning ? (
+                      <>
+                        <Pause className="w-2.5 h-2.5 fill-current" />
+                        <span>Pause</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-2.5 h-2.5 fill-current" />
+                        <span>Resume</span>
+                      </>
+                    )}
+                  </span>
+                </button>
+              )}
+
               {examSubmitted && (
                 <button
                   type="button"
@@ -1728,6 +1785,26 @@ Respond with ONLY a valid JSON object matching this exact structure:
               </button>
             </div>
           </div>
+
+          {/* Exam Paused Notice Banner */}
+          {!isTimerRunning && !examSubmitted && (
+            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-amber-300">
+              <div className="flex items-center space-x-2">
+                <Pause className="w-4 h-4 text-amber-400 fill-current shrink-0 animate-pulse" />
+                <span>
+                  <strong>Exam Timer Paused ({formatTimer(timeLeft)} left).</strong> Solve on paper or review your question calmly.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTimerRunning(true)}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs flex items-center space-x-1.5 cursor-pointer shadow-sm active:scale-95"
+              >
+                <Play className="w-3 h-3 fill-current" />
+                <span>Resume Timer</span>
+              </button>
+            </div>
+          )}
 
           {/* Question Statement in KaTeX (Inside dedicated horizontal scroll container) */}
           <div className="text-base sm:text-lg text-[#FFFFFF] font-medium leading-relaxed py-1 formula-scroll-container">
