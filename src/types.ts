@@ -21,9 +21,20 @@ export interface StepSolution {
   finalAnswer: string;
   unit?: string;
   explanation?: string;
+  intuitiveConcept?: string;
+  detailedDerivation?: string[];
+  alternativeMethod?: string;
+  commonMistakes?: string;
   tips?: string;
   notes?: string;
   timestamp?: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
 }
 
 export interface HistoryItem extends StepSolution {

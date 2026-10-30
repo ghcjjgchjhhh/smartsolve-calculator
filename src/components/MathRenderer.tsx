@@ -2,20 +2,24 @@ import React, { useMemo } from 'react';
 import katex from 'katex';
 
 interface MathRendererProps {
-  content: string;
+  content?: string;
+  text?: string;
   displayMode?: boolean;
   className?: string;
 }
 
 export const MathRenderer: React.FC<MathRendererProps> = ({
   content,
+  text: textProp,
   displayMode = false,
   className = '',
 }) => {
-  const renderedHtml = useMemo(() => {
-    if (!content) return '';
+  const sourceText = content !== undefined ? content : textProp || '';
 
-    const text = content.trim();
+  const renderedHtml = useMemo(() => {
+    if (!sourceText) return '';
+
+    const text = sourceText.trim();
 
     // Check if the entire string is already a standalone math equation
     // (e.g. begins with \frac, \sqrt, \boxed, contains =, ^, _, \pm, or starts and ends with $$ or $)

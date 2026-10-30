@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { StepSolution } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { StepSolution, ChatMessage } from '../types';
 import { StepSolutionCard } from './StepSolutionCard';
+import { MathRenderer } from './MathRenderer';
 import { saveToHistory } from '../services/historyStorage';
 import {
   Sparkles,
@@ -14,6 +15,24 @@ import {
   Trash2,
   UploadCloud,
   FileCheck,
+  MessageSquare,
+  Send,
+  Bot,
+  User,
+  RotateCcw,
+  HelpCircle,
+  Lightbulb,
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Award,
+  Info,
+  CornerDownLeft,
+  ArrowRight,
+  Calculator,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -28,6 +47,7 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
   initialSubject,
   onClearInitialPrompt,
 }) => {
+  const [activeSolverTab, setActiveSolverTab] = useState<'solver' | 'chat'>('solver');
   const [prompt, setPrompt] = useState<string>(
     initialPrompt ||
       'A stone of mass 0.5 kg is dropped from a cliff 80m high. Calculate its kinetic energy just before hitting the ground (take g = 9.8 m/s²).'
@@ -43,6 +63,33 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
   const [loadingStage, setLoadingStage] = useState<string>('');
   const [solution, setSolution] = useState<StepSolution | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Chat Features State
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content:
+        'Hello! I am **SmartSolve AI Tutor**, your personal STEM companion for Mathematics, Physics, and Chemistry.\n\nAsk me anything! I can explain confusing steps, provide intuitive analogies, test you with practice problems, or solve any homework question you throw at me.',
+      timestamp: Date.now(),
+    },
+  ]);
+  const [chatInput, setChatInput] = useState<string>('');
+  const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [expandedExplanation, setExpandedExplanation] = useState<{
+    concept: boolean;
+    derivation: boolean;
+    alternative: boolean;
+    mistakes: boolean;
+  }>({
+    concept: true,
+    derivation: true,
+    alternative: true,
+    mistakes: true,
+  });
+
   // Silently check environment or local cache without showing any UI or prompts to the user
   const [userApiKey] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -60,6 +107,7 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const solutionRef = useRef<HTMLDivElement>(null);
+  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const realProblemSamples = [
     {
@@ -346,6 +394,14 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   "finalAnswer": "\\boxed{Final answer in LaTeX}",
   "unit": "SI unit",
   "explanation": "Clear explanation of why this physical, mathematical, or chemical law applies",
+  "intuitiveConcept": "Crystal-clear conceptual analogy explaining what is actually happening physically or mathematically in plain English without confusing jargon.",
+  "detailedDerivation": [
+    "Derivation point 1: First fundamental law or axiom establishing the relation.",
+    "Derivation point 2: Rigorous algebraic substitution step and cancellation logic.",
+    "Derivation point 3: Dimensional consistency verification and why this exact formula holds."
+  ],
+  "alternativeMethod": "Alternative solving method, shortcut, or dimensional cross-check.",
+  "commonMistakes": "Frequent student traps, unit conversion pitfalls, or invalid assumptions to avoid on exams.",
   "tips": "Pro tip or exam advice for solving this problem"
 }
 `.trim();
@@ -503,6 +559,152 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
     }
   };
 
+  const handleSendChatMessage = async (overrideText?: string) => {
+    const textToSend = (overrideText !== undefined ? overrideText : chatInput).trim();
+    if (!textToSend || isChatLoading) return;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: textToSend,
+      timestamp: Date.now(),
+    };
+
+    setChatMessages((prev) => [...prev, userMessage]);
+    if (overrideText === undefined) {
+      setChatInput('');
+    }
+    setIsChatLoading(true);
+    setChatError(null);
+
+    setTimeout(() => {
+      chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (userApiKey) {
+        headers['x-gemini-key'] = userApiKey;
+      }
+
+      const problemContext = solution
+        ? {
+            title: solution.title,
+            category: solution.category,
+            subCategory: solution.subCategory,
+            problemStatement: solution.problemStatement,
+            formula: solution.formula,
+            finalAnswer: solution.finalAnswer,
+            explanation: solution.explanation,
+            intuitiveConcept: solution.intuitiveConcept,
+            steps: solution.steps,
+          }
+        : undefined;
+
+      const historyPayload = chatMessages
+        .filter((m) => m.id !== 'welcome')
+        .slice(-8)
+        .map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
+
+      let response = await fetch('/api/chat', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: textToSend,
+          history: historyPayload,
+          context: problemContext,
+          imageData: imagePreview,
+          mimeType: imageMimeType,
+        }),
+      });
+
+      if (response.status === 404) {
+        response = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            message: textToSend,
+            history: historyPayload,
+            context: problemContext,
+            imageData: imagePreview,
+            mimeType: imageMimeType,
+          }),
+        });
+      }
+
+      const responseText = await response.text();
+      let responseData: any = null;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        responseData = { success: response.ok, reply: responseText };
+      }
+
+      if (!response.ok || (responseData && responseData.success === false)) {
+        throw new Error(responseData?.error || 'AI STEM Tutor is temporarily unavailable.');
+      }
+
+      const botReply = responseData.reply || responseData.text || 'I have analyzed your question.';
+      const botMessage: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        content: botReply,
+        timestamp: Date.now(),
+      };
+
+      setChatMessages((prev) => [...prev, botMessage]);
+      setTimeout(() => {
+        chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 80);
+    } catch (chatErr: any) {
+      console.error('Chat error:', chatErr);
+      setChatError(chatErr.message || 'Unable to connect to AI Tutor. Please try again.');
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleAskAboutStep = (stepNumber: number, stepText: string) => {
+    setActiveSolverTab('chat');
+    const promptMessage = `Can you explain Step ${stepNumber} in more detail? Step: "${stepText}". Why is this operation performed and what is the underlying physical/mathematical principle?`;
+    handleSendChatMessage(promptMessage);
+  };
+
+  const handleLaunchChatPrompt = (promptText: string) => {
+    setActiveSolverTab('chat');
+    handleSendChatMessage(promptText);
+  };
+
+  const handleClearChat = () => {
+    setChatMessages([
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content:
+          'Hello! I am **SmartSolve AI Tutor**, your personal STEM companion for Mathematics, Physics, and Chemistry.\n\nAsk me anything! I can explain confusing steps, provide intuitive analogies, test you with practice problems, or solve any homework question you throw at me.',
+        timestamp: Date.now(),
+      },
+    ]);
+    setChatError(null);
+  };
+
+  const handleCopyMessage = (id: string, text: string) => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedMessageId(id);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    }
+  };
+
+  const toggleExplanation = (section: 'concept' | 'derivation' | 'alternative' | 'mistakes') => {
+    setExpandedExplanation((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
   React.useEffect(() => {
     if (initialPrompt && initialPrompt.trim()) {
       setPrompt(initialPrompt);
@@ -514,8 +716,58 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Hero Header Card */}
-      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+      {/* Top Mode Navigation Tabs: AI Step Solver vs AI STEM Tutor Chat */}
+      <div className="flex items-center space-x-2 bg-[#0A0A0A] p-1.5 rounded-2xl border border-[#27272A] shadow-md">
+        <button
+          type="button"
+          onClick={() => setActiveSolverTab('solver')}
+          className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            activeSolverTab === 'solver'
+              ? 'bg-[#22C55E] text-white shadow-lg shadow-emerald-500/20'
+              : 'text-[#A1A1AA] hover:text-white hover:bg-[#18181B]'
+          }`}
+        >
+          <Calculator className="w-4 h-4" />
+          <span>AI Step Solver</span>
+          {solution && (
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full ${
+                activeSolverTab === 'solver' ? 'bg-black/30 text-white' : 'bg-[#22C55E]/20 text-[#22C55E]'
+              }`}
+            >
+              Active Solution
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSolverTab('chat')}
+          className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            activeSolverTab === 'chat'
+              ? 'bg-[#22C55E] text-white shadow-lg shadow-emerald-500/20'
+              : 'text-[#A1A1AA] hover:text-white hover:bg-[#18181B]'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>AI STEM Tutor Chat</span>
+          {chatMessages.length > 1 && (
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full ${
+                activeSolverTab === 'chat' ? 'bg-black/30 text-white' : 'bg-[#22C55E]/20 text-[#22C55E]'
+              }`}
+            >
+              {chatMessages.length - 1} msg{chatMessages.length > 2 ? 's' : ''}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* TAB 1: AI Step Solver */}
+      {activeSolverTab === 'solver' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Hero Header Card */}
+          <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center space-x-2">
@@ -802,7 +1054,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
       {/* Verified Solution Display Card (Rendered Immediately Below Input) */}
       {solution && (
-        <div ref={solutionRef} className="pt-2 animate-fadeIn">
+        <div ref={solutionRef} className="pt-2 space-y-4 animate-fadeIn">
           <div className="flex items-center justify-between mb-2 px-1">
             <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider flex items-center space-x-1.5">
               <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
@@ -815,7 +1067,271 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
               Clear Solution
             </button>
           </div>
+
           <StepSolutionCard solution={solution} />
+
+          {/* Deep Conceptual & Derivation Breakdown */}
+          <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#27272A] gap-2">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 rounded-xl bg-[#22C55E]/15 border border-[#22C55E]/30 text-[#22C55E]">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                    <span>Deep Conceptual & Derivation Breakdown</span>
+                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E]">
+                      Mastery
+                    </span>
+                  </h3>
+                  <p className="text-xs text-[#A1A1AA]">
+                    Intuitive mental model, mathematical rationale, alternate shortcuts & traps to avoid.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleLaunchChatPrompt(
+                    `I want to understand the concept behind "${solution.title || 'this problem'}" more deeply. Can you explain the intuitive concept and give me a relatable real-life analogy?`
+                  )
+                }
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-xs font-semibold text-[#22C55E] border border-[#27272A] transition-colors cursor-pointer shrink-0"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Discuss with Tutor</span>
+              </button>
+            </div>
+
+            {/* 1. Intuitive Concept & Physical Meaning */}
+            <div className="bg-[#121214] border border-[#27272A] rounded-2xl overflow-hidden transition-all">
+              <button
+                type="button"
+                onClick={() => toggleExplanation('concept')}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-[#18181B]/50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    <Lightbulb className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Intuitive Concept & Physical Meaning</h4>
+                    <p className="text-[11px] text-[#A1A1AA]">What is actually happening in plain English</p>
+                  </div>
+                </div>
+                <div className="text-[#A1A1AA]">
+                  {expandedExplanation.concept ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </button>
+
+              {expandedExplanation.concept && (
+                <div className="p-4 pt-1 border-t border-[#27272A]/50 text-xs sm:text-sm text-[#D4D4D8] leading-relaxed">
+                  <MathRenderer
+                    text={
+                      solution.intuitiveConcept ||
+                      solution.explanation ||
+                      'This problem relies on fundamental physical conservation laws and algebraic relationships between the given quantities. Energy or quantity balance dictates the outcome without external losses.'
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* 2. Step-by-Step Derivation & Mathematical Rationale */}
+            <div className="bg-[#121214] border border-[#27272A] rounded-2xl overflow-hidden transition-all">
+              <button
+                type="button"
+                onClick={() => toggleExplanation('derivation')}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-[#18181B]/50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Mathematical Rationale & Derivation</h4>
+                    <p className="text-[11px] text-[#A1A1AA]">Why each step and formula substitution is valid</p>
+                  </div>
+                </div>
+                <div className="text-[#A1A1AA]">
+                  {expandedExplanation.derivation ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </button>
+
+              {expandedExplanation.derivation && (
+                <div className="p-4 pt-1 border-t border-[#27272A]/50 space-y-2.5">
+                  {solution.detailedDerivation && solution.detailedDerivation.length > 0 ? (
+                    solution.detailedDerivation.map((point, pIdx) => (
+                      <div key={pIdx} className="flex items-start space-x-2 text-xs sm:text-sm text-[#D4D4D8]">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                          {pIdx + 1}
+                        </span>
+                        <div className="flex-1">
+                          <MathRenderer text={point} />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="space-y-2 text-xs sm:text-sm text-[#D4D4D8]">
+                      <div className="flex items-start space-x-2">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                          1
+                        </span>
+                        <div className="flex-1">
+                          <MathRenderer text={`State fundamental relationship: $${solution.formula || 'F = ma'}$ and identify knowns vs unknowns.`} />
+                        </div>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                          2
+                        </span>
+                        <div className="flex-1">
+                          <MathRenderer text={`Rearrange rigorously to isolate target variable: $${solution.rearrangedFormula || solution.formula}$`} />
+                        </div>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                          3
+                        </span>
+                        <div className="flex-1">
+                          <MathRenderer text={`Perform verified numerical substitution with SI units attached: $${solution.substitution || solution.finalAnswer}$`} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 3. Alternative Method & Quick Verification */}
+            <div className="bg-[#121214] border border-[#27272A] rounded-2xl overflow-hidden transition-all">
+              <button
+                type="button"
+                onClick={() => toggleExplanation('alternative')}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-[#18181B]/50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Alternative Method & Quick Check</h4>
+                    <p className="text-[11px] text-[#A1A1AA]">Speed shortcut, dimensional check or secondary proof</p>
+                  </div>
+                </div>
+                <div className="text-[#A1A1AA]">
+                  {expandedExplanation.alternative ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </button>
+
+              {expandedExplanation.alternative && (
+                <div className="p-4 pt-1 border-t border-[#27272A]/50 text-xs sm:text-sm text-[#D4D4D8] leading-relaxed">
+                  <MathRenderer
+                    text={
+                      solution.alternativeMethod ||
+                      solution.tips ||
+                      'Always perform a dimensional analysis check to ensure the units on the left-hand side match the right-hand side. In multiple-choice exams, order-of-magnitude estimation can immediately eliminate extreme outliers.'
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* 4. Common Student Traps & Errors to Avoid */}
+            <div className="bg-[#121214] border border-[#27272A] rounded-2xl overflow-hidden transition-all">
+              <button
+                type="button"
+                onClick={() => toggleExplanation('mistakes')}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-[#18181B]/50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-1.5 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                    <AlertCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Common Pitfalls & Exam Traps</h4>
+                    <p className="text-[11px] text-[#A1A1AA]">Frequent mistakes students make on this exact topic</p>
+                  </div>
+                </div>
+                <div className="text-[#A1A1AA]">
+                  {expandedExplanation.mistakes ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </button>
+
+              {expandedExplanation.mistakes && (
+                <div className="p-4 pt-1 border-t border-[#27272A]/50 text-xs sm:text-sm text-[#FCA5A5] leading-relaxed">
+                  <MathRenderer
+                    text={
+                      solution.commonMistakes ||
+                      'Watch out for unit mismatch (e.g. cm instead of m, or minutes instead of seconds), sign errors when rearranging formulas across the equals sign, and forgetting to square terms in kinetic energy or acceleration formulas.'
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Interactive Tutor Ask Chips directly below solution */}
+            <div className="pt-2 border-t border-[#27272A] space-y-2.5">
+              <div className="flex items-center space-x-2 text-xs text-[#22C55E] font-bold">
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Ask AI Tutor Follow-up Questions:</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleLaunchChatPrompt(
+                      `Can you explain the step-by-step logic of "${solution.title || 'this solution'}" more simply, using an intuitive everyday analogy?`
+                    )
+                  }
+                  className="p-2.5 rounded-xl bg-[#121214] hover:bg-[#1E1E22] border border-[#27272A] hover:border-[#22C55E]/50 text-left text-xs text-[#E4E4E7] transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span className="line-clamp-1">🤔 Explain this in simpler terms with an analogy</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#A1A1AA] group-hover:text-[#22C55E] ml-2 shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleLaunchChatPrompt(
+                      `Is there an alternative or faster method to solve "${solution.title || 'this question'}" for exam speed (e.g. JAMB/WAEC)?`
+                    )
+                  }
+                  className="p-2.5 rounded-xl bg-[#121214] hover:bg-[#1E1E22] border border-[#27272A] hover:border-[#22C55E]/50 text-left text-xs text-[#E4E4E7] transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span className="line-clamp-1">⚡ Show faster alternative or shortcut method</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#A1A1AA] group-hover:text-[#22C55E] ml-2 shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleLaunchChatPrompt(
+                      `What are the most common traps or negative marking pitfalls examiners set for "${solution.title || 'this topic'}"?`
+                    )
+                  }
+                  className="p-2.5 rounded-xl bg-[#121214] hover:bg-[#1E1E22] border border-[#27272A] hover:border-[#22C55E]/50 text-left text-xs text-[#E4E4E7] transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span className="line-clamp-1">⚠️ What common traps do examiners test here?</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#A1A1AA] group-hover:text-[#22C55E] ml-2 shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleLaunchChatPrompt(
+                      `Give me a similar practice problem based on "${solution.title || 'this concept'}" with different values to test my understanding.`
+                    )
+                  }
+                  className="p-2.5 rounded-xl bg-[#121214] hover:bg-[#1E1E22] border border-[#27272A] hover:border-[#22C55E]/50 text-left text-xs text-[#E4E4E7] transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span className="line-clamp-1">📝 Test me with a similar practice question</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#A1A1AA] group-hover:text-[#22C55E] ml-2 shrink-0" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -864,7 +1380,214 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
             ))}
         </div>
       </div>
-
     </div>
-  );
+  )}
+
+  {/* TAB 2: AI STEM Tutor Chat */}
+  {activeSolverTab === 'chat' && (
+    <div className="space-y-4 animate-fadeIn">
+      {/* Tutor Info Header */}
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#22C55E]/20 border border-[#22C55E]/40 flex items-center justify-center text-[#22C55E] shrink-0">
+            <Bot className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-base font-bold text-white">SmartSolve STEM AI Tutor</h3>
+              <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
+              <span className="text-[11px] text-[#22C55E] font-medium">Online</span>
+            </div>
+            <p className="text-xs text-[#A1A1AA]">
+              Personal STEM tutor for Mathematics, Physics & Chemistry. Ask about any step, formula derivation, or concept.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={handleClearChat}
+            className="px-3 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-xs font-semibold text-[#A1A1AA] hover:text-white border border-[#27272A] flex items-center space-x-1.5 transition-colors cursor-pointer"
+            title="Restart Chat Conversation"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Chat</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Active Problem Context Banner (if discussing a problem from solver) */}
+      {solution && (
+        <div className="p-3.5 rounded-2xl bg-[#22C55E]/10 border border-[#22C55E]/30 flex items-center justify-between gap-3">
+          <div className="flex items-center space-x-2.5 overflow-hidden">
+            <Calculator className="w-4 h-4 text-[#22C55E] shrink-0" />
+            <div className="truncate text-xs">
+              <span className="font-bold text-[#22C55E]">Active Problem Context: </span>
+              <span className="text-white">{solution.title || solution.problemStatement}</span>
+              {solution.finalAnswer && (
+                <span className="text-[#A1A1AA] ml-1.5">({solution.finalAnswer})</span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveSolverTab('solver')}
+            className="text-xs text-[#22C55E] hover:underline whitespace-nowrap font-semibold cursor-pointer shrink-0"
+          >
+            Back to Solution →
+          </button>
+        </div>
+      )}
+
+      {/* Chat Messages Container */}
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-4 sm:p-6 shadow-xl min-h-[460px] flex flex-col justify-between space-y-4">
+        <div className="space-y-4 max-h-[560px] overflow-y-auto pr-1">
+          {chatMessages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex items-start space-x-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              {msg.role === 'assistant' && (
+                <div className="w-8 h-8 rounded-xl bg-[#22C55E]/20 border border-[#22C55E]/40 flex items-center justify-center text-[#22C55E] shrink-0 mt-0.5">
+                  <Bot className="w-4 h-4" />
+                </div>
+              )}
+
+              <div
+                className={`max-w-[85%] sm:max-w-[80%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'bg-[#22C55E] text-white rounded-tr-none font-medium shadow-md shadow-emerald-500/10'
+                    : 'bg-[#141416] text-[#E4E4E7] border border-[#27272A] rounded-tl-none space-y-2'
+                }`}
+              >
+                {msg.role === 'user' ? (
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                ) : (
+                  <div className="space-y-2">
+                    <MathRenderer text={msg.content} />
+                    <div className="flex items-center justify-between pt-2 border-t border-[#27272A]/60 text-[10px] text-[#A1A1AA]">
+                      <span>AI STEM Tutor</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(msg.id, msg.content)}
+                        className="inline-flex items-center space-x-1 hover:text-white transition-colors cursor-pointer"
+                      >
+                        {copiedMessageId === msg.id ? (
+                          <>
+                            <Check className="w-3 h-3 text-[#22C55E]" />
+                            <span className="text-[#22C55E]">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {msg.role === 'user' && (
+                <div className="w-8 h-8 rounded-xl bg-[#27272A] flex items-center justify-center text-white shrink-0 mt-0.5">
+                  <User className="w-4 h-4" />
+                </div>
+              )}
+            </div>
+          ))}
+
+          {isChatLoading && (
+            <div className="flex items-start space-x-3 justify-start">
+              <div className="w-8 h-8 rounded-xl bg-[#22C55E]/20 border border-[#22C55E]/40 flex items-center justify-center text-[#22C55E] shrink-0 mt-0.5">
+                <Bot className="w-4 h-4 animate-spin" />
+              </div>
+              <div className="bg-[#141416] border border-[#27272A] rounded-2xl rounded-tl-none p-3.5 text-xs text-[#A1A1AA] flex items-center space-x-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22C55E]" />
+                <span>AI Tutor is formulating step derivation and LaTeX equations...</span>
+              </div>
+            </div>
+          )}
+
+          {chatError && (
+            <div className="p-3.5 rounded-2xl bg-[#EF4444]/15 border border-[#EF4444]/40 text-[#EF4444] text-xs flex items-center justify-between">
+              <span>{chatError}</span>
+              <button
+                type="button"
+                onClick={() => handleSendChatMessage()}
+                className="px-2.5 py-1 rounded-lg bg-[#EF4444] text-white text-[11px] font-bold cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          <div ref={chatMessagesEndRef} />
+        </div>
+
+        {/* Quick Starter Chips when chat has only welcome message */}
+        {chatMessages.length === 1 && (
+          <div className="pt-2 border-t border-[#27272A] space-y-2">
+            <span className="text-[11px] uppercase tracking-wider font-bold text-[#A1A1AA]">
+              Recommended Questions to Ask AI Tutor:
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {[
+                "Explain Newton's 3rd Law of Motion with an intuitive analogy",
+                "How do I determine the oxidation state of Cr in K2Cr2O7?",
+                "Give me a 3-step shortcut to solve quadratic equations by factoring",
+                "What is the difference between speed, velocity, and instantaneous acceleration?",
+              ].map((chipPrompt, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSendChatMessage(chipPrompt)}
+                  className="p-2.5 rounded-xl bg-[#141416] hover:bg-[#1E1E22] border border-[#27272A] hover:border-[#22C55E]/50 text-left text-xs text-[#D4D4D8] transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span className="line-clamp-1">{chipPrompt}</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#A1A1AA] group-hover:text-[#22C55E] ml-2 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Chat Input Bar */}
+        <div className="pt-3 border-t border-[#27272A]">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendChatMessage();
+            }}
+            className="flex items-center space-x-2"
+          >
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Ask any question about steps, formulas, derivations, or concepts..."
+              className="flex-1 bg-[#000000] border border-[#27272A] focus:border-[#22C55E] rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-[#71717A] focus:outline-none transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={isChatLoading || !chatInput.trim()}
+              className="px-4 py-3 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 transition-all cursor-pointer shrink-0"
+            >
+              {isChatLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span className="hidden sm:inline">Send</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+);
 };

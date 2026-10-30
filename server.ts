@@ -143,7 +143,8 @@ async function generateWithModelFallback(
   contents: any[],
   timeoutMs: number = 25000,
   temperature: number = 0.8,
-  useThinking: boolean = false
+  useThinking: boolean = false,
+  responseMimeType: string = 'application/json'
 ) {
   // Candidate models: gemini-3.1-flash-lite (fast ~2s), gemini-3.8-flash, gemini-flash-latest
   const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
@@ -153,9 +154,11 @@ async function generateWithModelFallback(
     const model = candidateModels[i];
     try {
       const config: any = {
-        responseMimeType: 'application/json',
         temperature,
       };
+      if (responseMimeType) {
+        config.responseMimeType = responseMimeType;
+      }
       if (useThinking) {
         config.thinkingConfig = {
           thinkingLevel: 'LOW' as any,
@@ -392,6 +395,14 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   "finalAnswer": "\\boxed{Final answer in LaTeX}",
   "unit": "SI unit",
   "explanation": "Clear explanation of why this physical, mathematical, or chemical law applies",
+  "intuitiveConcept": "Intuitive plain-English conceptual breakdown with an easy-to-grasp analogy explaining what is actually happening physically or mathematically",
+  "detailedDerivation": [
+    "1. Rationale for step 1...",
+    "2. Rationale for step 2...",
+    "3. Algebraic simplification logic..."
+  ],
+  "alternativeMethod": "Alternative method, verification check, or shortcut to solve or double-check this problem",
+  "commonMistakes": "Most frequent student pitfalls, unit conversion traps, or sign errors to avoid",
   "tips": "Pro tip or exam advice for solving this problem"
 }
 `.trim();
@@ -432,8 +443,91 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   }
 };
 
+// 3. INTERACTIVE AI TUTOR STEM CHAT
+const handleChatRequest = async (req: Request, res: Response) => {
+  try {
+    const body = req.body || {};
+    const { message, history, problemContext, imageData, mimeType, subject } = body;
+    if (!message && !imageData) {
+      return res.status(400).json({ error: 'Please provide a message or question.' });
+    }
+
+    const activeApiKey = (req.headers['x-gemini-key'] as string) || apiKey;
+    if (!activeApiKey) {
+      return res.status(503).json({ error: 'AI reasoning engine is not configured.' });
+    }
+
+    const activeAi = activeApiKey === apiKey && ai ? ai : new GoogleGenAI({ apiKey: activeApiKey });
+
+    const contents: any[] = [];
+    if (imageData) {
+      const cleanBase64 = imageData.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+      contents.push({
+        inlineData: {
+          mimeType: mimeType || 'image/jpeg',
+          data: cleanBase64,
+        },
+      });
+    }
+
+    let systemContext = `You are SmartSolve AI, an expert, extraordinarily patient, and encouraging personal STEM tutor for Mathematics, Physics, and Chemistry (covering JAMB/UTME, WAEC/WASSCE, JUPEB, and University levels).
+Your job is to provide clear, thorough, and intuitive explanations.
+
+GUIDELINES:
+1. Explain deeply, logically, and intuitively. Use plain-English analogies alongside formal mathematical proofs.
+2. Format all mathematical symbols, equations, and chemical formulas using LaTeX notation ($...$ for inline math, $$...$$ for display equations).
+3. If the user asks about a specific step in a calculation, explain the exact mathematical operation, the theorem/law justifying it, and why other paths might be harder or invalid.
+4. If asked for alternative methods, provide shortcuts, dimensional analysis, or alternative physics laws (e.g. conservation of energy vs equations of motion).
+5. If asked to generate a practice problem, give a similar high-yield problem and offer to check their answer.
+6. Keep tone respectful, encouraging, and pedagogically sound.`;
+
+    if (problemContext) {
+      systemContext += `\n\nCURRENT PROBLEM CONTEXT BEING DISCUSSED:
+Subject: ${problemContext.subject || subject || 'General STEM'}
+Question: "${problemContext.problemStatement || problemContext.question || ''}"
+Formula: ${problemContext.formula || 'N/A'}
+Final Answer: ${problemContext.finalAnswer || 'N/A'}
+Working Steps:
+${Array.isArray(problemContext.steps) ? problemContext.steps.join('\n') : ''}`;
+    }
+
+    let formattedChatPrompt = `${systemContext}\n\n`;
+    if (Array.isArray(history) && history.length > 0) {
+      formattedChatPrompt += `CONVERSATION HISTORY:\n`;
+      history.slice(-8).forEach((h: any) => {
+        formattedChatPrompt += `${h.role === 'user' ? 'Student' : 'SmartSolve Tutor'}: ${h.content}\n`;
+      });
+      formattedChatPrompt += `\n`;
+    }
+    formattedChatPrompt += `Student's Question: ${message || 'Please explain the attached problem.'}\n\nSmartSolve Tutor Response:`;
+
+    contents.push({ text: formattedChatPrompt });
+
+    const response = await generateWithModelFallback(activeAi, contents, 25000, 0.7, false, 'text/plain');
+    const replyText = response.text?.trim() || '';
+
+    return res.json({
+      success: true,
+      reply: replyText,
+    });
+  } catch (error: any) {
+    console.error('Gemini chat error:', error);
+    const rawMsg = error?.message || String(error);
+    const is503 = rawMsg.includes('503') || rawMsg.includes('high demand') || rawMsg.includes('UNAVAILABLE') || rawMsg.includes('Resource has been exhausted');
+    const userFriendlyError = is503
+      ? 'The AI Tutor model is currently experiencing high demand. Please tap Retry in a few moments.'
+      : (rawMsg || 'The AI Tutor encountered an issue. Please try again.');
+
+    return res.status(is503 ? 503 : 500).json({
+      error: userFriendlyError,
+    });
+  }
+};
+
 app.post('/api/solve', handleSolveRequest);
 app.post('/api/ai/solve', handleSolveRequest);
+app.post('/api/chat', handleChatRequest);
+app.post('/api/ai/chat', handleChatRequest);
 
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
