@@ -559,6 +559,55 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
     }
   };
 
+  const chatDirectWithGemini = async (
+    key: string,
+    text: string,
+    ctx?: any,
+    hist?: Array<{ role: string; content: string }>
+  ) => {
+    const aiClient = new GoogleGenAI({ apiKey: key });
+    const contents: any[] = [];
+    if (imagePreview) {
+      const cleanBase64 = imagePreview.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+      contents.push({
+        inlineData: {
+          mimeType: imageMimeType || 'image/jpeg',
+          data: cleanBase64,
+        },
+      });
+    }
+
+    let prompt = `You are SmartSolve AI, an expert, extraordinarily patient, and encouraging personal STEM tutor for Mathematics, Physics, and Chemistry (covering JAMB/UTME, WAEC/WASSCE, JUPEB, and University levels).
+Format all mathematical symbols, calculations, and chemical equations using LaTeX ($...$ and $$...$$).`;
+    if (ctx) {
+      prompt += `\n\nActive Problem Context: ${ctx.title || ctx.problemStatement || ''}\nFormula: ${ctx.formula || 'N/A'}\nFinal Answer: ${ctx.finalAnswer || 'N/A'}`;
+      if (Array.isArray(ctx.steps)) {
+        prompt += `\nWorking Steps:\n${ctx.steps.join('\n')}`;
+      }
+    }
+    if (hist && hist.length > 0) {
+      prompt += `\n\nRecent History:\n${hist.map((h) => `${h.role === 'user' ? 'Student' : 'Tutor'}: ${h.content}`).join('\n')}`;
+    }
+    prompt += `\n\nStudent: ${text}\n\nTutor:`;
+    contents.push({ text: prompt });
+
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+    let lastErr: any = null;
+    for (const m of candidateModels) {
+      try {
+        const res = await aiClient.models.generateContent({
+          model: m,
+          contents,
+          config: { temperature: 0.7 },
+        });
+        return res.text?.trim() || '';
+      } catch (err: any) {
+        lastErr = err;
+      }
+    }
+    throw lastErr;
+  };
+
   const handleSendChatMessage = async (overrideText?: string) => {
     const textToSend = (overrideText !== undefined ? overrideText : chatInput).trim();
     if (!textToSend || isChatLoading) return;
@@ -581,59 +630,79 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
       chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 50);
 
+    const problemContext = solution
+      ? {
+          title: solution.title,
+          category: solution.category,
+          subCategory: solution.subCategory,
+          problemStatement: solution.problemStatement,
+          formula: solution.formula,
+          finalAnswer: solution.finalAnswer,
+          explanation: solution.explanation,
+          intuitiveConcept: solution.intuitiveConcept,
+          steps: solution.steps,
+        }
+      : undefined;
+
+    const historyPayload = chatMessages
+      .filter((m) => m.id !== 'welcome')
+      .slice(-8)
+      .map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
     try {
+      // 1. Direct browser solve if user entered API key
+      if (userApiKey) {
+        try {
+          const directReply = await chatDirectWithGemini(userApiKey, textToSend, problemContext, historyPayload);
+          if (directReply) {
+            const botMessage: ChatMessage = {
+              id: `assistant-${Date.now()}`,
+              role: 'assistant',
+              content: directReply,
+              timestamp: Date.now(),
+            };
+            setChatMessages((prev) => [...prev, botMessage]);
+            setTimeout(() => {
+              chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 80);
+            return;
+          }
+        } catch (directChatErr) {
+          console.warn('Direct chat failed, falling back to server /api/chat:', directChatErr);
+        }
+      }
+
+      // 2. Server API call
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      if (userApiKey) {
+      if (userApiKey && userApiKey.length > 20) {
         headers['x-gemini-key'] = userApiKey;
       }
 
-      const problemContext = solution
-        ? {
-            title: solution.title,
-            category: solution.category,
-            subCategory: solution.subCategory,
-            problemStatement: solution.problemStatement,
-            formula: solution.formula,
-            finalAnswer: solution.finalAnswer,
-            explanation: solution.explanation,
-            intuitiveConcept: solution.intuitiveConcept,
-            steps: solution.steps,
-          }
-        : undefined;
-
-      const historyPayload = chatMessages
-        .filter((m) => m.id !== 'welcome')
-        .slice(-8)
-        .map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
+      const requestPayload = {
+        message: textToSend,
+        history: historyPayload,
+        context: problemContext,
+        problemContext: problemContext,
+        imageData: imagePreview,
+        mimeType: imageMimeType,
+      };
 
       let response = await fetch('/api/chat', {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          message: textToSend,
-          history: historyPayload,
-          context: problemContext,
-          imageData: imagePreview,
-          mimeType: imageMimeType,
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
       if (response.status === 404) {
         response = await fetch('/api/ai/chat', {
           method: 'POST',
           headers,
-          body: JSON.stringify({
-            message: textToSend,
-            history: historyPayload,
-            context: problemContext,
-            imageData: imagePreview,
-            mimeType: imageMimeType,
-          }),
+          body: JSON.stringify(requestPayload),
         });
       }
 
@@ -646,7 +715,14 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
       }
 
       if (!response.ok || (responseData && responseData.success === false)) {
-        throw new Error(responseData?.error || 'AI STEM Tutor is temporarily unavailable.');
+        let errStr = responseData?.error || 'The AI Tutor encountered an issue. Please tap Retry.';
+        if (typeof errStr === 'string' && errStr.startsWith('{') && errStr.includes('"message"')) {
+          try {
+            const parsed = JSON.parse(errStr);
+            errStr = parsed.error?.message || parsed.message || errStr;
+          } catch {}
+        }
+        throw new Error(errStr);
       }
 
       const botReply = responseData.reply || responseData.text || 'I have analyzed your question.';
@@ -663,7 +739,15 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
       }, 80);
     } catch (chatErr: any) {
       console.error('Chat error:', chatErr);
-      setChatError(chatErr.message || 'Unable to connect to AI Tutor. Please try again.');
+      let msg = chatErr.message || 'The AI Tutor model is currently experiencing temporary high demand. Please tap Retry.';
+      if (typeof msg === 'string') {
+        if (msg.includes('503') || msg.includes('high demand') || msg.includes('UNAVAILABLE') || msg.includes('Resource has been exhausted')) {
+          msg = 'The AI Tutor model is currently experiencing temporary high demand. Please tap Retry in a few moments.';
+        } else if (msg.includes('API key not valid') || msg.includes('INVALID_ARGUMENT')) {
+          msg = 'AI reasoning service is reconnecting. Please tap Retry.';
+        }
+      }
+      setChatError(msg);
     } finally {
       setIsChatLoading(false);
     }
@@ -1511,12 +1595,19 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           )}
 
           {chatError && (
-            <div className="p-3.5 rounded-2xl bg-[#EF4444]/15 border border-[#EF4444]/40 text-[#EF4444] text-xs flex items-center justify-between">
-              <span>{chatError}</span>
+            <div className="p-3.5 rounded-2xl bg-[#EF4444]/15 border border-[#EF4444]/40 text-[#EF4444] text-xs flex items-center justify-between gap-3">
+              <span className="flex-1">{chatError}</span>
               <button
                 type="button"
-                onClick={() => handleSendChatMessage()}
-                className="px-2.5 py-1 rounded-lg bg-[#EF4444] text-white text-[11px] font-bold cursor-pointer"
+                onClick={() => {
+                  const lastUserMsg = [...chatMessages].reverse().find((m) => m.role === 'user')?.content;
+                  if (lastUserMsg) {
+                    handleSendChatMessage(lastUserMsg);
+                  } else {
+                    handleSendChatMessage();
+                  }
+                }}
+                className="px-3 py-1.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold cursor-pointer transition-colors shrink-0"
               >
                 Retry
               </button>

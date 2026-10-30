@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use((_req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-gemini-key, *');
   if (_req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
@@ -188,20 +188,34 @@ async function generateWithModelFallback(
   throw lastError;
 }
 
+// Resilient client resolver that ensures smooth fallback between client key and server environment key
+function getGenAIClient(headerKey?: string): { activeAi: GoogleGenAI; isCustomKey: boolean } {
+  const cleanHeader = (headerKey || '').trim();
+  if (cleanHeader && cleanHeader !== 'MY_GEMINI_API_KEY' && cleanHeader.length > 15) {
+    try {
+      return {
+        activeAi: new GoogleGenAI({ apiKey: cleanHeader }),
+        isCustomKey: true,
+      };
+    } catch {
+      // ignore bad format and fall back to server key
+    }
+  }
+  if (ai) {
+    return { activeAi: ai, isCustomKey: false };
+  }
+  if (apiKey) {
+    return { activeAi: new GoogleGenAI({ apiKey }), isCustomKey: false };
+  }
+  throw new Error('AI reasoning engine is temporarily unavailable. Please try again in a few moments.');
+}
+
 // Shared solver and question generator handler
 const handleSolveRequest = async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
     const headerKey = (req.headers['x-gemini-key'] as string) || '';
-    const activeApiKey = headerKey.trim() || apiKey;
-
-    if (!activeApiKey) {
-      return res.status(503).json({
-        error: 'AI reasoning engine is temporarily unavailable. Please try again in a few moments.',
-      });
-    }
-
-    const activeAi = activeApiKey === apiKey && ai ? ai : new GoogleGenAI({ apiKey: activeApiKey });
+    const { activeAi, isCustomKey } = getGenAIClient(headerKey);
 
     // 1. GENERATE EXAM QUESTIONS (Parallel Batching for 10, 20, or 40 questions)
     if (body.action === 'generate_questions' || body.action === 'generate_exam') {
@@ -447,17 +461,15 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 const handleChatRequest = async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
-    const { message, history, problemContext, imageData, mimeType, subject } = body;
+    const { message, history, imageData, mimeType, subject } = body;
+    const problemContext = body.problemContext || body.context;
+
     if (!message && !imageData) {
       return res.status(400).json({ error: 'Please provide a message or question.' });
     }
 
-    const activeApiKey = (req.headers['x-gemini-key'] as string) || apiKey;
-    if (!activeApiKey) {
-      return res.status(503).json({ error: 'AI reasoning engine is not configured.' });
-    }
-
-    const activeAi = activeApiKey === apiKey && ai ? ai : new GoogleGenAI({ apiKey: activeApiKey });
+    const headerKey = (req.headers['x-gemini-key'] as string) || '';
+    const { activeAi, isCustomKey } = getGenAIClient(headerKey);
 
     const contents: any[] = [];
     if (imageData) {
@@ -484,7 +496,7 @@ GUIDELINES:
     if (problemContext) {
       systemContext += `\n\nCURRENT PROBLEM CONTEXT BEING DISCUSSED:
 Subject: ${problemContext.subject || subject || 'General STEM'}
-Question: "${problemContext.problemStatement || problemContext.question || ''}"
+Question: "${problemContext.problemStatement || problemContext.title || problemContext.question || ''}"
 Formula: ${problemContext.formula || 'N/A'}
 Final Answer: ${problemContext.finalAnswer || 'N/A'}
 Working Steps:
@@ -503,8 +515,19 @@ ${Array.isArray(problemContext.steps) ? problemContext.steps.join('\n') : ''}`;
 
     contents.push({ text: formattedChatPrompt });
 
-    const response = await generateWithModelFallback(activeAi, contents, 25000, 0.7, false, 'text/plain');
-    const replyText = response.text?.trim() || '';
+    let response: any;
+    try {
+      response = await generateWithModelFallback(activeAi, contents, 25000, 0.7, false, 'text/plain');
+    } catch (primaryErr: any) {
+      if (isCustomKey && ai) {
+        console.warn('[SmartSolve Server] Client custom key failed, falling back to server default GEMINI_API_KEY...');
+        response = await generateWithModelFallback(ai, contents, 25000, 0.7, false, 'text/plain');
+      } else {
+        throw primaryErr;
+      }
+    }
+
+    const replyText = response?.text?.trim() || '';
 
     return res.json({
       success: true,
