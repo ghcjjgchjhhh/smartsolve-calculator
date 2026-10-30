@@ -40,14 +40,22 @@ interface GeminiAiSolverViewProps {
   initialPrompt?: string;
   initialSubject?: string;
   onClearInitialPrompt?: () => void;
+  initialTab?: 'solver' | 'chat';
 }
 
 export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
   initialPrompt,
   initialSubject,
   onClearInitialPrompt,
+  initialTab = 'solver',
 }) => {
-  const [activeSolverTab, setActiveSolverTab] = useState<'solver' | 'chat'>('solver');
+  const [activeSolverTab, setActiveSolverTab] = useState<'solver' | 'chat'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveSolverTab(initialTab);
+    }
+  }, [initialTab]);
   const [prompt, setPrompt] = useState<string>(
     initialPrompt ||
       'A stone of mass 0.5 kg is dropped from a cliff 80m high. Calculate its kinetic energy just before hitting the ground (take g = 9.8 m/s²).'
