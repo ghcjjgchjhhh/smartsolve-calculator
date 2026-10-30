@@ -9,7 +9,8 @@ dotenv.config();
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-app.use(express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // CORS middleware for iframe and preview support
 app.use((_req, res, next) => {

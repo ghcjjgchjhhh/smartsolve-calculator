@@ -5,10 +5,15 @@ import { saveToHistory } from '../services/historyStorage';
 import {
   Sparkles,
   Image as ImageIcon,
+  Camera,
   X,
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Maximize2,
+  Trash2,
+  UploadCloud,
+  FileCheck,
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -30,6 +35,10 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
   const [selectedSubject, setSelectedSubject] = useState<string>(initialSubject || 'All');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageMimeType, setImageMimeType] = useState<string>('image/jpeg');
+  const [imageMeta, setImageMeta] = useState<{ name?: string; size?: string; dimensions?: string } | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState<boolean>(false);
+  const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingStage, setLoadingStage] = useState<string>('');
   const [solution, setSolution] = useState<StepSolution | null>(null);
@@ -49,6 +58,7 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
     return '';
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const solutionRef = useRef<HTMLDivElement>(null);
 
   const realProblemSamples = [
@@ -164,25 +174,114 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
     },
   ];
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processImageFile = async (file: File) => {
+    if (!file || !file.type.startsWith('image/')) {
+      setError('Please select a valid image file (JPEG, PNG, HEIC, or WebP).');
+      return;
+    }
 
-    setImageMimeType(file.type || 'image/jpeg');
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    setIsProcessingImage(true);
+    setError(null);
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxDimension = 1600;
+          let width = img.naturalWidth || img.width;
+          let height = img.naturalHeight || img.height;
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            setImagePreview(dataUrl);
+            setImageMimeType('image/jpeg');
+            setImageMeta({ name: file.name, size: `${Math.round(file.size / 1024)} KB` });
+            setIsProcessingImage(false);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+
+          const approxBytes = Math.round((compressedDataUrl.length - 22) * 0.75);
+          const sizeKb = Math.round(approxBytes / 1024);
+
+          setImagePreview(compressedDataUrl);
+          setImageMimeType('image/jpeg');
+          setImageMeta({
+            name: file.name || 'Question Photo',
+            size: `${sizeKb} KB`,
+            dimensions: `${width}×${height}px`,
+          });
+          setIsProcessingImage(false);
+        } catch {
+          setImagePreview(dataUrl);
+          setImageMimeType('image/jpeg');
+          setImageMeta({ name: file.name, size: `${Math.round(file.size / 1024)} KB` });
+          setIsProcessingImage(false);
+        }
+      };
+      img.onerror = () => {
+        setImagePreview(dataUrl);
+        setImageMimeType(file.type || 'image/jpeg');
+        setImageMeta({ name: file.name, size: `${Math.round(file.size / 1024)} KB` });
+        setIsProcessingImage(false);
+      };
+      img.src = dataUrl;
+    } catch {
+      setIsProcessingImage(false);
+      setError('Could not process the selected image. Please try another photo.');
+    }
+  };
+
+  const handleImageInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
   };
 
   const handleClearImage = () => {
     setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    setImageMeta(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          processImageFile(file);
+          break;
+        }
+      }
+    }
+  };
 
   const solveDirectWithGemini = async (key: string, targetPrompt: string) => {
     const ai = new GoogleGenAI({ apiKey: key });
@@ -250,6 +349,8 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   "tips": "Pro tip or exam advice for solving this problem"
 }
 `.trim();
+
+    contents.push({ text: promptText });
 
     const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
     let lastError: any = null;
@@ -460,65 +561,150 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         </div>
 
         {/* Input Textarea & Image Attachment */}
-        <div className="space-y-3 pt-1">
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDraggingOver(true);
+          }}
+          onDragLeave={() => setIsDraggingOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDraggingOver(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) processImageFile(file);
+          }}
+          className={`space-y-3 pt-1 p-2 rounded-3xl transition-all ${
+            isDraggingOver ? 'bg-[#22C55E]/10 ring-2 ring-[#22C55E] ring-dashed' : ''
+          }`}
+        >
           <div className="relative">
             <textarea
               rows={4}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Type any math, physics, or chemistry question here... (e.g. Calculate the mass of copper deposited when a 2.5A current is passed through CuSO4 for 40 mins.)"
+              onPaste={handlePaste}
+              placeholder={
+                imagePreview
+                  ? "Question photo attached! (Optional: add extra notes or tap 'Solve with AI' directly to extract and solve)"
+                  : "Type any math, physics, or chemistry question here, or paste screenshot (Ctrl+V) / snap a photo..."
+              }
               className="w-full p-4 rounded-2xl bg-[#000000] border border-[#27272A] text-[#FFFFFF] placeholder:text-[#A1A1AA]/60 text-sm sm:text-base font-medium focus:border-[#22C55E] focus:outline-none transition-colors resize-y leading-relaxed"
             />
           </div>
 
-          {/* Image preview if user uploaded a problem photo */}
+          {/* Image processing loader */}
+          {isProcessingImage && (
+            <div className="flex items-center space-x-2.5 p-3 rounded-2xl bg-[#000000] border border-[#22C55E]/30 text-xs text-[#22C55E] animate-pulse">
+              <Loader2 className="w-4 h-4 animate-spin text-[#22C55E]" />
+              <span>Optimizing and preparing problem photo for AI Vision...</span>
+            </div>
+          )}
+
+          {/* Enhanced Image preview if user uploaded a problem photo */}
           {imagePreview && (
-            <div className="flex items-center space-x-3 p-3 rounded-2xl bg-[#000000] border border-[#27272A] w-fit">
-              <img
-                src={imagePreview}
-                alt="Uploaded problem"
-                className="w-16 h-16 object-cover rounded-xl border border-[#27272A]"
-              />
-              <div>
-                <span className="text-xs font-bold text-[#FFFFFF] block">Attached Problem Image</span>
-                <span className="text-[11px] text-[#A1A1AA]">AI Vision will read and extract the problem</span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#000000] border border-[#22C55E]/40 w-full animate-fadeIn shadow-lg">
+              <div className="flex items-center space-x-3.5 min-w-0">
+                <div
+                  onClick={() => setIsImageModalOpen(true)}
+                  className="relative group cursor-pointer shrink-0 rounded-xl overflow-hidden border border-[#27272A] hover:border-[#22C55E] transition-all"
+                  title="Click to expand full image"
+                >
+                  <img
+                    src={imagePreview}
+                    alt="Uploaded question"
+                    className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl group-hover:scale-105 transition-transform"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <Maximize2 className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-[#FFFFFF] truncate max-w-[180px] sm:max-w-xs block">
+                      {imageMeta?.name || 'Attached Problem Photo'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E] text-[10px] font-black border border-[#22C55E]/30 shrink-0 uppercase tracking-wider">
+                      AI Vision Ready
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-[11px] text-[#A1A1AA]">
+                    {imageMeta?.size && <span>{imageMeta.size}</span>}
+                    {imageMeta?.dimensions && <span>· {imageMeta.dimensions}</span>}
+                    <span className="text-[#22C55E]">· Crisp Resolution</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsImageModalOpen(true)}
+                    className="text-[11px] text-[#38BDF8] hover:underline flex items-center space-x-1 cursor-pointer font-medium pt-0.5"
+                  >
+                    <Maximize2 className="w-3 h-3" />
+                    <span>Inspect Full Image</span>
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={handleClearImage}
-                aria-label="Remove image"
-                className="p-1.5 rounded-lg bg-[#18181B] hover:bg-[#EF4444] text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+              <div className="flex items-center space-x-2 self-end sm:self-center shrink-0">
+                <button
+                  type="button"
+                  onClick={handleClearImage}
+                  className="px-3 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#EF4444]/20 hover:text-[#EF4444] text-[#A1A1AA] text-xs font-semibold border border-white/5 transition-colors cursor-pointer flex items-center space-x-1"
+                  title="Remove this photo"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
+              </div>
             </div>
           )}
 
           {/* Action Row */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-            <div className="flex items-center space-x-2 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              {/* Camera Direct Input (environment/rear camera on mobile) */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleImageInput}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#FFFFFF] text-xs font-bold border border-white/5 transition-all cursor-pointer active:scale-95 shadow-sm"
+                title="Open camera to snap a photo of your textbook question directly"
+              >
+                <Camera className="w-4 h-4 text-[#22C55E]" />
+                <span>Camera</span>
+              </button>
+
+              {/* Gallery / File Picker Input */}
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={handleImageSelect}
+                onChange={handleImageInput}
                 className="hidden"
               />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center space-x-2 px-3.5 py-2.5 rounded-xl bg-[#18181B] hover:bg-[#2F3542] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold border border-white/5 transition-colors cursor-pointer"
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold border border-white/5 transition-all cursor-pointer active:scale-95"
+                title="Select a photo or screenshot from your device gallery"
               >
-                <ImageIcon className="w-4 h-4 text-[#22C55E]" />
-                <span>Snap / Upload Question Photo</span>
+                <ImageIcon className="w-4 h-4 text-emerald-400" />
+                <span>Upload Photo</span>
               </button>
 
               {prompt && (
                 <button
                   type="button"
                   onClick={() => setPrompt('')}
-                  className="px-3 py-2.5 rounded-xl bg-[#000000] hover:bg-[#18181B] text-[#A1A1AA] text-xs font-semibold transition-colors cursor-pointer"
+                  className="px-2.5 py-2 rounded-xl bg-[#000000] hover:bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold transition-colors cursor-pointer border border-[#27272A]"
                 >
-                  Clear
+                  Clear Text
                 </button>
               )}
             </div>
@@ -526,12 +712,12 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
             <button
               onClick={() => handleSolve()}
               disabled={isLoading || (!prompt.trim() && !imagePreview)}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 disabled:opacity-50 text-[#FFFFFF] font-bold text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 disabled:opacity-50 text-[#FFFFFF] font-black text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Solving Real Problem...</span>
+                  <span>Solving Problem...</span>
                 </>
               ) : (
                 <>
@@ -542,6 +728,39 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
             </button>
           </div>
         </div>
+
+        {/* Fullscreen Photo Lightbox Modal */}
+        {isImageModalOpen && imagePreview && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
+            <div className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => setIsImageModalOpen(false)}
+                className="absolute -top-12 right-0 p-2 rounded-full bg-[#18181B] hover:bg-[#27272A] text-white cursor-pointer transition-colors"
+                title="Close Preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <img
+                src={imagePreview}
+                alt="Full view of problem question"
+                className="max-h-[80vh] w-auto max-w-full object-contain rounded-2xl border border-[#27272A] shadow-2xl"
+              />
+              <div className="mt-3 flex items-center space-x-4 text-xs text-[#A1A1AA]">
+                {imageMeta?.name && <span className="font-bold text-white">{imageMeta.name}</span>}
+                {imageMeta?.dimensions && <span>{imageMeta.dimensions}</span>}
+                {imageMeta?.size && <span>{imageMeta.size}</span>}
+                <button
+                  type="button"
+                  onClick={() => setIsImageModalOpen(false)}
+                  className="px-3 py-1 rounded-lg bg-[#22C55E] text-black font-bold cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Loading stage ticker */}
         {isLoading && (
