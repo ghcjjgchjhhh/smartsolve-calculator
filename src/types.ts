@@ -35,6 +35,10 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
+  imageData?: string;
+  imageMimeType?: string;
+  isVoiceNote?: boolean;
+  voiceDuration?: number;
 }
 
 export interface HistoryItem extends StepSolution {

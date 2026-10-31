@@ -35,6 +35,16 @@ import {
   Check,
   Volume2,
   VolumeX,
+  Mic,
+  MicOff,
+  Paperclip,
+  Play,
+  Pause,
+  Square,
+  Sliders,
+  Headphones,
+  RefreshCw,
+  Radio,
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -80,7 +90,7 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
       id: 'welcome',
       role: 'assistant',
       content:
-        'Hello! I am **SmartSolve AI Tutor**, your personal STEM companion for Mathematics, Physics, and Chemistry.\n\nAsk me anything! I can explain confusing steps, provide intuitive analogies, test you with practice problems, or solve any homework question you throw at me.',
+        'Hello! I am **SmartSolve AI**, your versatile conversational companion and academic tutor (just like ChatGPT).\n\nAsk me anything! From coding, essays, everyday questions, and philosophy to deep derivations in Math, Physics, and Chemistry. You can type, send a voice note 🎙️, or upload a photo 📷 of your homework!',
       timestamp: Date.now(),
     },
   ]);
@@ -89,6 +99,56 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
   const [chatError, setChatError] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+
+  // Chat Photo Upload State
+  const [chatImagePreview, setChatImagePreview] = useState<string | null>(null);
+  const [chatImageMimeType, setChatImageMimeType] = useState<string>('image/jpeg');
+  const [chatImageMeta, setChatImageMeta] = useState<{ name: string; size: string } | null>(null);
+  const chatFileInputRef = useRef<HTMLInputElement>(null);
+  const chatCameraInputRef = useRef<HTMLInputElement>(null);
+
+  // WhatsApp-Style Voice Note Recording State
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
+  const [recordingTranscript, setRecordingTranscript] = useState<string>('');
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<any>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Voice Customization Settings
+  const [voiceSettings, setVoiceSettings] = useState<{
+    voiceURI: string;
+    rate: number;
+    pitch: number;
+    autoSpeak: boolean;
+  }>(() => {
+    try {
+      const saved = localStorage.getItem('smartsolve_voice_settings');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      voiceURI: '',
+      rate: 1.0,
+      pitch: 1.0,
+      autoSpeak: false,
+    };
+  });
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const updateVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        setAvailableVoices(voices);
+      }
+    };
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+  }, []);
+
   const [expandedExplanation, setExpandedExplanation] = useState<{
     concept: boolean;
     derivation: boolean;
@@ -619,21 +679,42 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
     throw lastErr;
   };
 
-  const handleSendChatMessage = async (overrideText?: string) => {
+  const handleSendChatMessage = async (
+    overrideText?: string,
+    overrideImage?: string,
+    isVoice?: boolean,
+    voiceDurationSeconds?: number
+  ) => {
     const textToSend = (overrideText !== undefined ? overrideText : chatInput).trim();
-    if (!textToSend || isChatLoading) return;
+    const activeImage = overrideImage !== undefined ? overrideImage : chatImagePreview;
+    const activeMime = chatImageMimeType || 'image/jpeg';
+
+    if (!textToSend && !activeImage) return;
+    if (isChatLoading) return;
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageId(null);
+    }
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: textToSend,
+      content: textToSend || (activeImage ? 'Analyze and explain this attached image' : ''),
       timestamp: Date.now(),
+      imageData: activeImage || undefined,
+      imageMimeType: activeImage ? activeMime : undefined,
+      isVoiceNote: Boolean(isVoice),
+      voiceDuration: voiceDurationSeconds,
     };
 
     setChatMessages((prev) => [...prev, userMessage]);
     if (overrideText === undefined) {
       setChatInput('');
     }
+    setChatImagePreview(null);
+    setChatImageMeta(null);
+
     setIsChatLoading(true);
     setChatError(null);
 
@@ -679,6 +760,12 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
             setTimeout(() => {
               chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
             }, 80);
+
+            if (voiceSettings.autoSpeak) {
+              setTimeout(() => {
+                handleToggleSpeech(botMessage.id, directReply);
+              }, 300);
+            }
             return;
           }
         } catch (directChatErr) {
@@ -699,8 +786,8 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
         history: historyPayload,
         context: problemContext,
         problemContext: problemContext,
-        imageData: imagePreview,
-        mimeType: imageMimeType,
+        imageData: activeImage || imagePreview,
+        mimeType: activeImage ? activeMime : imageMimeType,
       };
 
       let response: Response;
@@ -778,6 +865,13 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
       setTimeout(() => {
         chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 80);
+
+      // Auto-speak reply if enabled
+      if (voiceSettings.autoSpeak) {
+        setTimeout(() => {
+          handleToggleSpeech(botMessage.id, botReply);
+        }, 300);
+      }
     } catch (chatErr: any) {
       console.error('Chat error:', chatErr);
       let msg = chatErr.message || 'The AI Tutor model is currently experiencing temporary high demand. Please tap Retry.';
@@ -792,6 +886,114 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
     } finally {
       setIsChatLoading(false);
     }
+  };
+
+  const handleChatImageSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setChatError('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setChatImagePreview(result);
+      setChatImageMimeType(file.type || 'image/jpeg');
+      setChatImageMeta({
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + ' KB',
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const startVoiceRecording = async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      setRecordingSeconds(0);
+      setRecordingTranscript('');
+      audioChunksRef.current = [];
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.start(100);
+
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        try {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = 'en-US';
+          recognition.onresult = (event: any) => {
+            let full = '';
+            for (let i = 0; i < event.results.length; i++) {
+              full += event.results[i][0].transcript;
+            }
+            setRecordingTranscript(full);
+          };
+          recognition.onerror = () => {};
+          recognition.start();
+          recognitionRef.current = recognition;
+        } catch {}
+      }
+
+      setIsRecording(true);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('Microphone error:', err);
+      setChatError('Microphone permission is required to send voice notes. Please allow microphone access.');
+    }
+  };
+
+  const cancelVoiceRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+    }
+    setIsRecording(false);
+    setRecordingSeconds(0);
+    setRecordingTranscript('');
+    audioChunksRef.current = [];
+  };
+
+  const sendVoiceRecording = () => {
+    const finalSeconds = recordingSeconds;
+    const finalTranscript = recordingTranscript.trim();
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+    }
+
+    setIsRecording(false);
+    setRecordingSeconds(0);
+
+    const spokenText = finalTranscript || 'Voice note audio message';
+    handleSendChatMessage(spokenText, undefined, true, Math.max(finalSeconds, 1));
   };
 
   const handleAskAboutStep = (stepNumber: number, stepText: string) => {
@@ -811,7 +1013,7 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
         id: 'welcome',
         role: 'assistant',
         content:
-          'Hello! I am **SmartSolve AI Tutor**, your personal STEM companion for Mathematics, Physics, and Chemistry.\n\nAsk me anything! I can explain confusing steps, provide intuitive analogies, test you with practice problems, or solve any homework question you throw at me.',
+          'Hello! I am **SmartSolve AI**, your versatile conversational companion and academic tutor (just like ChatGPT).\n\nAsk me anything! From coding, essays, everyday questions, and philosophy to deep derivations in Math, Physics, and Chemistry. You can type, send a voice note 🎙️, or upload a photo 📷 of your homework!',
         timestamp: Date.now(),
       },
     ]);
@@ -845,12 +1047,23 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
       .replace(/[*#_`]/g, '');
 
     const utterance = new SpeechSynthesisUtterance(cleanSpeech);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
+    utterance.rate = voiceSettings.rate;
+    utterance.pitch = voiceSettings.pitch;
+    if (voiceSettings.voiceURI && availableVoices.length > 0) {
+      const selected = availableVoices.find((v) => v.voiceURI === voiceSettings.voiceURI);
+      if (selected) utterance.voice = selected;
+    }
     utterance.onend = () => setSpeakingMessageId(null);
     utterance.onerror = () => setSpeakingMessageId(null);
     setSpeakingMessageId(msgId);
     window.speechSynthesis.speak(utterance);
+  };
+
+  const handleSaveVoiceSettings = (newSettings: typeof voiceSettings) => {
+    setVoiceSettings(newSettings);
+    try {
+      localStorage.setItem('smartsolve_voice_settings', JSON.stringify(newSettings));
+    } catch {}
   };
 
   const toggleExplanation = (section: 'concept' | 'derivation' | 'alternative' | 'mistakes') => {
@@ -1539,24 +1752,54 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
   {activeSolverTab === 'chat' && (
     <div className="space-y-4 animate-fadeIn">
       {/* Tutor Info Header */}
-      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-2xl bg-[#22C55E]/20 border border-[#22C55E]/40 flex items-center justify-center text-[#22C55E] shrink-0">
             <Bot className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h3 className="text-base font-bold text-white">SmartSolve STEM AI Tutor</h3>
+              <h3 className="text-base font-bold text-white">SmartSolve AI Assistant</h3>
               <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
-              <span className="text-[11px] text-[#22C55E] font-medium">Online</span>
+              <span className="text-[11px] text-[#22C55E] font-medium">Voice & Vision Ready</span>
             </div>
             <p className="text-xs text-[#A1A1AA]">
-              Personal STEM tutor for Mathematics, Physics & Chemistry. Ask about any step, formula derivation, or concept.
+              Universal AI companion & STEM master. Type, send voice notes 🎙️, or upload photos 📷.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center flex-wrap gap-2">
+          {/* Auto Speak Toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              const updated = { ...voiceSettings, autoSpeak: !voiceSettings.autoSpeak };
+              handleSaveVoiceSettings(updated);
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center space-x-1.5 transition-all cursor-pointer ${
+              voiceSettings.autoSpeak
+                ? 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/40 shadow-sm'
+                : 'bg-[#18181B] text-[#A1A1AA] hover:text-white border-[#27272A]'
+            }`}
+            title="Auto-speak AI responses out loud for a continuous voice conversation"
+          >
+            <Headphones className="w-3.5 h-3.5" />
+            <span>Auto Voice: {voiceSettings.autoSpeak ? 'ON' : 'OFF'}</span>
+          </button>
+
+          {/* Voice Customization Button */}
+          <button
+            type="button"
+            onClick={() => setIsVoiceModalOpen(true)}
+            className="px-3 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-xs font-semibold text-[#A1A1AA] hover:text-white border border-[#27272A] flex items-center space-x-1.5 transition-colors cursor-pointer"
+            title="Change voice, accent, pitch, and speed"
+          >
+            <Sliders className="w-3.5 h-3.5 text-[#22C55E]" />
+            <span>Change Voice</span>
+          </button>
+
+          {/* Reset Chat Button */}
           <button
             type="button"
             onClick={handleClearChat}
@@ -1564,7 +1807,7 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
             title="Restart Chat Conversation"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Chat</span>
+            <span>Reset</span>
           </button>
         </div>
       </div>
@@ -1607,25 +1850,115 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
               )}
 
               <div
-                className={`max-w-[85%] sm:max-w-[80%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
+                className={`max-w-[88%] sm:max-w-[80%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-[#22C55E] text-white rounded-tr-none font-medium shadow-md shadow-emerald-500/10'
-                    : 'bg-[#141416] text-[#E4E4E7] border border-[#27272A] rounded-tl-none space-y-2'
+                    : 'bg-[#141416] text-[#E4E4E7] border border-[#27272A] rounded-tl-none space-y-3'
                 }`}
               >
                 {msg.role === 'user' ? (
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
-                ) : (
                   <div className="space-y-2">
+                    {/* Uploaded Photo Attachment in User Bubble */}
+                    {msg.imageData && (
+                      <div className="rounded-xl overflow-hidden border border-white/20 max-w-[260px] sm:max-w-[320px]">
+                        <img
+                          src={msg.imageData}
+                          alt="Uploaded attachment"
+                          className="w-full h-auto object-cover max-h-56 rounded-xl"
+                        />
+                      </div>
+                    )}
+
+                    {/* WhatsApp-Style User Voice Note */}
+                    {msg.isVoiceNote ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center space-x-2.5 bg-black/25 px-3 py-2 rounded-xl border border-white/20">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSpeech(msg.id, msg.content)}
+                            className="w-8 h-8 rounded-full bg-white text-[#22C55E] flex items-center justify-center shrink-0 shadow cursor-pointer active:scale-95 transition-transform"
+                            title={speakingMessageId === msg.id ? 'Pause Voice Note' : 'Play Voice Note'}
+                          >
+                            {speakingMessageId === msg.id ? (
+                              <Pause className="w-4 h-4 fill-current" />
+                            ) : (
+                              <Play className="w-4 h-4 fill-current ml-0.5" />
+                            )}
+                          </button>
+                          <div className="flex-1 flex items-center space-x-1">
+                            {[40, 75, 30, 95, 50, 85, 60, 100, 45, 70, 90, 35, 60, 80].map((h, i) => (
+                              <div
+                                key={i}
+                                className={`w-1 rounded-full transition-all ${
+                                  speakingMessageId === msg.id ? 'bg-white animate-pulse' : 'bg-white/60'
+                                }`}
+                                style={{ height: `${h * 0.22}px` }}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[11px] font-mono opacity-90">
+                            {msg.voiceDuration
+                              ? `${Math.floor(msg.voiceDuration / 60)}:${(msg.voiceDuration % 60)
+                                  .toString()
+                                  .padStart(2, '0')}`
+                              : '0:05'}
+                          </span>
+                        </div>
+                        {msg.content && msg.content !== 'Voice note audio message' && (
+                          <div className="text-xs opacity-95 italic">"{msg.content}"</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* WhatsApp-Style AI Voice Note Card */}
+                    <div className="flex items-center space-x-2.5 bg-[#0D0D10] px-3 py-2 rounded-xl border border-[#27272A] text-xs">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSpeech(msg.id, msg.content)}
+                        className="w-8 h-8 rounded-full bg-[#22C55E] text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/25 cursor-pointer active:scale-95 hover:bg-[#16A34A] transition-all"
+                        title={speakingMessageId === msg.id ? 'Pause Voice Note' : 'Listen to Voice Note'}
+                      >
+                        {speakingMessageId === msg.id ? (
+                          <Pause className="w-4 h-4 fill-current" />
+                        ) : (
+                          <Play className="w-4 h-4 fill-current ml-0.5" />
+                        )}
+                      </button>
+                      <div className="flex-1 flex items-center space-x-1 py-1 overflow-hidden">
+                        {[30, 55, 85, 40, 95, 65, 80, 50, 70, 90, 45, 60, 75, 40, 85, 55].map((h, i) => (
+                          <div
+                            key={i}
+                            className={`w-1 rounded-full transition-all ${
+                              speakingMessageId === msg.id
+                                ? 'bg-[#22C55E] animate-bounce-subtle'
+                                : 'bg-[#3F3F46]'
+                            }`}
+                            style={{
+                              height: `${h * 0.22}px`,
+                              animationDelay: `${i * 60}ms`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[10px] text-[#A1A1AA] font-mono">
+                        {speakingMessageId === msg.id ? 'Playing...' : 'AI Voice Note'}
+                      </span>
+                    </div>
+
                     <MathRenderer text={msg.content} />
+
                     <div className="flex items-center justify-between pt-2 border-t border-[#27272A]/60 text-[10px] text-[#A1A1AA]">
-                      <span className="font-semibold text-[#22C55E]">SmartSolve AI Tutor</span>
+                      <span className="font-semibold text-[#22C55E]">SmartSolve AI</span>
                       <div className="flex items-center space-x-3">
                         <button
                           type="button"
                           onClick={() => handleToggleSpeech(msg.id, msg.content)}
                           className="inline-flex items-center space-x-1 text-[#22C55E] hover:text-[#4ADE80] transition-colors cursor-pointer"
-                          title={speakingMessageId === msg.id ? 'Stop voice reading' : 'Listen to AI voice explanation'}
+                          title={speakingMessageId === msg.id ? 'Stop Voice' : 'Play Voice'}
                         >
                           {speakingMessageId === msg.id ? (
                             <>
@@ -1635,7 +1968,7 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
                           ) : (
                             <>
                               <Volume2 className="w-3 h-3" />
-                              <span>Listen</span>
+                              <span>Voice</span>
                             </>
                           )}
                         </button>
@@ -1659,13 +1992,13 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
                       </div>
                     </div>
 
-                    {/* Dynamic Real-AI Follow-up Chips under latest response */}
+                    {/* Dynamic Follow-up Chips under latest response */}
                     {idx === chatMessages.length - 1 && !isChatLoading && (
                       <div className="pt-2 border-t border-[#27272A]/40 flex flex-wrap gap-1.5 animate-fadeIn">
                         {[
-                          { label: '⚡ Fast Exam Shortcut', prompt: 'Can you show me the fastest exam shortcut or speed trick for this concept?' },
+                          { label: '⚡ Fast Exam Shortcut', prompt: 'Can you show me the fastest shortcut or speed trick for this?' },
                           { label: '🤔 Everyday Analogy', prompt: 'Can you explain this with a relatable real-life analogy without jargon?' },
-                          { label: '📝 Test Me (Practice Quiz)', prompt: 'Give me a similar multiple-choice practice question based on this to test me.' },
+                          { label: '📝 Practice Quiz', prompt: 'Give me a similar multiple-choice practice question based on this to test me.' },
                           { label: '⚠️ Traps & Mistakes', prompt: 'What is the most frequent trap or sign mistake students make here in exams?' },
                         ].map((chip, cIdx) => (
                           <button
@@ -1698,7 +2031,7 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
               </div>
               <div className="bg-[#141416] border border-[#27272A] rounded-2xl rounded-tl-none p-3.5 text-xs text-[#A1A1AA] flex items-center space-x-2">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22C55E]" />
-                <span>AI Tutor is formulating step derivation and LaTeX equations...</span>
+                <span>SmartSolve AI is thinking and composing reply...</span>
               </div>
             </div>
           )}
@@ -1730,14 +2063,14 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
         {chatMessages.length === 1 && (
           <div className="pt-2 border-t border-[#27272A] space-y-2">
             <span className="text-[11px] uppercase tracking-wider font-bold text-[#A1A1AA]">
-              Recommended Questions to Ask AI Tutor:
+              Recommended Prompts to Try:
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[
-                "Explain Newton's 3rd Law of Motion with an intuitive analogy",
+                "Write a Python script to sort and analyze statistical data",
+                "Explain Newton's Laws with a swimming analogy",
                 "How do I determine the oxidation state of Cr in K2Cr2O7?",
                 "Give me a 3-step shortcut to solve quadratic equations by factoring",
-                "What is the difference between speed, velocity, and instantaneous acceleration?",
               ].map((chipPrompt, idx) => (
                 <button
                   key={idx}
@@ -1754,38 +2087,296 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
         )}
 
         {/* Chat Input Bar */}
-        <div className="pt-3 border-t border-[#27272A]">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendChatMessage();
+        <div className="pt-3 border-t border-[#27272A] space-y-2">
+          {/* Selected Photo Attachment Preview */}
+          {chatImagePreview && (
+            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-[#141416] border border-[#22C55E]/30 animate-fadeIn">
+              <div className="flex items-center space-x-3">
+                <img
+                  src={chatImagePreview}
+                  alt="Attachment preview"
+                  className="w-12 h-12 object-cover rounded-xl border border-white/20"
+                />
+                <div className="text-xs">
+                  <div className="font-semibold text-white truncate max-w-[200px] sm:max-w-xs">
+                    {chatImageMeta?.name || 'Attached Photo'}
+                  </div>
+                  <div className="text-[11px] text-[#22C55E]">
+                    {chatImageMeta?.size || 'Image ready'} · AI will analyze this photo
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setChatImagePreview(null);
+                  setChatImageMeta(null);
+                }}
+                className="p-1.5 rounded-lg bg-[#27272A] hover:bg-[#EF4444] text-[#A1A1AA] hover:text-white transition-colors cursor-pointer"
+                title="Remove photo"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Hidden File Inputs */}
+          <input
+            type="file"
+            ref={chatFileInputRef}
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleChatImageSelect(e.target.files[0]);
+              }
+              e.target.value = '';
             }}
-            className="flex items-center space-x-2"
-          >
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Ask any question about steps, formulas, derivations, or concepts..."
-              className="flex-1 bg-[#000000] border border-[#27272A] focus:border-[#22C55E] rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-[#71717A] focus:outline-none transition-colors"
-            />
-            <button
-              type="submit"
-              disabled={isChatLoading || !chatInput.trim()}
-              className="px-4 py-3 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 transition-all cursor-pointer shrink-0"
-            >
-              {isChatLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
+            accept="image/*"
+            className="hidden"
+          />
+          <input
+            type="file"
+            ref={chatCameraInputRef}
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleChatImageSelect(e.target.files[0]);
+              }
+              e.target.value = '';
+            }}
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+          />
+
+          {/* If Recording Voice Note: WhatsApp-Style Bar */}
+          {isRecording ? (
+            <div className="flex items-center justify-between p-2 sm:p-2.5 bg-[#160B0B] border border-[#EF4444]/40 rounded-2xl animate-pulse">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <span className="w-3 h-3 rounded-full bg-[#EF4444] animate-ping" />
+                  <span className="text-xs font-bold text-[#EF4444]">Recording Voice Note</span>
+                </div>
+                <span className="font-mono text-xs text-white bg-black/40 px-2 py-0.5 rounded-md">
+                  {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, '0')}
+                </span>
+                <span className="text-xs text-[#A1A1AA] hidden sm:inline truncate max-w-[220px]">
+                  {recordingTranscript ? `"${recordingTranscript}"` : 'Listening to your voice...'}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={cancelVoiceRecording}
+                  className="p-2 rounded-xl bg-[#27272A] hover:bg-[#EF4444] text-white transition-colors cursor-pointer"
+                  title="Cancel voice note"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={sendVoiceRecording}
+                  className="px-4 py-2 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white font-bold text-xs flex items-center space-x-1.5 shadow-md shadow-emerald-500/20 cursor-pointer"
+                  title="Send voice note"
+                >
                   <Send className="w-4 h-4" />
-                  <span className="hidden sm:inline">Send</span>
-                </>
-              )}
-            </button>
-          </form>
+                  <span>Send Voice</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Normal Chat Input Bar with Photo Upload, Camera, and Voice Note buttons */
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendChatMessage();
+              }}
+              className="flex items-center space-x-1.5 sm:space-x-2"
+            >
+              {/* Photo Upload Attachment Button */}
+              <button
+                type="button"
+                onClick={() => chatFileInputRef.current?.click()}
+                className="p-2.5 sm:p-3 rounded-xl bg-[#141416] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#22C55E] border border-[#27272A] transition-colors cursor-pointer shrink-0"
+                title="Upload Photo or Homework Diagram"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+
+              {/* Camera Photo Button */}
+              <button
+                type="button"
+                onClick={() => chatCameraInputRef.current?.click()}
+                className="p-2.5 sm:p-3 rounded-xl bg-[#141416] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#22C55E] border border-[#27272A] transition-colors cursor-pointer shrink-0"
+                title="Snap Photo with Camera"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+
+              {/* Text Input */}
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder={
+                  chatImagePreview
+                    ? 'Add a question about this photo (optional) and send...'
+                    : 'Ask anything, write code, essays, or send a voice note...'
+                }
+                className="flex-1 bg-[#000000] border border-[#27272A] focus:border-[#22C55E] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white placeholder-[#71717A] focus:outline-none transition-colors"
+              />
+
+              {/* Record Voice Note Button */}
+              <button
+                type="button"
+                onClick={startVoiceRecording}
+                className="p-2.5 sm:p-3 rounded-xl bg-[#141416] hover:bg-[#22C55E]/20 text-[#A1A1AA] hover:text-[#22C55E] border border-[#27272A] transition-colors cursor-pointer shrink-0"
+                title="Record voice note (like WhatsApp)"
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+
+              {/* Send Button */}
+              <button
+                type="submit"
+                disabled={isChatLoading || (!chatInput.trim() && !chatImagePreview)}
+                className="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] disabled:opacity-40 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 transition-all cursor-pointer shrink-0"
+              >
+                {isChatLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span className="hidden sm:inline">Send</span>
+                  </>
+                )}
+              </button>
+            </form>
+          )}
         </div>
       </div>
+
+      {/* Voice Customization Modal */}
+      {isVoiceModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#121214] border border-[#27272A] rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-[#27272A] pb-3">
+              <div className="flex items-center space-x-2">
+                <Sliders className="w-5 h-5 text-[#22C55E]" />
+                <h3 className="text-base font-bold text-white">Customize AI Voice</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsVoiceModalOpen(false)}
+                className="p-1.5 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-[#A1A1AA] hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Voice Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-[#A1A1AA] block">
+                Choose Voice / Accent:
+              </label>
+              <select
+                value={voiceSettings.voiceURI}
+                onChange={(e) => {
+                  const updated = { ...voiceSettings, voiceURI: e.target.value };
+                  handleSaveVoiceSettings(updated);
+                }}
+                className="w-full bg-[#000000] border border-[#27272A] focus:border-[#22C55E] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none cursor-pointer"
+              >
+                <option value="">Default Natural Voice</option>
+                {availableVoices.map((v, i) => (
+                  <option key={i} value={v.voiceURI}>
+                    {v.name} ({v.lang})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Speech Rate Slider */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-[#A1A1AA]">Speaking Speed:</span>
+                <span className="text-[#22C55E] font-mono">{voiceSettings.rate.toFixed(1)}x</span>
+              </div>
+              <input
+                type="range"
+                min="0.7"
+                max="1.5"
+                step="0.1"
+                value={voiceSettings.rate}
+                onChange={(e) => {
+                  const updated = { ...voiceSettings, rate: parseFloat(e.target.value) };
+                  handleSaveVoiceSettings(updated);
+                }}
+                className="w-full accent-[#22C55E] cursor-pointer"
+              />
+            </div>
+
+            {/* Pitch Slider */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-[#A1A1AA]">Voice Pitch:</span>
+                <span className="text-[#22C55E] font-mono">{voiceSettings.pitch.toFixed(1)}</span>
+              </div>
+              <input
+                type="range"
+                min="0.7"
+                max="1.3"
+                step="0.1"
+                value={voiceSettings.pitch}
+                onChange={(e) => {
+                  const updated = { ...voiceSettings, pitch: parseFloat(e.target.value) };
+                  handleSaveVoiceSettings(updated);
+                }}
+                className="w-full accent-[#22C55E] cursor-pointer"
+              />
+            </div>
+
+            {/* Auto-Speak Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#000000] border border-[#27272A]">
+              <div>
+                <div className="text-xs font-semibold text-white">Auto-Speak Replies (Hands-Free)</div>
+                <div className="text-[11px] text-[#A1A1AA]">Play voice note automatically when AI answers</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={voiceSettings.autoSpeak}
+                onChange={(e) => {
+                  const updated = { ...voiceSettings, autoSpeak: e.target.checked };
+                  handleSaveVoiceSettings(updated);
+                }}
+                className="w-4 h-4 accent-[#22C55E] rounded cursor-pointer"
+              />
+            </div>
+
+            {/* Test Voice & Done Buttons */}
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleToggleSpeech(
+                    'test-voice',
+                    "Hello! I am SmartSolve AI. How does this voice sound to you?"
+                  );
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-[#27272A] hover:bg-[#3F3F46] text-white text-xs font-bold flex items-center justify-center space-x-1.5 cursor-pointer transition-colors"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-[#22C55E]" />
+                <span>Test Voice Sample</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsVoiceModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold cursor-pointer transition-colors"
+              >
+                Save & Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )}
 </div>
