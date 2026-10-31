@@ -33,6 +33,8 @@ import {
   Calculator,
   Copy,
   Check,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -86,6 +88,7 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [expandedExplanation, setExpandedExplanation] = useState<{
     concept: boolean;
     derivation: boolean;
@@ -700,11 +703,32 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
         mimeType: imageMimeType,
       };
 
-      let response = await fetch('/api/chat', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(requestPayload),
-      });
+      let response: Response;
+      try {
+        response = await fetch('/api/chat', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(requestPayload),
+        });
+
+        // If server was temporarily restarting or busy, automatically retry once
+        if (!response.ok && (response.status === 503 || response.status === 502 || response.status === 500)) {
+          await new Promise((r) => setTimeout(r, 700));
+          response = await fetch('/api/chat', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(requestPayload),
+          });
+        }
+      } catch (netErr) {
+        // Automatic fallback retry to /api/ai/chat
+        await new Promise((r) => setTimeout(r, 600));
+        response = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(requestPayload),
+        });
+      }
 
       if (response.status === 404) {
         response = await fetch('/api/ai/chat', {
@@ -723,7 +747,7 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
       }
 
       if (!response.ok || (responseData && responseData.success === false)) {
-        let errStr = responseData?.error || 'The AI Tutor encountered an issue. Please tap Retry.';
+        let errStr = responseData?.error || 'The AI Tutor model is momentarily busy. Please tap Retry.';
         if (typeof errStr === 'string' && errStr.startsWith('{') && errStr.includes('"message"')) {
           try {
             const parsed = JSON.parse(errStr);
@@ -791,6 +815,33 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
       setCopiedMessageId(id);
       setTimeout(() => setCopiedMessageId(null), 2000);
     }
+  };
+
+  const handleToggleSpeech = (msgId: string, text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (speakingMessageId === msgId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const cleanSpeech = text
+      .replace(/\$\$(.*?)\$\$/g, ' equation: $1 ')
+      .replace(/\$(.*?)\$/g, ' $1 ')
+      .replace(/\\frac\{(.*?)\}\{(.*?)\}/g, '$1 over $2')
+      .replace(/\\sqrt\{(.*?)\}/g, 'square root of $1')
+      .replace(/\\times/g, 'times')
+      .replace(/\\pm/g, 'plus or minus')
+      .replace(/\\boxed\{(.*?)\}/g, '$1')
+      .replace(/[*#_`]/g, '');
+
+    const utterance = new SpeechSynthesisUtterance(cleanSpeech);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.onend = () => setSpeakingMessageId(null);
+    utterance.onerror = () => setSpeakingMessageId(null);
+    setSpeakingMessageId(msgId);
+    window.speechSynthesis.speak(utterance);
   };
 
   const toggleExplanation = (section: 'concept' | 'derivation' | 'alternative' | 'mistakes') => {
@@ -1535,7 +1586,7 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
       {/* Chat Messages Container */}
       <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-4 sm:p-6 shadow-xl min-h-[460px] flex flex-col justify-between space-y-4">
         <div className="space-y-4 max-h-[560px] overflow-y-auto pr-1">
-          {chatMessages.map((msg) => (
+          {chatMessages.map((msg, idx) => (
             <div
               key={msg.id}
               className={`flex items-start space-x-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -1559,25 +1610,66 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
                   <div className="space-y-2">
                     <MathRenderer text={msg.content} />
                     <div className="flex items-center justify-between pt-2 border-t border-[#27272A]/60 text-[10px] text-[#A1A1AA]">
-                      <span>AI STEM Tutor</span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyMessage(msg.id, msg.content)}
-                        className="inline-flex items-center space-x-1 hover:text-white transition-colors cursor-pointer"
-                      >
-                        {copiedMessageId === msg.id ? (
-                          <>
-                            <Check className="w-3 h-3 text-[#22C55E]" />
-                            <span className="text-[#22C55E]">Copied</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            <span>Copy</span>
-                          </>
-                        )}
-                      </button>
+                      <span className="font-semibold text-[#22C55E]">SmartSolve AI Tutor</span>
+                      <div className="flex items-center space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSpeech(msg.id, msg.content)}
+                          className="inline-flex items-center space-x-1 text-[#22C55E] hover:text-[#4ADE80] transition-colors cursor-pointer"
+                          title={speakingMessageId === msg.id ? 'Stop voice reading' : 'Listen to AI voice explanation'}
+                        >
+                          {speakingMessageId === msg.id ? (
+                            <>
+                              <VolumeX className="w-3 h-3 text-[#EF4444]" />
+                              <span className="text-[#EF4444]">Stop</span>
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-3 h-3" />
+                              <span>Listen</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMessage(msg.id, msg.content)}
+                          className="inline-flex items-center space-x-1 hover:text-white transition-colors cursor-pointer"
+                        >
+                          {copiedMessageId === msg.id ? (
+                            <>
+                              <Check className="w-3 h-3 text-[#22C55E]" />
+                              <span className="text-[#22C55E]">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Dynamic Real-AI Follow-up Chips under latest response */}
+                    {idx === chatMessages.length - 1 && !isChatLoading && (
+                      <div className="pt-2 border-t border-[#27272A]/40 flex flex-wrap gap-1.5 animate-fadeIn">
+                        {[
+                          { label: '⚡ Fast Exam Shortcut', prompt: 'Can you show me the fastest exam shortcut or speed trick for this concept?' },
+                          { label: '🤔 Everyday Analogy', prompt: 'Can you explain this with a relatable real-life analogy without jargon?' },
+                          { label: '📝 Test Me (Practice Quiz)', prompt: 'Give me a similar multiple-choice practice question based on this to test me.' },
+                          { label: '⚠️ Traps & Mistakes', prompt: 'What is the most frequent trap or sign mistake students make here in exams?' },
+                        ].map((chip, cIdx) => (
+                          <button
+                            key={cIdx}
+                            type="button"
+                            onClick={() => handleSendChatMessage(chip.prompt)}
+                            className="text-[11px] px-2.5 py-1 rounded-xl bg-[#1E1E22] hover:bg-[#22C55E]/20 text-[#A1A1AA] hover:text-[#22C55E] border border-[#27272A] hover:border-[#22C55E]/40 transition-all cursor-pointer font-medium"
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

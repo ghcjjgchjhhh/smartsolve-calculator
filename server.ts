@@ -144,7 +144,8 @@ async function generateWithModelFallback(
   timeoutMs: number = 25000,
   temperature: number = 0.8,
   useThinking: boolean = false,
-  responseMimeType: string = 'application/json'
+  responseMimeType?: string,
+  systemInstruction?: string
 ) {
   // Candidate models: gemini-3.1-flash-lite (fast ~2s), gemini-3.8-flash, gemini-flash-latest
   const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
@@ -158,6 +159,9 @@ async function generateWithModelFallback(
       };
       if (responseMimeType) {
         config.responseMimeType = responseMimeType;
+      }
+      if (systemInstruction) {
+        config.systemInstruction = systemInstruction;
       }
       if (useThinking) {
         config.thinkingConfig = {
@@ -471,57 +475,54 @@ const handleChatRequest = async (req: Request, res: Response) => {
     const headerKey = (req.headers['x-gemini-key'] as string) || '';
     const { activeAi, isCustomKey } = getGenAIClient(headerKey);
 
-    const contents: any[] = [];
+    const systemPrompt = `You are SmartSolve AI, an extraordinarily intelligent, warm, and interactive personal STEM tutor for Mathematics, Physics, and Chemistry (covering JAMB/UTME, WAEC/WASSCE, JUPEB, Calculus, and University STEM).
+
+INTERACTIVE REAL-AI TUTOR BEHAVIOR:
+1. Speak directly to the student in an energetic, engaging, and genuinely supportive conversational voice (like a 1-on-1 session with a world-class mentor).
+2. Never give dry robotic walls of text. Break down concepts into crystal-clear sections with scannable headers, intuitive everyday analogies, and clear step-by-step logic.
+3. ALWAYS render all math symbols, formulas, and chemical equations in standard LaTeX notation:
+   - Use $...$ for inline math (e.g. $F = ma$, $\\Delta x$, $E_k = \\frac{1}{2}mv^2$, $\\text{H}_2\\text{SO}_4$).
+   - Use $$...$$ for display equations and multi-line derivations.
+4. When explaining a problem:
+   - Explain the physical intuition or mathematical rule behind each step.
+   - Highlight speed shortcuts and dimensional analysis checks for exams.
+   - Point out common traps, sign mistakes, or unit mismatch errors students frequently make.
+5. ALWAYS conclude your response with an interactive checkpoint or encouraging question:
+   - For example: "Would you like me to show you an exam shortcut for this, or shall we try a quick similar practice question together?"
+   - Keep the student actively engaged like a real AI assistant!
+${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject || subject || 'General STEM'}\nProblem Statement: "${problemContext.problemStatement || problemContext.title || problemContext.question || ''}"\nFormula: ${problemContext.formula || 'N/A'}\nFinal Answer: ${problemContext.finalAnswer || 'N/A'}\nSteps: ${Array.isArray(problemContext.steps) ? problemContext.steps.join('; ') : ''}` : ''}`;
+
+    const chatContents: any[] = [];
+    if (Array.isArray(history) && history.length > 0) {
+      for (const h of history.slice(-10)) {
+        if (!h.content) continue;
+        chatContents.push({
+          role: h.role === 'user' ? 'user' : 'model',
+          parts: [{ text: h.content }],
+        });
+      }
+    }
+
+    const currentParts: any[] = [];
     if (imageData) {
       const cleanBase64 = imageData.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
-      contents.push({
+      currentParts.push({
         inlineData: {
           mimeType: mimeType || 'image/jpeg',
           data: cleanBase64,
         },
       });
     }
-
-    let systemContext = `You are SmartSolve AI, an expert, extraordinarily patient, and encouraging personal STEM tutor for Mathematics, Physics, and Chemistry (covering JAMB/UTME, WAEC/WASSCE, JUPEB, and University levels).
-Your job is to provide clear, thorough, and intuitive explanations.
-
-GUIDELINES:
-1. Explain deeply, logically, and intuitively. Use plain-English analogies alongside formal mathematical proofs.
-2. Format all mathematical symbols, equations, and chemical formulas using LaTeX notation ($...$ for inline math, $$...$$ for display equations).
-3. If the user asks about a specific step in a calculation, explain the exact mathematical operation, the theorem/law justifying it, and why other paths might be harder or invalid.
-4. If asked for alternative methods, provide shortcuts, dimensional analysis, or alternative physics laws (e.g. conservation of energy vs equations of motion).
-5. If asked to generate a practice problem, give a similar high-yield problem and offer to check their answer.
-6. Keep tone respectful, encouraging, and pedagogically sound.`;
-
-    if (problemContext) {
-      systemContext += `\n\nCURRENT PROBLEM CONTEXT BEING DISCUSSED:
-Subject: ${problemContext.subject || subject || 'General STEM'}
-Question: "${problemContext.problemStatement || problemContext.title || problemContext.question || ''}"
-Formula: ${problemContext.formula || 'N/A'}
-Final Answer: ${problemContext.finalAnswer || 'N/A'}
-Working Steps:
-${Array.isArray(problemContext.steps) ? problemContext.steps.join('\n') : ''}`;
-    }
-
-    let formattedChatPrompt = `${systemContext}\n\n`;
-    if (Array.isArray(history) && history.length > 0) {
-      formattedChatPrompt += `CONVERSATION HISTORY:\n`;
-      history.slice(-8).forEach((h: any) => {
-        formattedChatPrompt += `${h.role === 'user' ? 'Student' : 'SmartSolve Tutor'}: ${h.content}\n`;
-      });
-      formattedChatPrompt += `\n`;
-    }
-    formattedChatPrompt += `Student's Question: ${message || 'Please explain the attached problem.'}\n\nSmartSolve Tutor Response:`;
-
-    contents.push({ text: formattedChatPrompt });
+    currentParts.push({ text: message || 'Please analyze this problem and help me understand it.' });
+    chatContents.push({ role: 'user', parts: currentParts });
 
     let response: any;
     try {
-      response = await generateWithModelFallback(activeAi, contents, 25000, 0.7, false, 'text/plain');
+      response = await generateWithModelFallback(activeAi, chatContents, 25000, 0.7, false, undefined, systemPrompt);
     } catch (primaryErr: any) {
       if (isCustomKey && ai) {
         console.warn('[SmartSolve Server] Client custom key failed, falling back to server default GEMINI_API_KEY...');
-        response = await generateWithModelFallback(ai, contents, 25000, 0.7, false, 'text/plain');
+        response = await generateWithModelFallback(ai, chatContents, 25000, 0.7, false, undefined, systemPrompt);
       } else {
         throw primaryErr;
       }
