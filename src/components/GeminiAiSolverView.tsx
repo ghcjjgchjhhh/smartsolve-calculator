@@ -739,6 +739,10 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
       }
 
       const responseText = await response.text();
+      if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+        throw new Error('AI Tutor service is refreshing. Please tap Retry in a moment.');
+      }
+
       let responseData: any = null;
       try {
         responseData = JSON.parse(responseText);
@@ -747,7 +751,12 @@ Format all mathematical symbols, calculations, and chemical equations using LaTe
       }
 
       if (!response.ok || (responseData && responseData.success === false)) {
-        let errStr = responseData?.error || 'The AI Tutor model is momentarily busy. Please tap Retry.';
+        let errStr = responseData?.error || responseData?.message;
+        if (!errStr) {
+          errStr = response.status === 503
+            ? 'The AI Tutor model is currently experiencing high demand. Please tap Retry in a few moments.'
+            : `AI Tutor service notice (${response.status}). Please tap Retry.`;
+        }
         if (typeof errStr === 'string' && errStr.startsWith('{') && errStr.includes('"message"')) {
           try {
             const parsed = JSON.parse(errStr);
