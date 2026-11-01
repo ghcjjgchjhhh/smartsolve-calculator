@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { GoogleGenAI } from '@google/genai';
 import { ChatMessage, ChatAttachment, ChatSession } from '../types';
 import {
   loadChatSessions,
@@ -38,6 +39,7 @@ import {
   FileAudio,
   Maximize2,
   ChevronDown,
+  Key,
 } from 'lucide-react';
 
 interface Props {
@@ -60,7 +62,34 @@ export const AiChatAssistantView: React.FC<Props> = ({
     return loaded[0]?.id || '';
   });
 
+  // Fresh refs to prevent stale closure bugs in asynchronous stream processing
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
+  const activeSessionIdRef = useRef(activeSessionId);
+  activeSessionIdRef.current = activeSessionId;
+
   const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
+
+  // Optional user Gemini API key (for static GitHub Pages hosting or direct access)
+  const [userApiKey, setUserApiKey] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const urlKey = new URLSearchParams(window.location.search).get('key');
+      if (urlKey) {
+        try {
+          localStorage.setItem('gemini_user_api_key', urlKey);
+        } catch {}
+        return urlKey;
+      }
+      return (
+        (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+        localStorage.getItem('gemini_user_api_key') ||
+        ''
+      );
+    }
+    return '';
+  });
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [apiKeyInputValue, setApiKeyInputValue] = useState(userApiKey);
 
   // Input & Messaging State
   const [inputText, setInputText] = useState('');
@@ -154,31 +183,51 @@ export const AiChatAssistantView: React.FC<Props> = ({
     }
   }, [initialPrompt]);
 
-  // Save updated session
-  const updateCurrentSession = (messages: ChatMessage[], newTitle?: string) => {
-    if (!activeSession) return;
-    let title = activeSession.title;
-    if (newTitle) {
-      title = newTitle;
-    } else if (
-      (title === 'New Conversation' || title === 'Untitled Chat') &&
-      messages.length > 1
-    ) {
-      const firstUserMsg = messages.find((m) => m.role === 'user');
-      if (firstUserMsg && firstUserMsg.content) {
-        title = firstUserMsg.content.slice(0, 36) + (firstUserMsg.content.length > 36 ? '...' : '');
+  // Atomically update messages for a specific session without stale closures
+  const updateSessionMessages = (
+    targetSessionId: string,
+    updater: (currentMessages: ChatMessage[]) => ChatMessage[],
+    explicitTitle?: string
+  ) => {
+    setSessions((prevSessions) => {
+      const sessionIndex = prevSessions.findIndex((s) => s.id === targetSessionId);
+      if (sessionIndex === -1) return prevSessions;
+
+      const currentSession = prevSessions[sessionIndex];
+      const newMessages = updater(currentSession.messages);
+
+      let title = explicitTitle || currentSession.title;
+      if (
+        !explicitTitle &&
+        (title === 'New Conversation' || title === 'Untitled Chat') &&
+        newMessages.length > 1
+      ) {
+        const firstUserMsg = newMessages.find((m) => m.role === 'user');
+        if (firstUserMsg && firstUserMsg.content) {
+          title =
+            firstUserMsg.content.slice(0, 36) +
+            (firstUserMsg.content.length > 36 ? '...' : '');
+        }
       }
-    }
 
-    const updated: ChatSession = {
-      ...activeSession,
-      title,
-      messages,
-      updatedAt: Date.now(),
-    };
+      const updatedSession: ChatSession = {
+        ...currentSession,
+        title,
+        messages: newMessages,
+        updatedAt: Date.now(),
+      };
 
-    const newSessions = saveSingleSession(updated);
-    setSessions(newSessions);
+      saveSingleSession(updatedSession);
+
+      const next = [...prevSessions];
+      next[sessionIndex] = updatedSession;
+      return next;
+    });
+  };
+
+  const updateCurrentSession = (messages: ChatMessage[], newTitle?: string) => {
+    const targetId = activeSessionIdRef.current;
+    updateSessionMessages(targetId, () => messages, newTitle);
   };
 
   // Switch session
@@ -380,13 +429,95 @@ export const AiChatAssistantView: React.FC<Props> = ({
     });
   };
 
+  // Helper to call direct client-side Gemini if backend server is unreachable
+  const callDirectGeminiClient = async (
+    apiKey: string,
+    history: any[],
+    userText: string,
+    attachments: ChatAttachment[]
+  ): Promise<string> => {
+    const ai = new GoogleGenAI({ apiKey });
+    const systemPrompt = `You are a brilliant, friendly, and natural conversational partner and master academic tutor, with the conversational flexibility of ChatGPT and world-class problem-solving capabilities.
+
+CONVERSATIONAL BEHAVIOR & TONE:
+- Be authentic, thoughtful, concise, and direct. Never sound like a scripted corporate customer-service bot.
+- CRITICAL: DO NOT introduce yourself. Do not state your name, title, or what you can do. Never give a welcome monologue or a bullet list of your capabilities.
+- When the user sends a casual greeting (like "Hi", "Hello", "Hey", "Good morning", or "Sup"), reply like a real person in ONE short, friendly sentence.
+- If the user cracks a joke or shares casual thoughts, banter naturally with warmth and humor.
+- Adjust response length strictly to the prompt: keep simple chats brief and punchy, and make complex math/physics/chemistry derivations deeply detailed with LaTeX ($...$ and $$...$$).`;
+
+    const chatContents: any[] = [];
+    if (Array.isArray(history) && history.length > 0) {
+      for (const h of history.slice(-8)) {
+        if (!h.content && (!h.attachments || h.attachments.length === 0)) continue;
+        const parts: any[] = [];
+        if (Array.isArray(h.attachments)) {
+          for (const att of h.attachments) {
+            if (att.data && att.mimeType) {
+              const cleanData = att.data.replace(/^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/, '');
+              parts.push({
+                inlineData: {
+                  mimeType: att.mimeType,
+                  data: cleanData,
+                },
+              });
+            }
+          }
+        }
+        if (h.content) parts.push({ text: h.content });
+        if (parts.length > 0) {
+          chatContents.push({
+            role: h.role === 'user' ? 'user' : 'model',
+            parts,
+          });
+        }
+      }
+    }
+
+    const currentParts: any[] = [];
+    for (const att of attachments) {
+      if (att.data && att.mimeType) {
+        const cleanData = att.data.replace(/^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/, '');
+        currentParts.push({
+          inlineData: {
+            mimeType: att.mimeType,
+            data: cleanData,
+          },
+        });
+      }
+    }
+    const textPrompt = userText || (attachments.length > 0 ? 'Please inspect this file and provide an accurate answer.' : 'Hello');
+    currentParts.push({ text: textPrompt });
+    chatContents.push({ role: 'user', parts: currentParts });
+
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+    let lastErr: any = null;
+    for (const model of candidateModels) {
+      try {
+        const resp = await ai.models.generateContent({
+          model,
+          contents: chatContents,
+          config: {
+            systemInstruction: systemPrompt,
+            temperature: 0.75,
+          },
+        });
+        const reply = resp?.text?.trim();
+        if (reply) return reply;
+      } catch (err: any) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error('Failed to generate response from Gemini model');
+  };
+
   // Send Message
-  const handleSendMessage = async (customMessageText?: string) => {
+  const handleSendMessage = async (customMessageText?: string, customAttachments?: ChatAttachment[]) => {
     const text = (customMessageText !== undefined ? customMessageText : inputText).trim();
 
     // Check if we have pending audio to attach
-    let messageAttachments = [...attachments];
-    if (pendingAudioPreview) {
+    let messageAttachments = customAttachments ? [...customAttachments] : [...attachments];
+    if (pendingAudioPreview && !customAttachments) {
       const audioBase64 = await blobToBase64(pendingAudioPreview.blob);
       messageAttachments.push({
         type: 'audio',
@@ -406,6 +537,7 @@ export const AiChatAssistantView: React.FC<Props> = ({
       setSpeakingMessageId(null);
     }
 
+    const currentSessionId = activeSessionIdRef.current;
     const userMessage: ChatMessage = {
       id: `user_${Date.now()}`,
       role: 'user',
@@ -414,8 +546,17 @@ export const AiChatAssistantView: React.FC<Props> = ({
       attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
     };
 
-    const updatedMessages = [...(activeSession?.messages || []), userMessage];
-    updateCurrentSession(updatedMessages);
+    const assistantMessageId = `assistant_${Date.now() + 1}`;
+    const initialAssistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now() + 1,
+      isStreaming: true,
+    };
+
+    // Atomically append both user message and assistant placeholder to the active session
+    updateSessionMessages(currentSessionId, (msgs) => [...msgs, userMessage, initialAssistantMessage]);
 
     // Reset input states
     setInputText('');
@@ -424,26 +565,14 @@ export const AiChatAssistantView: React.FC<Props> = ({
     setChatError(null);
     setIsGenerating(true);
 
-    // Placeholder assistant message for streaming
-    const assistantMessageId = `assistant_${Date.now()}`;
-    const initialAssistantMessage: ChatMessage = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
-      isStreaming: true,
-    };
-
-    const messagesWithAssistant = [...updatedMessages, initialAssistantMessage];
-    updateCurrentSession(messagesWithAssistant);
-
     // Setup abort controller
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    // Prepare payload
-    const historyPayload = updatedMessages
-      .filter((m) => m.id !== 'welcome-msg' && !m.error)
+    // Retrieve fresh current messages for history payload
+    const activeSess = sessionsRef.current.find((s) => s.id === currentSessionId);
+    const historyPayload = (activeSess?.messages || [])
+      .filter((m) => m.id !== 'welcome-msg' && !m.error && m.id !== assistantMessageId)
       .slice(-10)
       .map((m) => ({
         role: m.role,
@@ -465,26 +594,83 @@ export const AiChatAssistantView: React.FC<Props> = ({
       stream: true,
     };
 
+    const requestHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (userApiKey) {
+      requestHeaders['x-gemini-key'] = userApiKey;
+    }
+
     let accumulatedText = '';
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestPayload),
-        signal: abortController.signal,
-      });
+      // 1. Attempt POST to /api/chat
+      let response: Response | null = null;
+      let usedEndpoint = '/api/chat';
 
-      if (!response.ok) {
+      try {
+        response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: requestHeaders,
+          body: JSON.stringify(requestPayload),
+          signal: abortController.signal,
+        });
+      } catch (networkErr: any) {
+        if (networkErr.name === 'AbortError') throw networkErr;
+        console.warn('/api/chat fetch failed, trying /api/ai/chat...', networkErr);
+      }
+
+      // 2. Fall back to /api/ai/chat if /api/chat is 404 or failed
+      if (!response || response.status === 404) {
+        usedEndpoint = '/api/ai/chat';
+        try {
+          response = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: requestHeaders,
+            body: JSON.stringify(requestPayload),
+            signal: abortController.signal,
+          });
+        } catch (networkErr2: any) {
+          if (networkErr2.name === 'AbortError') throw networkErr2;
+          console.warn('/api/ai/chat fetch failed:', networkErr2);
+        }
+      }
+
+      // 3. Fall back to direct client-side Gemini if server is unavailable (e.g. GitHub Pages static deployment)
+      if (!response || !response.ok) {
+        const isServerUnavailable = !response || response.status === 404 || response.status === 502 || response.status === 503;
+        if (isServerUnavailable && userApiKey) {
+          try {
+            accumulatedText = await callDirectGeminiClient(userApiKey, historyPayload, text, messageAttachments);
+            updateSessionMessages(currentSessionId, (msgs) =>
+              msgs.map((m) =>
+                m.id === assistantMessageId
+                  ? { ...m, content: accumulatedText, isStreaming: false, error: false }
+                  : m
+              )
+            );
+            if (voiceSettings.autoSpeak && accumulatedText) {
+              setTimeout(() => handleSpeakMessage(assistantMessageId, accumulatedText), 300);
+            }
+            return;
+          } catch (directErr: any) {
+            console.error('Client-side Gemini failed:', directErr);
+          }
+        }
+
+        if (!response) {
+          throw new Error(
+            'Cannot connect to the AI server. If running on GitHub Pages, tap the 🔑 API Key button in the top bar to connect your Gemini API key.'
+          );
+        }
+
         const errorText = await response.text();
         let parsedError = errorText;
         try {
           const jsonErr = JSON.parse(errorText);
           parsedError = jsonErr.error || jsonErr.message || errorText;
         } catch {}
-        throw new Error(parsedError || `Server error (${response.status})`);
+        throw new Error(parsedError || `Server error (${response.status}) on ${usedEndpoint}`);
       }
 
       // Check if response is streaming SSE
@@ -492,13 +678,15 @@ export const AiChatAssistantView: React.FC<Props> = ({
       if (contentType.includes('text/event-stream') && response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let lineBuffer = '';
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          lineBuffer += decoder.decode(value, { stream: true });
+          const lines = lineBuffer.split('\n');
+          lineBuffer = lines.pop() || '';
 
           for (const line of lines) {
             const trimmed = line.trim();
@@ -510,17 +698,23 @@ export const AiChatAssistantView: React.FC<Props> = ({
               const dataObj = JSON.parse(dataStr);
               if (dataObj.text) {
                 accumulatedText += dataObj.text;
-                // Live update assistant message
-                updateAssistantText(assistantMessageId, accumulatedText, true);
+                updateSessionMessages(currentSessionId, (msgs) =>
+                  msgs.map((m) =>
+                    m.id === assistantMessageId ? { ...m, content: accumulatedText, isStreaming: true } : m
+                  )
+                );
               }
               if (dataObj.error) {
                 console.warn('Stream received server error:', dataObj.error);
               }
             } catch {
-              // Raw text chunk
               if (dataStr) {
                 accumulatedText += dataStr;
-                updateAssistantText(assistantMessageId, accumulatedText, true);
+                updateSessionMessages(currentSessionId, (msgs) =>
+                  msgs.map((m) =>
+                    m.id === assistantMessageId ? { ...m, content: accumulatedText, isStreaming: true } : m
+                  )
+                );
               }
             }
           }
@@ -532,51 +726,49 @@ export const AiChatAssistantView: React.FC<Props> = ({
       }
 
       // Finalize assistant message
-      updateAssistantText(assistantMessageId, accumulatedText || 'I processed your question.', false);
+      const finalText = accumulatedText || 'I processed your question.';
+      updateSessionMessages(currentSessionId, (msgs) =>
+        msgs.map((m) =>
+          m.id === assistantMessageId ? { ...m, content: finalText, isStreaming: false, error: false } : m
+        )
+      );
 
       // Auto-speak if enabled
-      if (voiceSettings.autoSpeak && accumulatedText) {
+      if (voiceSettings.autoSpeak && finalText) {
         setTimeout(() => {
-          handleSpeakMessage(assistantMessageId, accumulatedText);
+          handleSpeakMessage(assistantMessageId, finalText);
         }, 300);
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        // User stopped generation
-        updateAssistantText(assistantMessageId, accumulatedText || 'Generation stopped.', false);
+        updateSessionMessages(currentSessionId, (msgs) =>
+          msgs.map((m) =>
+            m.id === assistantMessageId
+              ? { ...m, content: accumulatedText || 'Generation stopped.', isStreaming: false }
+              : m
+          )
+        );
       } else {
         console.error('Chat error:', err);
-        setChatError(err.message || 'The AI assistant encountered an issue. Please tap Retry.');
-        // Mark assistant message error
-        updateAssistantError(assistantMessageId);
+        const errMessage = err.message || 'The AI assistant encountered an issue. Please tap Retry.';
+        setChatError(errMessage);
+        updateSessionMessages(currentSessionId, (msgs) =>
+          msgs.map((m) =>
+            m.id === assistantMessageId
+              ? {
+                  ...m,
+                  content: accumulatedText ? accumulatedText + '\n\n*(Generation interrupted)*' : errMessage,
+                  isStreaming: false,
+                  error: !accumulatedText,
+                }
+              : m
+          )
+        );
       }
     } finally {
       setIsGenerating(false);
       abortControllerRef.current = null;
     }
-  };
-
-  const updateAssistantText = (msgId: string, newContent: string, streaming: boolean) => {
-    if (!activeSession) return;
-    const updated = activeSession.messages.map((m) =>
-      m.id === msgId ? { ...m, content: newContent, isStreaming: streaming } : m
-    );
-    updateCurrentSession(updated);
-  };
-
-  const updateAssistantError = (msgId: string) => {
-    if (!activeSession) return;
-    const updated = activeSession.messages.map((m) =>
-      m.id === msgId
-        ? {
-            ...m,
-            content: 'The AI model is momentarily busy. Please tap Retry.',
-            isStreaming: false,
-            error: true,
-          }
-        : m
-    );
-    updateCurrentSession(updated);
   };
 
   // Stop generation
@@ -589,15 +781,19 @@ export const AiChatAssistantView: React.FC<Props> = ({
 
   // Regenerate Response
   const handleRegenerate = () => {
-    if (isGenerating || !activeSession) return;
-    const msgs = activeSession.messages;
+    if (isGenerating) return;
+    const currentSessionId = activeSessionIdRef.current;
+    const currentSession = sessionsRef.current.find((s) => s.id === currentSessionId);
+    if (!currentSession) return;
+
+    const msgs = currentSession.messages;
     const lastUserIdx = msgs.reduce((idx, m, i) => (m.role === 'user' ? i : idx), -1);
     if (lastUserIdx >= 0) {
       const userMsg = msgs[lastUserIdx];
       // Trim messages to exclude the last assistant response
       const trimmed = msgs.slice(0, lastUserIdx);
-      updateCurrentSession(trimmed);
-      handleSendMessage(userMsg.content);
+      updateSessionMessages(currentSessionId, () => trimmed);
+      handleSendMessage(userMsg.content, userMsg.attachments);
     }
   };
 
@@ -900,6 +1096,26 @@ export const AiChatAssistantView: React.FC<Props> = ({
               <Sliders className="w-4 h-4 text-[#22C55E]" />
             </button>
 
+            {/* Gemini API Key Config */}
+            <button
+              type="button"
+              onClick={() => {
+                setApiKeyInputValue(userApiKey);
+                setIsApiKeyModalOpen(true);
+              }}
+              className={`p-2 rounded-xl border transition-colors cursor-pointer relative ${
+                userApiKey
+                  ? 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/40'
+                  : 'bg-[#18181B] hover:bg-[#27272A] text-zinc-300 hover:text-white border-[#27272A]'
+              }`}
+              title={userApiKey ? 'Gemini API Key Connected' : 'Configure Gemini API Key'}
+            >
+              <Key className="w-4 h-4 text-[#22C55E]" />
+              {userApiKey && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#22C55E] border-2 border-[#111115]" />
+              )}
+            </button>
+
             {/* New Chat Button */}
             <button
               type="button"
@@ -1016,7 +1232,24 @@ export const AiChatAssistantView: React.FC<Props> = ({
                   )}
 
                   {/* Message Content */}
-                  <ChatMessageRenderer content={msg.content} isStreaming={msg.isStreaming} />
+                  {msg.error ? (
+                    <div className="space-y-3">
+                      <div className="flex items-start space-x-2 text-rose-400 font-medium text-xs leading-relaxed">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                        <div>{msg.content}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRegenerate}
+                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold transition-all cursor-pointer shadow-md shadow-emerald-500/20"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Retry</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <ChatMessageRenderer content={msg.content} isStreaming={msg.isStreaming} />
+                  )}
 
                   {/* Actions Bar for Assistant Bubble */}
                   {!isUser && !msg.isStreaming && msg.id !== 'welcome-msg' && (
@@ -1498,6 +1731,97 @@ export const AiChatAssistantView: React.FC<Props> = ({
                 className="px-5 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold cursor-pointer transition-colors"
               >
                 Save & Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. GEMINI API KEY MODAL (Essential for GitHub Pages & Custom Keys) */}
+      {isApiKeyModalOpen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#111115] border border-[#27272A] w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-[#27272A] pb-4">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center">
+                  <Key className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Gemini API Key</h3>
+                  <p className="text-[11px] text-zinc-400">Configure client-side key for static hosting</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsApiKeyModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-[#27272A] text-zinc-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-zinc-300 leading-relaxed">
+                When deployed on static hosting like <strong>GitHub Pages</strong>, SmartSolve uses this key to talk directly to Gemini in your browser without requiring a backend server.
+              </p>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-300 mb-1.5">
+                  Google AI Studio API Key:
+                </label>
+                <input
+                  type="password"
+                  value={apiKeyInputValue}
+                  onChange={(e) => setApiKeyInputValue(e.target.value)}
+                  placeholder="Paste AIzaSy... API key"
+                  className="w-full bg-[#18181D] border border-[#27272A] focus:border-[#22C55E] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-1">
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#22C55E] hover:underline flex items-center space-x-1"
+                >
+                  <span>Get a free API key from Google AI Studio</span>
+                </a>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3 pt-2">
+              {userApiKey && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      localStorage.removeItem('gemini_user_api_key');
+                    } catch {}
+                    setUserApiKey('');
+                    setApiKeyInputValue('');
+                    setIsApiKeyModalOpen(false);
+                  }}
+                  className="py-2.5 px-4 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Clear Key
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const trimmed = apiKeyInputValue.trim();
+                  if (trimmed) {
+                    try {
+                      localStorage.setItem('gemini_user_api_key', trimmed);
+                    } catch {}
+                    setUserApiKey(trimmed);
+                  }
+                  setIsApiKeyModalOpen(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold transition-all cursor-pointer shadow-md shadow-emerald-500/20 text-center"
+              >
+                Save & Connect
               </button>
             </div>
           </div>
