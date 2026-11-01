@@ -8,6 +8,7 @@ import { UnitConverterView } from './components/UnitConverterView';
 import { JambPracticeView } from './components/JambPracticeView';
 import { SmartInputView } from './components/SmartInputView';
 import { GeminiAiSolverView } from './components/GeminiAiSolverView';
+import { AiChatAssistantView } from './components/AiChatAssistantView';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { SearchModal } from './components/SearchModal';
 import { InstallAppModal } from './components/InstallAppModal';
@@ -34,11 +35,11 @@ export default function App() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
-      if (tabParam && ['scientific', 'ai_solver', 'ai_chat', 'math', 'physics', 'equation', 'converter', 'jamb', 'smart_input'].includes(tabParam)) {
+      if (tabParam && ['scientific', 'ai_chat', 'ai_solver', 'math', 'physics', 'equation', 'converter', 'jamb', 'smart_input'].includes(tabParam)) {
         return tabParam;
       }
       const savedTab = localStorage.getItem('smartsolve_active_tab');
-      if (savedTab && ['scientific', 'ai_solver', 'ai_chat', 'math', 'physics', 'equation', 'converter', 'jamb', 'smart_input'].includes(savedTab)) {
+      if (savedTab && ['scientific', 'ai_chat', 'ai_solver', 'math', 'physics', 'equation', 'converter', 'jamb', 'smart_input'].includes(savedTab)) {
         return savedTab;
       }
     } catch {
@@ -342,8 +343,8 @@ export default function App() {
 
   const navigationTabs = [
     { id: 'scientific', name: 'Scientific', icon: Calculator, badge: 'FX' },
+    { id: 'ai_chat', name: 'AI Chat', icon: MessageSquare, badge: 'Multimodal' },
     { id: 'ai_solver', name: 'AI Solver', icon: Sparkles, badge: 'Step Solver' },
-    { id: 'ai_chat', name: 'AI STEM Tutor', icon: MessageSquare, badge: 'Live Chat' },
     { id: 'math', name: 'Mathematics', icon: FunctionSquare, badge: '19 Topics' },
     { id: 'physics', name: 'Physics', icon: Atom, badge: '44 Formulas' },
     { id: 'equation', name: 'Equation Solver', icon: Cpu, badge: 'Auto' },
@@ -472,17 +473,14 @@ export default function App() {
         <div className={activeTab === 'scientific' ? 'block' : 'hidden'}>
           <ScientificCalculator />
         </div>
+        <div className={activeTab === 'ai_chat' ? 'block' : 'hidden'}>
+          <AiChatAssistantView />
+        </div>
         <div className={activeTab === 'ai_solver' ? 'block' : 'hidden'}>
           <GeminiAiSolverView
-            initialTab="solver"
             initialPrompt={aiSolverInitialPrompt}
             initialSubject={aiSolverInitialSubject}
             onClearInitialPrompt={() => setAiSolverInitialPrompt('')}
-          />
-        </div>
-        <div className={activeTab === 'ai_chat' ? 'block' : 'hidden'}>
-          <GeminiAiSolverView
-            initialTab="chat"
           />
         </div>
         <div className={activeTab === 'math' ? 'block' : 'hidden'}>
@@ -505,21 +503,21 @@ export default function App() {
         </div>
       </main>
 
-      {/* Floating Quick-Access STEM Tutor Chat Button (visible across all tabs except ai_chat) */}
+      {/* Floating Quick-Access AI Chat Assistant Button (visible across all tabs except ai_chat) */}
       {activeTab !== 'ai_chat' && (
-        <aside aria-label="STEM Tutor Assistant" className="fixed bottom-6 right-5 z-40 animate-bounce-subtle">
+        <aside aria-label="AI Assistant" className="fixed bottom-6 right-5 z-40 animate-bounce-subtle">
           <button
             type="button"
             onClick={() => navigateTab('ai_chat')}
-            className="flex items-center space-x-2 bg-[#22C55E] hover:bg-[#16A34A] text-white px-4 py-3 rounded-2xl shadow-xl shadow-emerald-500/30 font-bold text-xs sm:text-sm cursor-pointer transition-all active:scale-95 border border-emerald-400/30 group"
-            title="Ask AI STEM Tutor about any formula, step, or homework problem"
+            className="flex items-center space-x-2 bg-[#22C55E] hover:bg-[#16A34A] text-white px-4 py-3 rounded-2xl shadow-xl shadow-emerald-500/35 font-bold text-xs sm:text-sm cursor-pointer transition-all active:scale-95 border border-emerald-400/30 group"
+            title="Chat with AI Assistant (Voice, Vision & Text)"
           >
             <div className="relative">
               <MessageSquare className="w-4 h-4" />
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-white animate-ping" />
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-white" />
             </div>
-            <span className="hidden xs:inline">Ask AI Tutor</span>
+            <span className="hidden xs:inline">AI Chat</span>
           </button>
         </aside>
       )}

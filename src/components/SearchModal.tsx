@@ -13,6 +13,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
   const [query, setQuery] = useState('');
 
   const mathEntries = [
+    { name: 'AI Chat Assistant (ChatGPT Multimodal)', sub: 'Ask everyday questions, coding, STEM, record voice notes & snap photo homework', tab: 'ai_chat' },
     { name: 'AI Real-World Solver', sub: 'Solves complex physics, math & chemistry questions with step-by-step reasoning', tab: 'ai_solver' },
     { name: 'JAMB / WAEC / JUPEB CBT Practice', sub: 'Timed CBT simulator with instant score calculation, Chemistry, Physics & Mathematics', tab: 'jamb' },
     { name: 'Chemistry Exam Practice', sub: 'Mole concept, stoichiometry, gas laws, electrochemistry, and organic chemistry', tab: 'jamb' },

@@ -461,51 +461,95 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   }
 };
 
-// 3. INTERACTIVE AI TUTOR STEM CHAT
+// 3. INTERACTIVE AI TUTOR & MULTIMODAL CHAT ASSISTANT
 const handleChatRequest = async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
-    const { message, history, imageData, mimeType, subject } = body;
+    const {
+      message,
+      history,
+      imageData,
+      mimeType,
+      audioData,
+      audioMimeType,
+      attachments,
+      subject,
+    } = body;
     const problemContext = body.problemContext || body.context;
+    const shouldStream = req.query.stream === 'true' || body.stream === true;
 
-    if (!message && !imageData) {
-      return res.status(400).json({ error: 'Please provide a message or question.' });
+    if (!message && !imageData && !audioData && (!attachments || attachments.length === 0)) {
+      return res.status(400).json({ error: 'Please provide a message, question, image, or audio recording.' });
     }
 
     const headerKey = (req.headers['x-gemini-key'] as string) || '';
     const { activeAi, isCustomKey } = getGenAIClient(headerKey);
 
-    const systemPrompt = `You are SmartSolve AI, a world-class, versatile conversational AI assistant and academic tutor (operating just like ChatGPT, with extraordinary general intelligence, friendly natural communication, and unmatched mastery in Mathematics, Science, and STEM).
+    const systemPrompt = `You are a brilliant, friendly, and natural conversational partner and master academic tutor, with the conversational flexibility of ChatGPT and world-class problem-solving capabilities.
 
-CORE CAPABILITIES & CONVERSATIONAL FREEDOM:
-1. TALK ABOUT ANY TOPIC LIKE CHATGPT:
-   - You can converse freely about ANY subject the user brings up: general knowledge, everyday life, coding and software engineering (Python, JS, C++, SQL), creative writing, essays, emails, philosophy, literature, history, astronomy, business, logic riddles, translation, or casual chit-chat.
-   - You are NEVER restricted to only JAMB, WAEC, or JUPEB. If the user asks about exams, provide top-tier exam prep, shortcuts, and syllabus mastery; but if they ask about anything else in the universe, respond with full versatility and depth.
-2. VIBRANT, SUPPORTIVE & ENGAGING TONE:
-   - Speak in an authentic, warm, energetic, and highly articulate conversational voice like ChatGPT.
-   - Keep answers well-structured, scannable, and engaging. Use bold highlights, numbered steps, bullet points, and code blocks with syntax highlighting where helpful.
-3. LATEX MATH & CHEMICAL PRECISION:
-   - Whenever math, formulas, or chemistry are involved, ALWAYS format them in clean standard LaTeX ($...$ for inline formulas, $$...$$ for standalone display equations).
-   - Explain the intuitive "why" with relatable everyday analogies.
-4. PHOTO & IMAGE ANALYSIS:
-   - When the user uploads or sends a photo/screenshot (handwritten notes, textbook problems, graphs, circuit diagrams, geometric shapes, or real-world objects), carefully analyze the visual details, extract equations or questions, and provide a clear, comprehensive solution or explanation.
-5. VOICE NOTE & AUDIO SENSITIVITY:
-   - When responding to spoken voice notes, keep answers easy to understand when read aloud, while preserving technical accuracy and LaTeX clarity.
-   - Conclude naturally with an engaging thought or a helpful follow-up invitation!
-${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject || subject || 'General STEM'}\nProblem Statement: "${problemContext.problemStatement || problemContext.title || problemContext.question || ''}"\nFormula: ${problemContext.formula || 'N/A'}\nFinal Answer: ${problemContext.finalAnswer || 'N/A'}\nSteps: ${Array.isArray(problemContext.steps) ? problemContext.steps.join('; ') : ''}` : ''}`;
+CONVERSATIONAL BEHAVIOR & TONE:
+- Be authentic, thoughtful, concise, and direct. Never sound like a scripted corporate customer-service bot.
+- CRITICAL: DO NOT introduce yourself. Do not state your name, title, or what you can do. Never give a welcome monologue or a bullet list of your capabilities.
+- When the user sends a casual greeting (like "Hi", "Hello", "Hey", "Good morning", or "Sup"), reply like a real person in ONE short, friendly sentence. For example: "Hey there! How's your day going?" or "Hello! What are you working on today?"
+- If the user cracks a joke or shares casual thoughts, banter naturally with warmth and humor.
+- Adjust response length strictly to the prompt: keep simple chats brief and punchy, and make complex math/physics/chemistry derivations deeply detailed.
+
+MULTIMODAL AUDIO & VOICE RECOGNITION:
+- You genuinely listen to and comprehend user voice notes and audio clips.
+- Accurately recognize spoken questions across global accents, including Nigerian and West African English idioms and phrasing.
+- Formulate answers that sound natural and engaging when spoken aloud.
+
+MULTIMODAL IMAGE & VISION UNDERSTANDING:
+- Thoroughly inspect uploaded photos, screenshots, camera pictures, textbook problems, and handwritten notes.
+- Accurately parse equations, diagrams, circuit schematics, graphs, and chemical formulas.
+- Provide step-by-step walkthroughs for visual problems.
+- Support follow-up questions referencing previously uploaded images in the conversation.
+
+ACADEMIC & GENERAL SCOPE:
+- Full spectrum: Everyday conversation, programming (Python, JS, TS, C++, Java, etc.), STEM (Mathematics, Physics, Chemistry, Biology), philosophy, history, essays, and exam prep (JAMB/UTME, WAEC/WASSCE, NECO, JUPEB, and University).
+- Mathematics & Physics: Show clear step-by-step working, use standard LaTeX ($...$ for inline, $$...$$ for display equations), and explain key conceptual principles.
+- Code blocks: Use labeled markdown code blocks (\`\`\`python, \`\`\`typescript, etc.).
+- Tables: Use standard Markdown tables for comparisons.
+${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject || subject || 'General STEM'}\nProblem Statement: "${problemContext.problemStatement || problemContext.title || problemContext.question || ''}"\nFormula: ${problemContext.formula || 'N/A'}\nFinal Answer: ${problemContext.finalAnswer || 'N/A'}` : ''}`;
 
     const chatContents: any[] = [];
+
+    // Reconstruct conversation history with previous text and attachments
     if (Array.isArray(history) && history.length > 0) {
-      for (const h of history.slice(-10)) {
-        if (!h.content) continue;
-        chatContents.push({
-          role: h.role === 'user' ? 'user' : 'model',
-          parts: [{ text: h.content }],
-        });
+      for (const h of history.slice(-12)) {
+        if (!h.content && (!h.attachments || h.attachments.length === 0)) continue;
+        const parts: any[] = [];
+
+        if (Array.isArray(h.attachments)) {
+          for (const att of h.attachments) {
+            if (att.data && att.mimeType) {
+              const cleanData = att.data.replace(/^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/, '');
+              parts.push({
+                inlineData: {
+                  mimeType: att.mimeType,
+                  data: cleanData,
+                },
+              });
+            }
+          }
+        }
+
+        if (h.content) {
+          parts.push({ text: h.content });
+        }
+
+        if (parts.length > 0) {
+          chatContents.push({
+            role: h.role === 'user' ? 'user' : 'model',
+            parts,
+          });
+        }
       }
     }
 
     const currentParts: any[] = [];
+
+    // Image attachment
     if (imageData) {
       const cleanBase64 = imageData.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
       currentParts.push({
@@ -515,16 +559,104 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
         },
       });
     }
-    currentParts.push({ text: message || 'Please analyze this problem and help me understand it.' });
+
+    // Audio attachment (native Gemini multimodal audio input)
+    if (audioData) {
+      const cleanAudio = audioData.replace(/^data:audio\/[a-zA-Z0-9+.-]+;base64,/, '');
+      currentParts.push({
+        inlineData: {
+          mimeType: audioMimeType || 'audio/webm',
+          data: cleanAudio,
+        },
+      });
+    }
+
+    // Attachments array
+    if (Array.isArray(attachments)) {
+      for (const att of attachments) {
+        if (att.data && att.mimeType) {
+          const cleanData = att.data.replace(/^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/, '');
+          currentParts.push({
+            inlineData: {
+              mimeType: att.mimeType,
+              data: cleanData,
+            },
+          });
+        }
+      }
+    }
+
+    // Text content
+    const textPrompt = message || (audioData ? 'Please listen to this voice note, recognize what was said, and provide a helpful, accurate response.' : (imageData ? 'Please inspect this image and provide a detailed analysis or step-by-step solution.' : ''));
+    if (textPrompt) {
+      currentParts.push({ text: textPrompt });
+    }
+
     chatContents.push({ role: 'user', parts: currentParts });
 
+    // Handle streaming request
+    if (shouldStream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+      }
+
+      try {
+        const streamClient = activeAi;
+        const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+        let streamSuccess = false;
+
+        for (const model of candidateModels) {
+          try {
+            const stream = await streamClient.models.generateContentStream({
+              model,
+              contents: chatContents,
+              config: {
+                temperature: 0.75,
+                systemInstruction: systemPrompt,
+              },
+            });
+
+            for await (const chunk of stream) {
+              const text = chunk.text || '';
+              if (text) {
+                res.write(`data: ${JSON.stringify({ text })}\n\n`);
+              }
+            }
+            streamSuccess = true;
+            break;
+          } catch (modelErr) {
+            console.warn(`[SmartSolve Streaming] Model ${model} stream error:`, modelErr);
+          }
+        }
+
+        if (!streamSuccess) {
+          // Fallback to non-streaming inside the stream
+          const resNonStream = await generateWithModelFallback(activeAi, chatContents, 25000, 0.75, false, undefined, systemPrompt);
+          const fullText = resNonStream?.text?.trim() || '';
+          res.write(`data: ${JSON.stringify({ text: fullText })}\n\n`);
+        }
+
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      } catch (streamErr: any) {
+        console.error('[SmartSolve Streaming] Critical error:', streamErr);
+        res.write(`data: ${JSON.stringify({ error: streamErr.message || 'Stream error occurred' })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      }
+    }
+
+    // Non-streaming response
     let response: any;
     try {
-      response = await generateWithModelFallback(activeAi, chatContents, 25000, 0.7, false, undefined, systemPrompt);
+      response = await generateWithModelFallback(activeAi, chatContents, 25000, 0.75, false, undefined, systemPrompt);
     } catch (primaryErr: any) {
       if (isCustomKey && ai) {
         console.warn('[SmartSolve Server] Client custom key failed, falling back to server default GEMINI_API_KEY...');
-        response = await generateWithModelFallback(ai, chatContents, 25000, 0.7, false, undefined, systemPrompt);
+        response = await generateWithModelFallback(ai, chatContents, 25000, 0.75, false, undefined, systemPrompt);
       } else {
         throw primaryErr;
       }
@@ -541,8 +673,8 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
     const rawMsg = error?.message || String(error);
     const is503 = rawMsg.includes('503') || rawMsg.includes('high demand') || rawMsg.includes('UNAVAILABLE') || rawMsg.includes('Resource has been exhausted');
     const userFriendlyError = is503
-      ? 'The AI Tutor model is currently experiencing high demand. Please tap Retry in a few moments.'
-      : (rawMsg || 'The AI Tutor encountered an issue. Please try again.');
+      ? 'The AI Assistant model is currently experiencing high demand. Please tap Retry in a few moments.'
+      : (rawMsg || 'The AI Assistant encountered an issue. Please try again.');
 
     return res.status(is503 ? 503 : 500).json({
       error: userFriendlyError,

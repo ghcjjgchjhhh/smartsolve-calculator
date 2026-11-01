@@ -30,15 +30,31 @@ export interface StepSolution {
   timestamp?: number;
 }
 
+export interface ChatAttachment {
+  type: 'image' | 'audio';
+  data: string; // Base64 data URL
+  mimeType: string;
+  name?: string;
+  size?: string;
+  duration?: number; // duration in seconds for audio
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
-  imageData?: string;
-  imageMimeType?: string;
-  isVoiceNote?: boolean;
-  voiceDuration?: number;
+  attachments?: ChatAttachment[];
+  isStreaming?: boolean;
+  error?: boolean;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: ChatMessage[];
 }
 
 export interface HistoryItem extends StepSolution {

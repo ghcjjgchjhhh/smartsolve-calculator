@@ -8,6 +8,7 @@ import {
   Download,
   CheckCircle2,
   Sparkles,
+  MessageSquare,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { InstallAppModal } from './InstallAppModal';
@@ -73,6 +74,21 @@ export const Header: React.FC<Props> = ({
 
             {/* Actions */}
             <div className="flex items-center space-x-1.5 sm:space-x-2">
+              {/* Direct AI Chat Button */}
+              <button
+                onClick={() => setActiveTab('ai_chat')}
+                className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'ai_chat'
+                    ? 'bg-[#22C55E] text-[#FFFFFF] shadow-md shadow-emerald-500/25'
+                    : 'bg-[#18181B] hover:bg-[#27272A] text-[#22C55E] border border-[#22C55E]/30'
+                }`}
+                title="Chat with AI Assistant (Voice, Vision & Text)"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-inherit" />
+                <span className="hidden sm:inline">AI Chat</span>
+                <span className="sm:hidden">Chat</span>
+              </button>
+
               {/* Direct AI Solver Button */}
               <button
                 onClick={() => setActiveTab('ai_solver')}
@@ -85,7 +101,7 @@ export const Header: React.FC<Props> = ({
               >
                 <Sparkles className="w-3.5 h-3.5 text-inherit" />
                 <span className="hidden sm:inline">AI Solver</span>
-                <span className="sm:hidden">AI</span>
+                <span className="sm:hidden">Solver</span>
               </button>
 
               {/* Install App Button */}
