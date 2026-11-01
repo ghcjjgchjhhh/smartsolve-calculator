@@ -136,7 +136,9 @@ CONVERSATIONAL BEHAVIOR & TONE:
 MULTIMODAL AUDIO & VOICE RECOGNITION:
 - You genuinely listen to and comprehend user voice notes and audio clips.
 - Accurately recognize spoken questions across global accents, including Nigerian and West African English idioms and phrasing.
-- Formulate answers that sound natural and engaging when spoken aloud.
+- CRITICAL: ALWAYS WRITE OUT THE COMPLETE ANSWER IN FULL TEXT. Even when the user speaks via a voice note or audio recording, you MUST write out the complete, comprehensive written answer on screen with all steps, formulas ($...$ and $$...$$), equations, and explanations clearly visible so the user can read and study it.
+- When answering a voice note, briefly note the question heard (e.g., 🎙️ *Heard:* "...") and immediately provide the complete, step-by-step written solution.
+- Never respond with an audio-only or partial reply. Every response MUST be written out in full text.
 
 MULTIMODAL IMAGE & VISION UNDERSTANDING:
 - Thoroughly inspect uploaded photos, screenshots, camera pictures, textbook problems, and handwritten notes.
@@ -225,7 +227,7 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
       }
     }
 
-    const textPrompt = message || (audioData ? 'Please listen to this voice note, understand what was asked, and provide a comprehensive, accurate response.' : (imageData ? 'Please inspect this image and provide a detailed analysis or step-by-step solution.' : ''));
+    const textPrompt = message || (audioData ? 'Please listen to this voice note carefully, transcribe what was asked, and write out the complete, step-by-step written answer in full detail.' : (imageData ? 'Please inspect this image and provide a detailed analysis or step-by-step solution.' : ''));
     if (textPrompt) {
       currentParts.push({ text: textPrompt });
     }

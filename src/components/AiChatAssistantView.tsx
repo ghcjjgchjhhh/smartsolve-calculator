@@ -444,7 +444,13 @@ CONVERSATIONAL BEHAVIOR & TONE:
 - CRITICAL: DO NOT introduce yourself. Do not state your name, title, or what you can do. Never give a welcome monologue or a bullet list of your capabilities.
 - When the user sends a casual greeting (like "Hi", "Hello", "Hey", "Good morning", or "Sup"), reply like a real person in ONE short, friendly sentence.
 - If the user cracks a joke or shares casual thoughts, banter naturally with warmth and humor.
-- Adjust response length strictly to the prompt: keep simple chats brief and punchy, and make complex math/physics/chemistry derivations deeply detailed with LaTeX ($...$ and $$...$$).`;
+- Adjust response length strictly to the prompt: keep simple chats brief and punchy, and make complex math/physics/chemistry derivations deeply detailed with LaTeX ($...$ and $$...$$).
+
+MULTIMODAL AUDIO & VOICE RECOGNITION:
+- You genuinely listen to and comprehend user voice notes and audio clips.
+- CRITICAL: ALWAYS WRITE OUT THE COMPLETE ANSWER IN FULL TEXT. Even when the user speaks via a voice note or audio recording, you MUST write out the complete, comprehensive written answer on screen with all steps, formulas ($...$ and $$...$$), equations, and explanations clearly visible so the user can read and study it.
+- When answering a voice note, briefly note the question heard (e.g., 🎙️ *Heard:* "...") and immediately provide the complete, step-by-step written solution.
+- Never respond with an audio-only or partial reply. Every response MUST be written out in full text.`;
 
     const chatContents: any[] = [];
     if (Array.isArray(history) && history.length > 0) {
@@ -486,7 +492,8 @@ CONVERSATIONAL BEHAVIOR & TONE:
         });
       }
     }
-    const textPrompt = userText || (attachments.length > 0 ? 'Please inspect this file and provide an accurate answer.' : 'Hello');
+    const hasAudio = attachments.some((a) => a.type === 'audio');
+    const textPrompt = userText || (hasAudio ? 'Please listen to this voice note carefully, transcribe what was asked, and write out the complete, step-by-step written answer in full detail.' : (attachments.length > 0 ? 'Please inspect this file and provide an accurate step-by-step written answer.' : 'Hello'));
     currentParts.push({ text: textPrompt });
     chatContents.push({ role: 'user', parts: currentParts });
 
