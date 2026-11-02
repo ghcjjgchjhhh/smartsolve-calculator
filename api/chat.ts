@@ -92,6 +92,9 @@ export default async function handler(req: any, res: any) {
       subject,
     } = body;
     const problemContext = body.problemContext || body.context;
+    const preferredLanguage = body.preferredLanguage || body.language || 'English (Nigerian)';
+    const preferredGender = body.preferredGender || body.gender || 'female';
+    const shouldStream = Boolean(body.stream) || Boolean(req.headers?.accept?.includes('text/event-stream'));
 
     if (!message && !imageData && !audioData && (!attachments || attachments.length === 0)) {
       res.statusCode = 400;
@@ -151,6 +154,7 @@ ACADEMIC & GENERAL SCOPE:
 - Mathematics & Physics: Show clear step-by-step working, use standard LaTeX ($...$ for inline, $$...$$ for display equations), and explain key conceptual principles.
 - Code blocks: Use labeled markdown code blocks (\`\`\`python, \`\`\`typescript, etc.).
 - Tables: Use standard Markdown tables for comparisons.
+- VOICE & LANGUAGE PREFERENCE: The user has selected "${preferredLanguage}" with a "${preferredGender}" voice assistant persona. When conversing or answering, accommodate this language naturally. Respond immediately and directly with clear, concise, step-by-step explanations without unnecessary introductory filler.
 ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject || subject || 'General STEM'}\nProblem Statement: "${problemContext.problemStatement || problemContext.title || problemContext.question || ''}"\nFormula: ${problemContext.formula || 'N/A'}\nFinal Answer: ${problemContext.finalAnswer || 'N/A'}` : ''}`;
 
     const chatContents: any[] = [];
@@ -233,6 +237,70 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
 
     const ai = new GoogleGenAI({ apiKey });
 
+    // 1. Streaming SSE Response (instant first-token delivery)
+    if (shouldStream) {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+      }
+
+      const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+      let streamSuccess = false;
+
+      for (const model of candidateModels) {
+        try {
+          const streamConfig: any = {
+            temperature: 0.7,
+            systemInstruction: systemPrompt,
+          };
+          if (!imageData && !audioData && (!attachments || attachments.length === 0)) {
+            streamConfig.thinkingConfig = { thinkingBudget: 0 };
+          }
+          const stream = await ai.models.generateContentStream({
+            model,
+            contents: chatContents,
+            config: streamConfig,
+          });
+
+          for await (const chunk of stream) {
+            const text = chunk.text || '';
+            if (text) {
+              res.write(`data: ${JSON.stringify({ text })}\n\n`);
+            }
+          }
+          streamSuccess = true;
+          break;
+        } catch (modelErr) {
+          console.warn(`[api/chat] Model ${model} stream error:`, modelErr);
+        }
+      }
+
+      if (!streamSuccess) {
+        let fallbackRes: any = null;
+        try {
+          fallbackRes = await generateWithModelFallback(ai, chatContents, systemPrompt, 25000);
+        } catch (err: any) {
+          if (serverKey && serverKey !== apiKey) {
+            const fallbackAi = new GoogleGenAI({ apiKey: serverKey });
+            fallbackRes = await generateWithModelFallback(fallbackAi, chatContents, systemPrompt, 25000);
+          } else {
+            throw err;
+          }
+        }
+        const text = fallbackRes?.text?.trim() || '';
+        if (text) {
+          res.write(`data: ${JSON.stringify({ text })}\n\n`);
+        }
+      }
+
+      res.write('data: [DONE]\n\n');
+      return res.end();
+    }
+
+    // 2. Standard JSON Response
     let response: any;
     try {
       response = await generateWithModelFallback(ai, chatContents, systemPrompt, 25000);

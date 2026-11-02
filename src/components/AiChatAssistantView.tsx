@@ -41,6 +41,7 @@ import {
   FileAudio,
   Maximize2,
   ChevronDown,
+  Globe,
 } from 'lucide-react';
 
 // Helper to compress/resize high-resolution camera images client-side before sending
@@ -279,6 +280,118 @@ export const VoiceNotePlayer: React.FC<{
   );
 };
 
+export interface LanguageOption {
+  code: string;
+  label: string;
+  short: string;
+  flag: string;
+  greeting: string;
+}
+
+export const SUPPORTED_LANGUAGES: LanguageOption[] = [
+  { code: 'en-NG', label: 'English (Nigerian)', short: 'Nigerian', flag: '🇳🇬', greeting: 'Kedu! How you dey? I am ready to help you solve any question with step-by-step working.' },
+  { code: 'en-US', label: 'English (United States)', short: 'US English', flag: '🇺🇸', greeting: 'Hello! I am your SmartSolve AI tutor. What would you like to explore or solve today?' },
+  { code: 'en-GB', label: 'English (British)', short: 'British', flag: '🇬🇧', greeting: 'Good day! I am delighted to help you explore any academic or technical problem.' },
+  { code: 'yo-NG', label: 'Èdè Yorùbá (Nigeria)', short: 'Yorùbá', flag: '🇳🇬', greeting: 'Báwo ni! Mo wà níbí láti ràn ọ́ lọ́wọ́ pẹ̀lú gbogbo ẹ̀kọ́ àti ìbéèrè rẹ.' },
+  { code: 'ig-NG', label: 'Asụsụ Igbo (Nigeria)', short: 'Igbo', flag: '🇳🇬', greeting: 'Ndewo! Abụ m onye inyeaka SmartSolve gị. Kedu ajụjụ anyị ga-aza taa?' },
+  { code: 'ha-NG', label: 'Harshen Hausa (Nigeria)', short: 'Hausa', flag: '🇳🇬', greeting: 'Sannu! Ina nan don in taimaka maka da lissafi da duk abin da kake buƙata.' },
+  { code: 'fr-FR', label: 'Français (French)', short: 'Français', flag: '🇫🇷', greeting: 'Bonjour ! Je suis votre tuteur SmartSolve. Comment puis-je vous aider aujourd’hui ?' },
+  { code: 'es-ES', label: 'Español (Spanish)', short: 'Español', flag: '🇪🇸', greeting: '¡Hola! Soy tu tutor SmartSolve. ¿En qué problema te puedo ayudar hoy?' },
+  { code: 'de-DE', label: 'Deutsch (German)', short: 'Deutsch', flag: '🇩🇪', greeting: 'Hallo! Ich bin dein SmartSolve Assistent. Wie kann ich dir heute helfen?' },
+  { code: 'ar-SA', label: 'العربية (Arabic)', short: 'العربية', flag: '🇸🇦', greeting: 'مرحباً بك! أنا مساعدك الذكي في سمارت سولف، كيف أساعدك اليوم؟' },
+  { code: 'pt-BR', label: 'Português (Portuguese)', short: 'Português', flag: '🇧🇷', greeting: 'Olá! Sou o seu tutor SmartSolve. Como posso te ajudar hoje?' },
+  { code: 'zh-CN', label: '中文 (Mandarin)', short: '中文', flag: '🇨🇳', greeting: '你好！我是你的 SmartSolve 智能导师，今天有什么问题想解答？' },
+];
+
+export interface VoiceSettings {
+  language: string;
+  gender: 'female' | 'male';
+  voiceURI: string;
+  rate: number;
+  pitch: number;
+  autoSpeak: boolean;
+}
+
+const findBestVoice = (
+  voices: SpeechSynthesisVoice[],
+  languageCode: string,
+  gender: 'female' | 'male',
+  preferredVoiceURI?: string
+): SpeechSynthesisVoice | null => {
+  if (preferredVoiceURI) {
+    const exact = voices.find((v) => v.voiceURI === preferredVoiceURI);
+    if (exact) return exact;
+  }
+
+  const femaleKeywords = [
+    'female', 'woman', 'girl', 'samantha', 'victoria', 'karen', 'zira',
+    'jenny', 'ava', 'moira', 'fiona', 'tessa', 'veena', 'susan', 'allison',
+    'kendra', 'joanna', 'yuri', 'kyoko', 'amelie', 'helena', 'monica', 'carmen'
+  ];
+  const maleKeywords = [
+    'male', 'man', 'boy', 'david', 'daniel', 'george', 'guy', 'mark',
+    'alex', 'fred', 'bruce', 'tom', 'arthur', 'oliver', 'thomas', 'martin',
+    'diego', 'jorge', 'paul', 'henri'
+  ];
+
+  const targetKeywords = gender === 'female' ? femaleKeywords : maleKeywords;
+  const oppositeKeywords = gender === 'female' ? maleKeywords : femaleKeywords;
+  const langPrefix = (languageCode || 'en').split('-')[0].toLowerCase();
+
+  // 1. Exact language match + targeted gender name
+  const exactLangVoices = voices.filter(
+    (v) => v.lang.toLowerCase().replace('_', '-') === languageCode.toLowerCase()
+  );
+  for (const v of exactLangVoices) {
+    const lowerName = v.name.toLowerCase();
+    if (targetKeywords.some((kw) => lowerName.includes(kw))) {
+      return v;
+    }
+  }
+
+  // 2. Language prefix match (e.g. en, fr, es) + targeted gender
+  const prefixLangVoices = voices.filter((v) =>
+    v.lang.toLowerCase().startsWith(langPrefix)
+  );
+  for (const v of prefixLangVoices) {
+    const lowerName = v.name.toLowerCase();
+    if (
+      targetKeywords.some((kw) => lowerName.includes(kw)) &&
+      !oppositeKeywords.some((kw) => lowerName.includes(kw))
+    ) {
+      return v;
+    }
+  }
+
+  // 3. Exact language match, avoiding opposite gender if possible
+  if (exactLangVoices.length > 0) {
+    const neutral = exactLangVoices.find(
+      (v) => !oppositeKeywords.some((kw) => v.name.toLowerCase().includes(kw))
+    );
+    if (neutral) return neutral;
+    return exactLangVoices[0];
+  }
+
+  // 4. Prefix match
+  if (prefixLangVoices.length > 0) {
+    const neutral = prefixLangVoices.find(
+      (v) => !oppositeKeywords.some((kw) => v.name.toLowerCase().includes(kw))
+    );
+    if (neutral) return neutral;
+    return prefixLangVoices[0];
+  }
+
+  // 5. Any voice matching gender across all languages
+  for (const v of voices) {
+    const lowerName = v.name.toLowerCase();
+    if (targetKeywords.some((kw) => lowerName.includes(kw))) {
+      return v;
+    }
+  }
+
+  return voices[0] || null;
+};
+
 interface Props {
   initialPrompt?: string;
   onClearInitialPrompt?: () => void;
@@ -366,17 +479,24 @@ export const AiChatAssistantView: React.FC<Props> = ({
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [voiceSettings, setVoiceSettings] = useState<{
-    voiceURI: string;
-    rate: number;
-    pitch: number;
-    autoSpeak: boolean;
-  }>(() => {
+  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(() => {
     try {
       const saved = localStorage.getItem('smartsolve_chat_voice_settings');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          language: parsed.language || 'en-NG',
+          gender: parsed.gender === 'male' ? 'male' : 'female',
+          voiceURI: parsed.voiceURI || '',
+          rate: typeof parsed.rate === 'number' ? parsed.rate : 1.0,
+          pitch: typeof parsed.pitch === 'number' ? parsed.pitch : 1.0,
+          autoSpeak: Boolean(parsed.autoSpeak),
+        };
+      }
     } catch {}
     return {
+      language: 'en-NG',
+      gender: 'female',
       voiceURI: '',
       rate: 1.0,
       pitch: 1.0,
@@ -858,6 +978,8 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       audioData: primaryAudio?.data,
       audioMimeType: primaryAudio?.mimeType,
       attachments: messageAttachments,
+      preferredLanguage: voiceSettings.language,
+      preferredGender: voiceSettings.gender,
       stream: true,
     };
 
@@ -1064,7 +1186,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
     }
   };
 
-  // Text-to-Speech (speak aloud)
+  // Text-to-Speech (speak aloud with gender and language matching)
   const handleSpeakMessage = (msgId: string, text: string) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
@@ -1076,25 +1198,45 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
 
     window.speechSynthesis.cancel();
 
-    // Clean text for natural speech
+    // Clean text and math formulas for natural, pleasant speech
     const cleanSpeech = text
       .replace(/\$\$(.*?)\$\$/g, ' equation: $1 ')
       .replace(/\$(.*?)\$/g, ' $1 ')
       .replace(/\\frac\{(.*?)\}\{(.*?)\}/g, '$1 over $2')
       .replace(/\\sqrt\{(.*?)\}/g, 'square root of $1')
       .replace(/\\times/g, 'times')
+      .replace(/\\div/g, 'divided by')
       .replace(/\\pm/g, 'plus or minus')
+      .replace(/\\theta/g, 'theta')
+      .replace(/\\pi/g, 'pi')
       .replace(/\\boxed\{(.*?)\}/g, '$1')
-      .replace(/```[\s\S]*?```/g, 'Code block omitted for voice.')
-      .replace(/[*#_`]/g, '');
+      .replace(/```[\s\S]*?```/g, 'Code block omitted for speech.')
+      .replace(/[*#_`]/g, '')
+      .trim();
+
+    if (!cleanSpeech) return;
 
     const utterance = new SpeechSynthesisUtterance(cleanSpeech);
-    utterance.rate = voiceSettings.rate;
-    utterance.pitch = voiceSettings.pitch;
+    utterance.lang = voiceSettings.language || 'en-NG';
 
-    if (voiceSettings.voiceURI && availableVoices.length > 0) {
-      const selected = availableVoices.find((v) => v.voiceURI === voiceSettings.voiceURI);
-      if (selected) utterance.voice = selected;
+    // Calibrate pitch and resonance based on chosen gender
+    // Female voice: bright, clear, melodic (1.12x base pitch)
+    // Male voice: deeper, resonant, articulate (0.86x base pitch)
+    const isFemale = voiceSettings.gender === 'female';
+    utterance.pitch = Math.max(0.6, Math.min(1.6, voiceSettings.pitch * (isFemale ? 1.12 : 0.86)));
+    utterance.rate = Math.max(0.7, Math.min(1.5, voiceSettings.rate));
+
+    // Select the best matched device voice for the language and gender
+    if (availableVoices.length > 0) {
+      const bestVoice = findBestVoice(
+        availableVoices,
+        voiceSettings.language,
+        voiceSettings.gender,
+        voiceSettings.voiceURI
+      );
+      if (bestVoice) {
+        utterance.voice = bestVoice;
+      }
     }
 
     utterance.onend = () => setSpeakingMessageId(null);
@@ -1357,14 +1499,21 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               <span className="font-bold">{voiceSettings.autoSpeak ? 'ON' : 'OFF'}</span>
             </button>
 
-            {/* Voice Changer / Settings */}
+            {/* Voice Gender & Language Pill */}
             <button
               type="button"
               onClick={() => setIsVoiceModalOpen(true)}
-              className="p-2 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-zinc-300 hover:text-white border border-[#27272A] transition-colors cursor-pointer"
-              title="Change Voice & Accents (Nigerian, US, UK)"
+              className="px-2.5 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-zinc-300 hover:text-white border border-[#27272A] hover:border-[#22C55E]/40 transition-all cursor-pointer flex items-center space-x-1.5 text-xs font-semibold"
+              title="Voice Gender (Male/Female) and Language Options"
             >
-              <Sliders className="w-4 h-4 text-[#22C55E]" />
+              <span className="text-sm">{voiceSettings.gender === 'female' ? '👩' : '👨'}</span>
+              <span className="hidden md:inline">{voiceSettings.gender === 'female' ? 'Female' : 'Male'}</span>
+              <span className="text-zinc-600 hidden md:inline">•</span>
+              <span>{SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.flag || '🇳🇬'}</span>
+              <span className="hidden sm:inline">
+                {SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.short || 'Nigerian'}
+              </span>
+              <Sliders className="w-3 h-3 text-[#22C55E] ml-0.5" />
             </button>
 
             {/* New Chat Button */}
@@ -1828,14 +1977,17 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
         </div>
       )}
 
-      {/* 5. VOICE CUSTOMIZATION & ACCENT MODAL */}
+      {/* 5. VOICE & LANGUAGE CUSTOMIZATION MODAL */}
       {isVoiceModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#121216] border border-[#27272A] rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-scaleUp">
+          <div className="bg-[#121216] border border-[#27272A] rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto scrollbar-thin animate-scaleUp">
             <div className="flex items-center justify-between border-b border-[#27272A] pb-3">
               <div className="flex items-center space-x-2">
                 <Sliders className="w-5 h-5 text-[#22C55E]" />
-                <h3 className="text-base font-bold text-white">Customize AI Voice & Speech</h3>
+                <div>
+                  <h3 className="text-base font-bold text-white">AI Voice & Languages</h3>
+                  <p className="text-[11px] text-zinc-400">Choose gender (Male/Female) and regional languages</p>
+                </div>
               </div>
               <button
                 type="button"
@@ -1846,29 +1998,122 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               </button>
             </div>
 
-            {/* Voice Selection */}
-            <div className="space-y-2">
+            {/* 1. Voice Gender Selection (Male or Female) */}
+            <div className="space-y-1.5">
               <label className="text-xs font-semibold text-zinc-300 block">
-                Choose Voice / Accent:
+                Voice Gender:
+              </label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated: VoiceSettings = { ...voiceSettings, gender: 'female' };
+                    handleSaveVoiceSettings(updated);
+                  }}
+                  className={`py-3 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    voiceSettings.gender === 'female'
+                      ? 'bg-[#22C55E]/20 text-[#22C55E] border-[#22C55E] shadow-md shadow-emerald-500/10'
+                      : 'bg-[#0A0A0C] text-zinc-400 hover:text-white border-[#27272A] hover:bg-[#18181D]'
+                  }`}
+                >
+                  <span className="text-xl">👩</span>
+                  <div className="text-left">
+                    <div className="font-bold text-xs">Female Voice</div>
+                    <div className="text-[10px] opacity-75 font-normal">Clear & natural</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated: VoiceSettings = { ...voiceSettings, gender: 'male' };
+                    handleSaveVoiceSettings(updated);
+                  }}
+                  className={`py-3 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    voiceSettings.gender === 'male'
+                      ? 'bg-[#22C55E]/20 text-[#22C55E] border-[#22C55E] shadow-md shadow-emerald-500/10'
+                      : 'bg-[#0A0A0C] text-zinc-400 hover:text-white border-[#27272A] hover:bg-[#18181D]'
+                  }`}
+                >
+                  <span className="text-xl">👨</span>
+                  <div className="text-left">
+                    <div className="font-bold text-xs">Male Voice</div>
+                    <div className="text-[10px] opacity-75 font-normal">Deeper & resonant</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Language Selection (12 Global & Regional Languages) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-zinc-300 flex items-center space-x-1.5">
+                  <Globe className="w-3.5 h-3.5 text-[#22C55E]" />
+                  <span>Choose Language / Accent:</span>
+                </label>
+                <span className="text-[11px] text-[#22C55E] font-medium">
+                  {SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.flag}{' '}
+                  {SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.short}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                {SUPPORTED_LANGUAGES.map((lang) => {
+                  const isSelected = voiceSettings.language === lang.code;
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        const updated: VoiceSettings = {
+                          ...voiceSettings,
+                          language: lang.code,
+                          voiceURI: '',
+                        };
+                        handleSaveVoiceSettings(updated);
+                      }}
+                      className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer flex items-center space-x-2 ${
+                        isSelected
+                          ? 'bg-[#22C55E]/15 border-[#22C55E] text-white shadow-xs font-semibold'
+                          : 'bg-[#0A0A0C] border-[#27272A] text-zinc-400 hover:text-white hover:bg-[#18181D]'
+                      }`}
+                    >
+                      <span className="text-lg shrink-0">{lang.flag}</span>
+                      <div className="truncate">
+                        <div className="text-[11px] font-bold text-white truncate">{lang.label}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Device Speech Engine (Optional fine-tune) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-300 block">
+                Device Voice Engine (Optional):
               </label>
               <select
                 value={voiceSettings.voiceURI}
                 onChange={(e) => {
-                  const updated = { ...voiceSettings, voiceURI: e.target.value };
+                  const updated: VoiceSettings = { ...voiceSettings, voiceURI: e.target.value };
                   handleSaveVoiceSettings(updated);
                 }}
-                className="w-full bg-[#0A0A0C] border border-[#27272A] focus:border-[#22C55E] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none cursor-pointer"
+                className="w-full bg-[#0A0A0C] border border-[#27272A] focus:border-[#22C55E] rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
               >
-                <option value="">Default Natural Voice</option>
-                {availableVoices.map((v, i) => (
-                  <option key={i} value={v.voiceURI}>
-                    {v.name} ({v.lang})
-                  </option>
-                ))}
+                <option value="">
+                  Auto Natural Matching ({voiceSettings.gender === 'female' ? 'Female' : 'Male'})
+                </option>
+                {availableVoices
+                  .filter((v) => !voiceSettings.language || v.lang.toLowerCase().startsWith(voiceSettings.language.split('-')[0].toLowerCase()))
+                  .map((v, i) => (
+                    <option key={i} value={v.voiceURI}>
+                      {v.name} ({v.lang})
+                    </option>
+                  ))}
               </select>
             </div>
 
-            {/* Speech Rate Slider */}
+            {/* 4. Speaking Speed Slider */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-zinc-300">Speaking Speed:</span>
@@ -1881,59 +2126,38 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                 step="0.1"
                 value={voiceSettings.rate}
                 onChange={(e) => {
-                  const updated = { ...voiceSettings, rate: parseFloat(e.target.value) };
+                  const updated: VoiceSettings = { ...voiceSettings, rate: parseFloat(e.target.value) };
                   handleSaveVoiceSettings(updated);
                 }}
                 className="w-full accent-[#22C55E] cursor-pointer"
               />
             </div>
 
-            {/* Pitch Slider */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-zinc-300">Voice Pitch:</span>
-                <span className="text-[#22C55E] font-mono">{voiceSettings.pitch.toFixed(1)}</span>
-              </div>
-              <input
-                type="range"
-                min="0.7"
-                max="1.3"
-                step="0.1"
-                value={voiceSettings.pitch}
-                onChange={(e) => {
-                  const updated = { ...voiceSettings, pitch: parseFloat(e.target.value) };
-                  handleSaveVoiceSettings(updated);
-                }}
-                className="w-full accent-[#22C55E] cursor-pointer"
-              />
-            </div>
-
-            {/* Auto-Speak Toggle */}
+            {/* 5. Auto-Speak Toggle */}
             <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#0A0A0C] border border-[#27272A]">
               <div>
                 <div className="text-xs font-semibold text-white">Auto Voice Responses</div>
-                <div className="text-[11px] text-zinc-400">Play AI answer aloud automatically when it replies</div>
+                <div className="text-[11px] text-zinc-400">Read AI answers aloud automatically when generated</div>
               </div>
               <input
                 type="checkbox"
                 checked={voiceSettings.autoSpeak}
                 onChange={(e) => {
-                  const updated = { ...voiceSettings, autoSpeak: e.target.checked };
+                  const updated: VoiceSettings = { ...voiceSettings, autoSpeak: e.target.checked };
                   handleSaveVoiceSettings(updated);
                 }}
                 className="w-4 h-4 accent-[#22C55E] rounded cursor-pointer"
               />
             </div>
 
-            {/* Test Voice & Done Buttons */}
+            {/* 6. Test Voice & Save Buttons */}
             <div className="flex items-center space-x-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
-                  handleSpeakMessage(
-                    'test-voice',
-                    "Hello! I am your SmartSolve AI assistant. How does this voice sound to you?"
-                  );
+                  const currentLang = SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language);
+                  const sampleText = currentLang?.greeting || "Hello! I am your SmartSolve AI assistant. How does this voice sound to you?";
+                  handleSpeakMessage('test-voice', sampleText);
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-[#27272A] hover:bg-[#3F3F46] text-white text-xs font-bold flex items-center justify-center space-x-1.5 cursor-pointer transition-colors"
               >
@@ -1943,7 +2167,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               <button
                 type="button"
                 onClick={() => setIsVoiceModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold cursor-pointer transition-colors"
+                className="px-5 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold cursor-pointer transition-colors shadow-md shadow-emerald-500/20"
               >
                 Save & Close
               </button>

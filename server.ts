@@ -476,6 +476,8 @@ const handleChatRequest = async (req: Request, res: Response) => {
       subject,
     } = body;
     const problemContext = body.problemContext || body.context;
+    const preferredLanguage = body.preferredLanguage || body.language || 'English (Nigerian)';
+    const preferredGender = body.preferredGender || body.gender || 'female';
     const shouldStream = req.query.stream === 'true' || body.stream === true;
 
     if (!message && !imageData && !audioData && (!attachments || attachments.length === 0)) {
@@ -512,6 +514,7 @@ ACADEMIC & GENERAL SCOPE:
 - Mathematics & Physics: Show clear step-by-step working, use standard LaTeX ($...$ for inline, $$...$$ for display equations), and explain key conceptual principles.
 - Code blocks: Use labeled markdown code blocks (\`\`\`python, \`\`\`typescript, etc.).
 - Tables: Use standard Markdown tables for comparisons.
+- VOICE & LANGUAGE PREFERENCE: The user has selected "${preferredLanguage}" with a "${preferredGender}" voice assistant persona. When conversing or answering, accommodate this language naturally. Respond immediately and directly with clear, concise, step-by-step explanations without unnecessary introductory filler.
 ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject || subject || 'General STEM'}\nProblem Statement: "${problemContext.problemStatement || problemContext.title || problemContext.question || ''}"\nFormula: ${problemContext.formula || 'N/A'}\nFinal Answer: ${problemContext.finalAnswer || 'N/A'}` : ''}`;
 
     const chatContents: any[] = [];
@@ -609,13 +612,17 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
 
         for (const model of candidateModels) {
           try {
+            const streamConfig: any = {
+              temperature: 0.7,
+              systemInstruction: systemPrompt,
+            };
+            if (!imageData && !audioData && (!attachments || attachments.length === 0)) {
+              streamConfig.thinkingConfig = { thinkingBudget: 0 };
+            }
             const stream = await streamClient.models.generateContentStream({
               model,
               contents: chatContents,
-              config: {
-                temperature: 0.75,
-                systemInstruction: systemPrompt,
-              },
+              config: streamConfig,
             });
 
             for await (const chunk of stream) {
