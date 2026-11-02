@@ -274,7 +274,7 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
     let userFriendlyError = 'The AI assistant encountered an issue. Please tap Retry.';
     if (isRateLimit) {
       userFriendlyError =
-        'API quota rate limit reached. Please wait a moment or configure your own free Gemini API key using the 🔑 Key button in the top bar.';
+        'The AI service is experiencing heavy traffic. Please wait a moment and tap Retry.';
     } else if (is503) {
       userFriendlyError =
         'The AI reasoning model is momentarily busy with high traffic. Please tap Retry.';

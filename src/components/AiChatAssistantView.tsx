@@ -41,7 +41,6 @@ import {
   FileAudio,
   Maximize2,
   ChevronDown,
-  Key,
 } from 'lucide-react';
 
 // Helper to compress/resize high-resolution camera images client-side before sending
@@ -324,10 +323,7 @@ export const AiChatAssistantView: React.FC<Props> = ({
         ''
       );
     }
-    return '';
   });
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
-  const [apiKeyInputValue, setApiKeyInputValue] = useState(userApiKey);
 
   // Input & Messaging State
   const [inputText, setInputText] = useState('');
@@ -931,7 +927,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
 
         if (!response) {
           throw new Error(
-            'Cannot connect to the AI server. If running on GitHub Pages, tap the 🔑 API Key button in the top bar to connect your Gemini API key.'
+            'Cannot connect to the AI server. Please check your internet connection and tap Retry.'
           );
         }
 
@@ -1369,26 +1365,6 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               title="Change Voice & Accents (Nigerian, US, UK)"
             >
               <Sliders className="w-4 h-4 text-[#22C55E]" />
-            </button>
-
-            {/* Gemini API Key Config */}
-            <button
-              type="button"
-              onClick={() => {
-                setApiKeyInputValue(userApiKey);
-                setIsApiKeyModalOpen(true);
-              }}
-              className={`p-2 rounded-xl border transition-colors cursor-pointer relative ${
-                userApiKey
-                  ? 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/40'
-                  : 'bg-[#18181B] hover:bg-[#27272A] text-zinc-300 hover:text-white border-[#27272A]'
-              }`}
-              title={userApiKey ? 'Gemini API Key Connected' : 'Configure Gemini API Key'}
-            >
-              <Key className="w-4 h-4 text-[#22C55E]" />
-              {userApiKey && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#22C55E] border-2 border-[#111115]" />
-              )}
             </button>
 
             {/* New Chat Button */}
@@ -1976,96 +1952,6 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
         </div>
       )}
 
-      {/* 5. GEMINI API KEY MODAL (Essential for GitHub Pages & Custom Keys) */}
-      {isApiKeyModalOpen && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#111115] border border-[#27272A] w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b border-[#27272A] pb-4">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center">
-                  <Key className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">Gemini API Key</h3>
-                  <p className="text-[11px] text-zinc-400">Configure client-side key for static hosting</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsApiKeyModalOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-[#27272A] text-zinc-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-xs text-zinc-300 leading-relaxed">
-                When deployed on static hosting like <strong>GitHub Pages</strong>, SmartSolve uses this key to talk directly to Gemini in your browser without requiring a backend server.
-              </p>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-zinc-300 mb-1.5">
-                  Google AI Studio API Key:
-                </label>
-                <input
-                  type="password"
-                  value={apiKeyInputValue}
-                  onChange={(e) => setApiKeyInputValue(e.target.value)}
-                  placeholder="Paste AIzaSy... API key"
-                  className="w-full bg-[#18181D] border border-[#27272A] focus:border-[#22C55E] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-1">
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#22C55E] hover:underline flex items-center space-x-1"
-                >
-                  <span>Get a free API key from Google AI Studio</span>
-                </a>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3 pt-2">
-              {userApiKey && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    try {
-                      localStorage.removeItem('gemini_user_api_key');
-                    } catch {}
-                    setUserApiKey('');
-                    setApiKeyInputValue('');
-                    setIsApiKeyModalOpen(false);
-                  }}
-                  className="py-2.5 px-4 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Clear Key
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  const trimmed = apiKeyInputValue.trim();
-                  if (trimmed) {
-                    try {
-                      localStorage.setItem('gemini_user_api_key', trimmed);
-                    } catch {}
-                    setUserApiKey(trimmed);
-                  }
-                  setIsApiKeyModalOpen(false);
-                }}
-                className="flex-1 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold transition-all cursor-pointer shadow-md shadow-emerald-500/20 text-center"
-              >
-                Save & Connect
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
