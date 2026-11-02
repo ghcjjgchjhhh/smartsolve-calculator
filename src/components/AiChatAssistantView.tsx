@@ -28,6 +28,7 @@ import {
   Volume2,
   VolumeX,
   RotateCcw,
+  RotateCw,
   Sliders,
   Headphones,
   Paperclip,
@@ -35,12 +36,249 @@ import {
   Pause,
   AlertCircle,
   FolderOpen,
+  History,
   MessageSquare,
   FileAudio,
   Maximize2,
   ChevronDown,
   Key,
 } from 'lucide-react';
+
+// Helper to compress/resize high-resolution camera images client-side before sending
+const compressImageFile = (
+  file: File,
+  maxWidth = 1600,
+  maxHeight = 1600,
+  quality = 0.85
+): Promise<{ dataUrl: string; size: string; mimeType: string }> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onerror = () => {
+      resolve({
+        dataUrl: '',
+        size: `${(file.size / 1024).toFixed(1)} KB`,
+        mimeType: file.type || 'image/jpeg',
+      });
+    };
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => {
+        const rawUrl = (e.target?.result as string) || '';
+        resolve({
+          dataUrl: rawUrl,
+          size: `${(file.size / 1024).toFixed(1)} KB`,
+          mimeType: file.type || 'image/jpeg',
+        });
+      };
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width / height > maxWidth / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          const rawUrl = (e.target?.result as string) || '';
+          resolve({
+            dataUrl: rawUrl,
+            size: `${(file.size / 1024).toFixed(1)} KB`,
+            mimeType: file.type || 'image/jpeg',
+          });
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        const compressedDataUrl = canvas.toDataURL(mimeType, quality);
+        const approxSizeKb = (compressedDataUrl.length * 0.75) / 1024;
+
+        resolve({
+          dataUrl: compressedDataUrl,
+          size: `${approxSizeKb.toFixed(1)} KB`,
+          mimeType,
+        });
+      };
+      img.src = (e.target?.result as string) || '';
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+// WhatsApp-style Voice Note Audio Player with backwards/forwards seeking and speed control
+export const VoiceNotePlayer: React.FC<{
+  audioUrl: string;
+  title?: string;
+  duration?: number;
+}> = ({ audioUrl, title, duration: initialDuration }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [totalDuration, setTotalDuration] = useState(initialDuration || 0);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+
+    const onMeta = () => {
+      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+        setTotalDuration(Math.round(audio.duration));
+      }
+    };
+    const onTime = () => setCurrentTime(audio.currentTime);
+    const onEnd = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+    const onErr = () => setIsPlaying(false);
+
+    audio.addEventListener('loadedmetadata', onMeta);
+    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('ended', onEnd);
+    audio.addEventListener('error', onErr);
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', onMeta);
+      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('ended', onEnd);
+      audio.removeEventListener('error', onErr);
+      audio.pause();
+      audioRef.current = null;
+    };
+  }, [audioUrl]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.playbackRate = playbackRate;
+      audioRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    }
+  };
+
+  const seek = (seconds: number) => {
+    if (!audioRef.current) return;
+    const target = Math.max(0, Math.min(seconds, totalDuration || 100));
+    audioRef.current.currentTime = target;
+    setCurrentTime(target);
+  };
+
+  // Skip backwards 5 seconds
+  const skipBackward5 = () => {
+    if (!audioRef.current) return;
+    seek(audioRef.current.currentTime - 5);
+  };
+
+  // Skip forward 5 seconds
+  const skipForward5 = () => {
+    if (!audioRef.current) return;
+    seek(audioRef.current.currentTime + 5);
+  };
+
+  const cycleSpeed = () => {
+    const nextRate = playbackRate === 1 ? 1.5 : playbackRate === 1.5 ? 2 : 1;
+    setPlaybackRate(nextRate);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = nextRate;
+    }
+  };
+
+  const formatTime = (secs: number) => {
+    const safeSecs = Math.max(0, Math.floor(secs || 0));
+    const m = Math.floor(safeSecs / 60);
+    const s = Math.floor(safeSecs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  return (
+    <div className="rounded-2xl bg-[#1C1C22] border border-[#27272A] p-3 space-y-2 max-w-sm sm:max-w-md w-full shadow-md">
+      <div className="flex items-center justify-between text-xs font-semibold text-white px-0.5">
+        <span className="truncate flex items-center space-x-1.5">
+          <Mic className="w-3.5 h-3.5 text-[#22C55E] shrink-0" />
+          <span className="truncate">{title || 'Voice Note'}</span>
+        </span>
+        <span className="text-[10px] text-zinc-400 font-mono">
+          {formatTime(currentTime)} / {formatTime(totalDuration)}
+        </span>
+      </div>
+
+      {/* Scrubbable Range Slider (Backwards and Forwards Seeking) */}
+      <div className="flex items-center space-x-2">
+        <input
+          type="range"
+          min="0"
+          max={totalDuration || 1}
+          step="0.1"
+          value={currentTime}
+          onChange={(e) => seek(parseFloat(e.target.value))}
+          className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#22C55E]"
+          aria-label="Seek voice note backwards and forwards"
+        />
+      </div>
+
+      {/* Playback Controls Row */}
+      <div className="flex items-center justify-between pt-0.5">
+        <div className="flex items-center space-x-1.5">
+          {/* Play / Pause */}
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="w-7 h-7 rounded-full bg-[#22C55E] hover:bg-[#16A34A] text-white flex items-center justify-center transition-all cursor-pointer shadow-sm"
+            title={isPlaying ? 'Pause voice note' : 'Play voice note'}
+          >
+            {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
+          </button>
+
+          {/* Rewind 5s (Backward) */}
+          <button
+            type="button"
+            onClick={skipBackward5}
+            className="px-2 py-1 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-zinc-300 hover:text-white flex items-center space-x-0.5 text-[10px] font-mono cursor-pointer transition-colors"
+            title="Rewind 5 seconds"
+          >
+            <RotateCcw className="w-3 h-3 text-[#22C55E]" />
+            <span>-5s</span>
+          </button>
+
+          {/* Forward 5s (Forward) */}
+          <button
+            type="button"
+            onClick={skipForward5}
+            className="px-2 py-1 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-zinc-300 hover:text-white flex items-center space-x-0.5 text-[10px] font-mono cursor-pointer transition-colors"
+            title="Fast forward 5 seconds"
+          >
+            <RotateCw className="w-3 h-3 text-[#22C55E]" />
+            <span>+5s</span>
+          </button>
+        </div>
+
+        {/* Speed button */}
+        <button
+          type="button"
+          onClick={cycleSpeed}
+          className="px-2 py-1 rounded-md bg-[#27272A] hover:bg-[#3F3F46] text-[10px] font-bold text-zinc-300 hover:text-[#22C55E] cursor-pointer font-mono"
+          title="Change playback speed"
+        >
+          {playbackRate}x
+        </button>
+      </div>
+    </div>
+  );
+};
 
 interface Props {
   initialPrompt?: string;
@@ -337,6 +575,10 @@ export const AiChatAssistantView: React.FC<Props> = ({
     mediaRecorderRef.current.onstop = async () => {
       const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
       const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+      if (audioBlob.size < 200) {
+        setChatError('Voice note was too short or empty. Please speak clearly while recording.');
+        return;
+      }
       const audioUrl = URL.createObjectURL(audioBlob);
 
       setPendingAudioPreview({
@@ -348,7 +590,12 @@ export const AiChatAssistantView: React.FC<Props> = ({
       });
     };
 
-    mediaRecorderRef.current.stop();
+    if (mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.requestData();
+      } catch {}
+      mediaRecorderRef.current.stop();
+    }
     mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     setIsRecording(false);
@@ -392,31 +639,32 @@ export const AiChatAssistantView: React.FC<Props> = ({
     };
   };
 
-  // Image Upload & Snap
-  const handleImageSelect = (file: File) => {
+  // Image Upload & Snap with client-side compression for high-res camera photos
+  const handleImageSelect = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setChatError('Please select a valid image file (PNG, JPG, JPEG, WEBP).');
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) {
-      setChatError('Image file is too large (maximum 15MB).');
+    if (file.size > 25 * 1024 * 1024) {
+      setChatError('Image file is too large (maximum 25MB).');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
+    try {
+      const { dataUrl, size, mimeType } = await compressImageFile(file);
+      if (!dataUrl) throw new Error('Could not read image file.');
       const newAttachment: ChatAttachment = {
         type: 'image',
         data: dataUrl,
-        mimeType: file.type || 'image/jpeg',
+        mimeType,
         name: file.name,
-        size: `${(file.size / 1024).toFixed(1)} KB`,
+        size,
       };
       setAttachments((prev) => [...prev, newAttachment]);
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      setChatError('Failed to process image. Please try again with another photo.');
+    }
   };
 
   // Convert Blob to Base64
@@ -459,14 +707,20 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
         const parts: any[] = [];
         if (Array.isArray(h.attachments)) {
           for (const att of h.attachments) {
-            if (att.data && att.mimeType) {
-              const cleanData = att.data.replace(/^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/, '');
-              parts.push({
-                inlineData: {
-                  mimeType: att.mimeType,
-                  data: cleanData,
-                },
-              });
+            if (att.data) {
+              const cleanData = att.data.includes(';base64,')
+                ? att.data.split(';base64,')[1]
+                : att.data;
+              let mime = (att.mimeType || 'image/jpeg').trim();
+              if (mime.includes(';')) mime = mime.split(';')[0].trim();
+              if (cleanData) {
+                parts.push({
+                  inlineData: {
+                    mimeType: mime,
+                    data: cleanData,
+                  },
+                });
+              }
             }
           }
         }
@@ -481,12 +735,22 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
     }
 
     const currentParts: any[] = [];
+    const addedHashes = new Set<string>();
+
     for (const att of attachments) {
-      if (att.data && att.mimeType) {
-        const cleanData = att.data.replace(/^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/, '');
+      if (att.data) {
+        const cleanData = att.data.includes(';base64,')
+          ? att.data.split(';base64,')[1]
+          : att.data;
+        if (!cleanData || addedHashes.has(cleanData)) continue;
+        addedHashes.add(cleanData);
+
+        let mime = (att.mimeType || 'image/jpeg').trim();
+        if (mime.includes(';')) mime = mime.split(';')[0].trim();
+
         currentParts.push({
           inlineData: {
-            mimeType: att.mimeType,
+            mimeType: mime,
             data: cleanData,
           },
         });
@@ -497,7 +761,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
     currentParts.push({ text: textPrompt });
     chatContents.push({ role: 'user', parts: currentParts });
 
-    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
     let lastErr: any = null;
     for (const model of candidateModels) {
       try {
@@ -1047,14 +1311,18 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
         {/* Chat Top Bar */}
         <header className="px-4 py-3 bg-[#111115] border-b border-[#27272A] flex items-center justify-between gap-2">
           <div className="flex items-center space-x-3 min-w-0">
-            {/* Drawer Toggle (Mobile & Desktop) */}
+            {/* Chat History Button (Clear, prominent, with counter) */}
             <button
               type="button"
               onClick={() => setIsSessionsDrawerOpen((prev) => !prev)}
-              className="p-2 rounded-xl bg-[#1C1C22] hover:bg-[#27272A] text-white border border-[#27272A] transition-colors cursor-pointer"
+              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#1C1C22] hover:bg-[#27272A] text-white border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer shadow-sm group shrink-0"
               title="Open Chat History"
             >
-              <FolderOpen className="w-4 h-4 text-[#22C55E]" />
+              <History className="w-4 h-4 text-[#22C55E] group-hover:rotate-[-20deg] transition-transform" />
+              <span className="text-xs font-bold">History</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-[#22C55E]/20 text-[#22C55E] text-[10px] font-mono font-bold">
+                {sessions.length}
+              </span>
             </button>
 
             <div className="min-w-0">
@@ -1198,37 +1466,13 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                         }
 
                         if (att.type === 'audio') {
-                          const isPlayingThis = playingAttachmentUrl === att.data;
                           return (
-                            <div
-                              key={aIdx}
-                              className="flex items-center space-x-3 p-3 rounded-2xl bg-[#1C1C22] border border-[#27272A] max-w-sm"
-                            >
-                              <button
-                                type="button"
-                                onClick={() => handleToggleAttachmentAudio(att.data)}
-                                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 cursor-pointer shadow-md transition-all ${
-                                  isPlayingThis
-                                    ? 'bg-[#22C55E] text-white'
-                                    : 'bg-white text-zinc-900 hover:bg-zinc-200'
-                                }`}
-                              >
-                                {isPlayingThis ? (
-                                  <Pause className="w-4 h-4" />
-                                ) : (
-                                  <Play className="w-4 h-4 ml-0.5" />
-                                )}
-                              </button>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-semibold text-white truncate">
-                                  {att.name || 'Spoken Voice Note'}
-                                </div>
-                                <div className="flex items-center space-x-2 text-[10px] text-zinc-400 mt-0.5 font-mono">
-                                  <span>Audio Note</span>
-                                  <span>·</span>
-                                  <span>{att.duration ? `${att.duration}s` : 'Recording'}</span>
-                                </div>
-                              </div>
+                            <div key={aIdx} className="my-1.5">
+                              <VoiceNotePlayer
+                                audioUrl={att.data}
+                                title={att.name || 'Voice Note'}
+                                duration={att.duration}
+                              />
                             </div>
                           );
                         }
@@ -1390,35 +1634,23 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                 </div>
               ))}
 
-              {/* Pending Audio Preview */}
+              {/* Pending Audio Preview with Full Scrubbing & Playback Controls */}
               {pendingAudioPreview && (
-                <div className="flex items-center space-x-2.5 px-3 py-2 rounded-xl bg-[#18181D] border border-[#22C55E]/40 text-xs">
-                  <button
-                    type="button"
-                    onClick={handleTogglePendingAudio}
-                    className="w-7 h-7 rounded-full bg-[#22C55E] text-white flex items-center justify-center shrink-0 cursor-pointer shadow-sm"
-                  >
-                    {isPlayingPendingAudio ? (
-                      <Pause className="w-3.5 h-3.5" />
-                    ) : (
-                      <Play className="w-3.5 h-3.5 ml-0.5" />
-                    )}
-                  </button>
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-bold text-white truncate max-w-[140px]">
-                      {pendingAudioPreview.name || 'Voice Note'}
-                    </div>
-                    <div className="text-[10px] text-[#22C55E]">
-                      {pendingAudioPreview.duration}s · Ready to listen & solve
-                    </div>
+                <div className="w-full flex items-center justify-between gap-2 p-1.5 rounded-2xl bg-[#141418] border border-[#22C55E]/40">
+                  <div className="flex-1 min-w-0">
+                    <VoiceNotePlayer
+                      audioUrl={pendingAudioPreview.url}
+                      title={pendingAudioPreview.name || 'Voice Note (Ready to Send)'}
+                      duration={pendingAudioPreview.duration}
+                    />
                   </div>
                   <button
                     type="button"
                     onClick={() => setPendingAudioPreview(null)}
-                    className="p-1 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-white/10"
+                    className="p-2 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-white/10 transition-colors shrink-0"
                     title="Remove audio recording"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
               )}

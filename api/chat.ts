@@ -6,7 +6,7 @@ async function generateWithModelFallback(
   systemInstruction?: string,
   timeoutMs: number = 25000
 ) {
-  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {
@@ -163,14 +163,20 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
 
         if (Array.isArray(h.attachments)) {
           for (const att of h.attachments) {
-            if (att.data && att.mimeType) {
-              const cleanData = att.data.replace(/^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/, '');
-              parts.push({
-                inlineData: {
-                  mimeType: att.mimeType,
-                  data: cleanData,
-                },
-              });
+            if (att.data) {
+              const cleanData = att.data.includes(';base64,')
+                ? att.data.split(';base64,')[1]
+                : att.data;
+              let mime = (att.mimeType || 'image/jpeg').trim();
+              if (mime.includes(';')) mime = mime.split(';')[0].trim();
+              if (cleanData) {
+                parts.push({
+                  inlineData: {
+                    mimeType: mime,
+                    data: cleanData,
+                  },
+                });
+              }
             }
           }
         }
@@ -189,43 +195,34 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
     }
 
     const currentParts: any[] = [];
+    const addedHashes = new Set<string>();
 
-    // Image attachment
-    if (imageData) {
-      const cleanBase64 = imageData.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+    const appendInlinePart = (dataStr: string, rawMime?: string) => {
+      if (!dataStr) return;
+      const cleanData = dataStr.includes(';base64,')
+        ? dataStr.split(';base64,')[1]
+        : dataStr;
+      if (!cleanData || addedHashes.has(cleanData)) return;
+      addedHashes.add(cleanData);
+
+      let mime = (rawMime || 'image/jpeg').trim();
+      if (mime.includes(';')) mime = mime.split(';')[0].trim();
+
       currentParts.push({
         inlineData: {
-          mimeType: mimeType || 'image/jpeg',
-          data: cleanBase64,
+          mimeType: mime,
+          data: cleanData,
         },
       });
-    }
+    };
 
-    // Audio attachment
-    if (audioData) {
-      const cleanAudio = audioData.replace(/^data:audio\/[a-zA-Z0-9+.-]+;base64,/, '');
-      currentParts.push({
-        inlineData: {
-          mimeType: audioMimeType || 'audio/webm',
-          data: cleanAudio,
-        },
-      });
-    }
-
-    // Additional attachments
     if (Array.isArray(attachments)) {
       for (const att of attachments) {
-        if (att.data && att.mimeType) {
-          const cleanData = att.data.replace(/^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/, '');
-          currentParts.push({
-            inlineData: {
-              mimeType: att.mimeType,
-              data: cleanData,
-            },
-          });
-        }
+        if (att.data) appendInlinePart(att.data, att.mimeType);
       }
     }
+    if (imageData) appendInlinePart(imageData, mimeType || 'image/jpeg');
+    if (audioData) appendInlinePart(audioData, audioMimeType || 'audio/webm');
 
     const textPrompt = message || (audioData ? 'Please listen to this voice note carefully, transcribe what was asked, and write out the complete, step-by-step written answer in full detail.' : (imageData ? 'Please inspect this image and provide a detailed analysis or step-by-step solution.' : ''));
     if (textPrompt) {
@@ -241,8 +238,12 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
       response = await generateWithModelFallback(ai, chatContents, systemPrompt, 25000);
     } catch (err: any) {
       if (serverKey && serverKey !== apiKey) {
-        const fallbackAi = new GoogleGenAI({ apiKey: serverKey });
-        response = await generateWithModelFallback(fallbackAi, chatContents, systemPrompt, 25000);
+        try {
+          const fallbackAi = new GoogleGenAI({ apiKey: serverKey });
+          response = await generateWithModelFallback(fallbackAi, chatContents, systemPrompt, 25000);
+        } catch (fbErr) {
+          throw fbErr;
+        }
       } else {
         throw err;
       }
@@ -261,16 +262,30 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
   } catch (error: any) {
     console.error('API /api/chat error:', error);
     const rawMsg = error?.message || String(error);
+    const isRateLimit =
+      rawMsg.includes('429') ||
+      rawMsg.includes('Resource has been exhausted') ||
+      rawMsg.includes('quota');
     const is503 =
       rawMsg.includes('503') ||
       rawMsg.includes('high demand') ||
-      rawMsg.includes('UNAVAILABLE') ||
-      rawMsg.includes('Resource has been exhausted');
-    const userFriendlyError = is503
-      ? 'The AI Tutor model is currently experiencing high demand. Please tap Retry in a few moments.'
-      : rawMsg || 'The AI Tutor encountered an issue. Please try again.';
+      rawMsg.includes('UNAVAILABLE');
 
-    res.statusCode = is503 ? 503 : 500;
+    let userFriendlyError = 'The AI assistant encountered an issue. Please tap Retry.';
+    if (isRateLimit) {
+      userFriendlyError =
+        'API quota rate limit reached. Please wait a moment or configure your own free Gemini API key using the 🔑 Key button in the top bar.';
+    } else if (is503) {
+      userFriendlyError =
+        'The AI reasoning model is momentarily busy with high traffic. Please tap Retry.';
+    } else if (rawMsg.includes('INVALID_ARGUMENT')) {
+      userFriendlyError =
+        'The audio or image attachment could not be decoded. Please try again with a clear photo or re-record the voice note.';
+    } else if (rawMsg) {
+      userFriendlyError = rawMsg;
+    }
+
+    res.statusCode = isRateLimit ? 429 : is503 ? 503 : 500;
     res.setHeader('Content-Type', 'application/json');
     return res.end(
       JSON.stringify({

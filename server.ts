@@ -147,8 +147,8 @@ async function generateWithModelFallback(
   responseMimeType?: string,
   systemInstruction?: string
 ) {
-  // Candidate models: gemini-3.1-flash-lite (fast ~2s), gemini-3.8-flash, gemini-flash-latest
-  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+  // Candidate models: gemini-3.8-flash (multimodal audio & image), gemini-3.1-flash-lite, gemini-flash-latest
+  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {
@@ -524,14 +524,20 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
 
         if (Array.isArray(h.attachments)) {
           for (const att of h.attachments) {
-            if (att.data && att.mimeType) {
-              const cleanData = att.data.replace(/^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/, '');
-              parts.push({
-                inlineData: {
-                  mimeType: att.mimeType,
-                  data: cleanData,
-                },
-              });
+            if (att.data) {
+              const cleanData = att.data.includes(';base64,')
+                ? att.data.split(';base64,')[1]
+                : att.data;
+              let mime = (att.mimeType || 'image/jpeg').trim();
+              if (mime.includes(';')) mime = mime.split(';')[0].trim();
+              if (cleanData) {
+                parts.push({
+                  inlineData: {
+                    mimeType: mime,
+                    data: cleanData,
+                  },
+                });
+              }
             }
           }
         }
@@ -550,43 +556,34 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
     }
 
     const currentParts: any[] = [];
+    const addedHashes = new Set<string>();
 
-    // Image attachment
-    if (imageData) {
-      const cleanBase64 = imageData.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+    const appendInlinePart = (dataStr: string, rawMime?: string) => {
+      if (!dataStr) return;
+      const cleanData = dataStr.includes(';base64,')
+        ? dataStr.split(';base64,')[1]
+        : dataStr;
+      if (!cleanData || addedHashes.has(cleanData)) return;
+      addedHashes.add(cleanData);
+
+      let mime = (rawMime || 'image/jpeg').trim();
+      if (mime.includes(';')) mime = mime.split(';')[0].trim();
+
       currentParts.push({
         inlineData: {
-          mimeType: mimeType || 'image/jpeg',
-          data: cleanBase64,
+          mimeType: mime,
+          data: cleanData,
         },
       });
-    }
+    };
 
-    // Audio attachment (native Gemini multimodal audio input)
-    if (audioData) {
-      const cleanAudio = audioData.replace(/^data:audio\/[a-zA-Z0-9+.-]+;base64,/, '');
-      currentParts.push({
-        inlineData: {
-          mimeType: audioMimeType || 'audio/webm',
-          data: cleanAudio,
-        },
-      });
-    }
-
-    // Attachments array
     if (Array.isArray(attachments)) {
       for (const att of attachments) {
-        if (att.data && att.mimeType) {
-          const cleanData = att.data.replace(/^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/, '');
-          currentParts.push({
-            inlineData: {
-              mimeType: att.mimeType,
-              data: cleanData,
-            },
-          });
-        }
+        if (att.data) appendInlinePart(att.data, att.mimeType);
       }
     }
+    if (imageData) appendInlinePart(imageData, mimeType || 'image/jpeg');
+    if (audioData) appendInlinePart(audioData, audioMimeType || 'audio/webm');
 
     // Text content
     const textPrompt = message || (audioData ? 'Please listen to this voice note carefully, transcribe what was asked, and write out the complete, step-by-step written answer in full detail.' : (imageData ? 'Please inspect this image and provide a detailed analysis or step-by-step written solution.' : ''));
@@ -607,7 +604,7 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
 
       try {
         const streamClient = activeAi;
-        const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+        const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
         let streamSuccess = false;
 
         for (const model of candidateModels) {
