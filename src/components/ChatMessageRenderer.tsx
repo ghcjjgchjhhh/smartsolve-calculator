@@ -63,7 +63,7 @@ const CodeBlockCard: React.FC<{ language: string; code: string }> = ({ language,
   return (
     <div className="my-3 rounded-2xl overflow-hidden border border-[#27272A] bg-[#0A0A0C] shadow-lg">
       <div className="flex items-center justify-between px-4 py-2 bg-[#121216] border-b border-[#27272A] text-xs font-mono text-[#A1A1AA]">
-        <span className="uppercase font-bold tracking-wider text-[#22C55E]">
+        <span className="uppercase font-bold tracking-wider text-white">
           {language}
         </span>
         <button
@@ -74,8 +74,8 @@ const CodeBlockCard: React.FC<{ language: string; code: string }> = ({ language,
         >
           {copied ? (
             <>
-              <Check className="w-3.5 h-3.5 text-[#22C55E]" />
-              <span className="text-[#22C55E] font-medium">Copied</span>
+              <Check className="w-3.5 h-3.5 text-white" />
+              <span className="text-white font-medium">Copied</span>
             </>
           ) : (
             <>
@@ -213,7 +213,7 @@ const InlineFormattedText: React.FC<{ text: string }> = ({ text }) => {
             ? 'text-base font-black text-white mt-3 mb-1'
             : level === 2
             ? 'text-sm font-bold text-white mt-2.5 mb-1'
-            : 'text-xs font-bold text-[#22C55E] mt-2 mb-0.5 uppercase tracking-wider';
+            : 'text-xs font-bold text-white mt-2 mb-0.5 uppercase tracking-wider';
         return `<div class="${sizeClass}">${formatInlineMathAndText(headingText)}</div>`;
       }
 
@@ -253,7 +253,7 @@ function formatInlineMathAndText(str: string): string {
   // 4. Inline code `code`
   output = output.replace(
     /`([^`]+)`/g,
-    '<code class="px-1.5 py-0.5 rounded bg-[#1C1C20] border border-[#27272A] font-mono text-xs text-[#22C55E]">$1</code>'
+    '<code class="px-1.5 py-0.5 rounded bg-[#1C1C20] border border-[#27272A] font-mono text-xs text-white">$1</code>'
   );
 
   return output;

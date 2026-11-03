@@ -143,7 +143,7 @@ export const UnitConverterView: React.FC = () => {
       {/* Main Conversion Control Card */}
       <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#22C55E]">
+          <span className="text-xs font-bold uppercase tracking-wider text-white">
             Converting: {currentCat.name}
           </span>
           <span className="text-xs text-[#A1A1AA]">

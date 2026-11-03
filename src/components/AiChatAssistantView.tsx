@@ -270,7 +270,7 @@ export const VoiceNotePlayer: React.FC<{
         <button
           type="button"
           onClick={cycleSpeed}
-          className="px-2 py-1 rounded-md bg-[#27272A] hover:bg-[#3F3F46] text-[10px] font-bold text-zinc-300 hover:text-[#22C55E] cursor-pointer font-mono"
+          className="px-2 py-1 rounded-md bg-[#27272A] hover:bg-[#3F3F46] text-[10px] font-bold text-zinc-300 hover:text-white cursor-pointer font-mono"
           title="Change playback speed"
         >
           {playbackRate}x
@@ -302,6 +302,16 @@ export const SUPPORTED_LANGUAGES: LanguageOption[] = [
   { code: 'pt-BR', label: 'Português (Portuguese)', short: 'Português', flag: '🇧🇷', greeting: 'Olá! Sou o seu tutor SmartSolve. Como posso te ajudar hoje?' },
   { code: 'zh-CN', label: '中文 (Mandarin)', short: '中文', flag: '🇨🇳', greeting: '你好！我是你的 SmartSolve 智能导师，今天有什么问题想解答？' },
 ];
+
+export interface AiSpeechState {
+  messageId: string;
+  sentences: string[];
+  currentIndex: number;
+  isPlaying: boolean;
+  isPaused: boolean;
+  playbackRate: number;
+  fullText: string;
+}
 
 export interface VoiceSettings {
   language: string;
@@ -475,6 +485,11 @@ export const AiChatAssistantView: React.FC<Props> = ({
   const [playingAttachmentUrl, setPlayingAttachmentUrl] = useState<string | null>(null);
   const messageAudioElementRef = useRef<HTMLAudioElement | null>(null);
 
+  // Synchronized AI Voice Playback State (Sentence-accurate seeking, -5s rewind, +5s forward)
+  const [aiSpeech, setAiSpeech] = useState<AiSpeechState | null>(null);
+  const aiSpeechRef = useRef<AiSpeechState | null>(null);
+  aiSpeechRef.current = aiSpeech;
+
   // Voice Settings & TTS State
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
@@ -511,7 +526,7 @@ export const AiChatAssistantView: React.FC<Props> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load available browser voices
+  // Load available browser voices & cleanup speech on unmount
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     const updateVoices = () => {
@@ -522,6 +537,12 @@ export const AiChatAssistantView: React.FC<Props> = ({
     };
     updateVoices();
     window.speechSynthesis.onvoiceschanged = updateVoices;
+
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
   }, []);
 
   // Auto-scroll on message updates
@@ -1186,47 +1207,93 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
     }
   };
 
-  // Text-to-Speech (speak aloud with gender and language matching)
-  const handleSpeakMessage = (msgId: string, text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    if (speakingMessageId === msgId) {
-      window.speechSynthesis.cancel();
-      setSpeakingMessageId(null);
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-
-    // Clean text and math formulas for natural, pleasant speech
-    const cleanSpeech = text
+  // Clean text and split into sentences for synchronized audio playback & seeking
+  const splitSpeechSentences = (rawText: string): string[] => {
+    const cleanSpeech = rawText
       .replace(/\$\$(.*?)\$\$/g, ' equation: $1 ')
       .replace(/\$(.*?)\$/g, ' $1 ')
       .replace(/\\frac\{(.*?)\}\{(.*?)\}/g, '$1 over $2')
       .replace(/\\sqrt\{(.*?)\}/g, 'square root of $1')
-      .replace(/\\times/g, 'times')
-      .replace(/\\div/g, 'divided by')
-      .replace(/\\pm/g, 'plus or minus')
-      .replace(/\\theta/g, 'theta')
-      .replace(/\\pi/g, 'pi')
+      .replace(/\\times/g, ' times ')
+      .replace(/\\div/g, ' divided by ')
+      .replace(/\\pm/g, ' plus or minus ')
+      .replace(/\\theta/g, ' theta ')
+      .replace(/\\pi/g, ' pi ')
       .replace(/\\boxed\{(.*?)\}/g, '$1')
-      .replace(/```[\s\S]*?```/g, 'Code block omitted for speech.')
+      .replace(/```[\s\S]*?```/g, 'Code block omitted.')
       .replace(/[*#_`]/g, '')
       .trim();
 
-    if (!cleanSpeech) return;
+    if (!cleanSpeech) return [];
 
-    const utterance = new SpeechSynthesisUtterance(cleanSpeech);
+    // Split on sentence-ending punctuation or line breaks
+    const rawChunks = cleanSpeech.split(/(?<=[.!?;\n])\s+/);
+    const result: string[] = [];
+
+    for (const chunk of rawChunks) {
+      const trimmed = chunk.trim();
+      if (trimmed.length > 0) {
+        // Break unusually long paragraphs into smaller clauses for snappy seeking
+        if (trimmed.length > 180) {
+          const subClauses = trimmed.split(/(?<=[,;])\s+/);
+          for (const sc of subClauses) {
+            const scTrimmed = sc.trim();
+            if (scTrimmed.length > 0) result.push(scTrimmed);
+          }
+        } else {
+          result.push(trimmed);
+        }
+      }
+    }
+
+    return result.length > 0 ? result : [cleanSpeech];
+  };
+
+  // Play a specific sentence in the sequence
+  const playAiSpeechSentence = (
+    msgId: string,
+    sentences: string[],
+    targetIndex: number,
+    rateOverride?: number
+  ) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    const validIndex = Math.max(0, Math.min(targetIndex, sentences.length - 1));
+    const sentence = sentences[validIndex];
+    if (!sentence) {
+      setAiSpeech(null);
+      setSpeakingMessageId(null);
+      return;
+    }
+
+    const currentRate =
+      rateOverride ?? aiSpeechRef.current?.playbackRate ?? voiceSettings.rate ?? 1.0;
+
+    // Cancel any active utterance before starting the next
+    window.speechSynthesis.cancel();
+
+    const updatedState: AiSpeechState = {
+      messageId: msgId,
+      sentences,
+      currentIndex: validIndex,
+      isPlaying: true,
+      isPaused: false,
+      playbackRate: currentRate,
+      fullText: sentences.join(' '),
+    };
+    aiSpeechRef.current = updatedState;
+    setAiSpeech(updatedState);
+    setSpeakingMessageId(msgId);
+
+    const utterance = new SpeechSynthesisUtterance(sentence);
     utterance.lang = voiceSettings.language || 'en-NG';
 
-    // Calibrate pitch and resonance based on chosen gender
     // Female voice: bright, clear, melodic (1.12x base pitch)
     // Male voice: deeper, resonant, articulate (0.86x base pitch)
     const isFemale = voiceSettings.gender === 'female';
     utterance.pitch = Math.max(0.6, Math.min(1.6, voiceSettings.pitch * (isFemale ? 1.12 : 0.86)));
-    utterance.rate = Math.max(0.7, Math.min(1.5, voiceSettings.rate));
+    utterance.rate = Math.max(0.7, Math.min(2.0, currentRate));
 
-    // Select the best matched device voice for the language and gender
     if (availableVoices.length > 0) {
       const bestVoice = findBestVoice(
         availableVoices,
@@ -1239,11 +1306,120 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       }
     }
 
-    utterance.onend = () => setSpeakingMessageId(null);
-    utterance.onerror = () => setSpeakingMessageId(null);
+    utterance.onend = () => {
+      const latest = aiSpeechRef.current;
+      if (latest && latest.messageId === msgId && latest.isPlaying && !latest.isPaused) {
+        if (validIndex + 1 < sentences.length) {
+          playAiSpeechSentence(msgId, sentences, validIndex + 1, currentRate);
+        } else {
+          setAiSpeech(null);
+          setSpeakingMessageId(null);
+        }
+      }
+    };
 
-    setSpeakingMessageId(msgId);
+    utterance.onerror = (e) => {
+      // Don't kill state on user interrupts (e.g. paused or jumped to next sentence)
+      if (e.error === 'interrupted' || e.error === 'canceled') {
+        return;
+      }
+      setAiSpeech(null);
+      setSpeakingMessageId(null);
+    };
+
     window.speechSynthesis.speak(utterance);
+  };
+
+  // Pause AI voice playback
+  const handlePauseAiSpeech = () => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    if (aiSpeechRef.current) {
+      const paused = { ...aiSpeechRef.current, isPlaying: false, isPaused: true };
+      aiSpeechRef.current = paused;
+      setAiSpeech(paused);
+    }
+  };
+
+  // Resume AI voice playback from the exact active sentence
+  const handleResumeAiSpeech = () => {
+    const current = aiSpeechRef.current;
+    if (!current) return;
+    playAiSpeechSentence(
+      current.messageId,
+      current.sentences,
+      current.currentIndex,
+      current.playbackRate
+    );
+  };
+
+  // Rewind / Backward (-5s / previous sentence)
+  const handleRewindAiSpeech = () => {
+    const current = aiSpeechRef.current;
+    if (!current) return;
+    const target = Math.max(0, current.currentIndex - 1);
+    playAiSpeechSentence(current.messageId, current.sentences, target, current.playbackRate);
+  };
+
+  // Forward / Fast-Forward (+5s / next sentence)
+  const handleForwardAiSpeech = () => {
+    const current = aiSpeechRef.current;
+    if (!current) return;
+    const target = Math.min(current.sentences.length - 1, current.currentIndex + 1);
+    playAiSpeechSentence(current.messageId, current.sentences, target, current.playbackRate);
+  };
+
+  // Stop AI voice playback
+  const handleStopAiSpeech = () => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    aiSpeechRef.current = null;
+    setAiSpeech(null);
+    setSpeakingMessageId(null);
+  };
+
+  // Cycle playback speed (1.0x -> 1.25x -> 1.5x -> 2.0x -> 0.8x -> 1.0x)
+  const handleCycleAiSpeechSpeed = () => {
+    const current = aiSpeechRef.current;
+    if (!current) return;
+    const speeds = [0.8, 1.0, 1.25, 1.5, 2.0];
+    const nextIdx = (speeds.indexOf(current.playbackRate) + 1) % speeds.length;
+    const newRate = speeds[nextIdx] || 1.0;
+
+    const updated = { ...current, playbackRate: newRate };
+    aiSpeechRef.current = updated;
+    setAiSpeech(updated);
+
+    if (current.isPlaying) {
+      playAiSpeechSentence(current.messageId, current.sentences, current.currentIndex, newRate);
+    }
+  };
+
+  // Seek directly to a sentence index
+  const handleSeekAiSpeech = (sentenceIndex: number) => {
+    const current = aiSpeechRef.current;
+    if (!current) return;
+    playAiSpeechSentence(current.messageId, current.sentences, sentenceIndex, current.playbackRate);
+  };
+
+  // Trigger speech on an AI message
+  const handleSpeakMessage = (msgId: string, text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    // If already active on this message, toggle play / pause
+    if (aiSpeechRef.current && aiSpeechRef.current.messageId === msgId) {
+      if (aiSpeechRef.current.isPlaying) {
+        handlePauseAiSpeech();
+      } else {
+        handleResumeAiSpeech();
+      }
+      return;
+    }
+
+    const sentences = splitSpeechSentences(text);
+    if (sentences.length === 0) return;
+
+    playAiSpeechSentence(msgId, sentences, 0, voiceSettings.rate);
   };
 
   // Play audio attachment in message bubble
@@ -1428,7 +1604,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
           <button
             type="button"
             onClick={handleCreateNewSession}
-            className="flex items-center space-x-1 text-xs text-[#22C55E] hover:underline font-semibold"
+            className="flex items-center space-x-1 text-xs text-white hover:text-zinc-300 hover:underline font-semibold"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>New Chat</span>
@@ -1456,9 +1632,9 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#1C1C22] hover:bg-[#27272A] text-white border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer shadow-sm group shrink-0"
               title="Open Chat History"
             >
-              <History className="w-4 h-4 text-[#22C55E] group-hover:rotate-[-20deg] transition-transform" />
-              <span className="text-xs font-bold">History</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-[#22C55E]/20 text-[#22C55E] text-[10px] font-mono font-bold">
+              <History className="w-4 h-4 text-white group-hover:rotate-[-20deg] transition-transform" />
+              <span className="text-xs font-bold text-white">History</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-[#22C55E]/20 text-white text-[10px] font-mono font-bold">
                 {sessions.length}
               </span>
             </button>
@@ -1468,7 +1644,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                 <h1 className="text-sm font-bold text-white truncate">
                   {activeSession?.title || 'SmartSolve Assistant'}
                 </h1>
-                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30">
+                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#22C55E]/15 text-white border border-[#22C55E]/30">
                   Multimodal
                 </span>
               </div>
@@ -1489,7 +1665,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               }}
               className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border flex items-center space-x-1.5 transition-all cursor-pointer ${
                 voiceSettings.autoSpeak
-                  ? 'bg-[#22C55E]/20 text-[#22C55E] border-[#22C55E]/40'
+                  ? 'bg-[#22C55E]/20 text-white border-[#22C55E]/40 font-bold'
                   : 'bg-[#18181B] text-zinc-400 hover:text-white border-[#27272A]'
               }`}
               title="Automatically read aloud AI replies"
@@ -1513,7 +1689,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               <span className="hidden sm:inline">
                 {SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.short || 'Nigerian'}
               </span>
-              <Sliders className="w-3 h-3 text-[#22C55E] ml-0.5" />
+              <Sliders className="w-3 h-3 text-white ml-0.5" />
             </button>
 
             {/* New Chat Button */}
@@ -1546,7 +1722,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                   className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 text-xs font-bold shadow-sm ${
                     isUser
                       ? 'bg-[#22C55E] text-white'
-                      : 'bg-[#1C1C22] text-[#22C55E] border border-[#22C55E]/40'
+                      : 'bg-[#1C1C22] text-white border border-[#22C55E]/40'
                   }`}
                 >
                   {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
@@ -1627,6 +1803,67 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                     <ChatMessageRenderer content={msg.content} isStreaming={msg.isStreaming} />
                   )}
 
+                  {/* Synchronized Voice Playback Indicator inside message bubble */}
+                  {aiSpeech && aiSpeech.messageId === msg.id && (
+                    <div className="mt-3 p-3 rounded-2xl bg-[#1C1C24] border border-[#22C55E]/40 shadow-sm space-y-2 animate-fadeIn">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-2 min-w-0 flex-1">
+                          <Volume2 className="w-4 h-4 text-white animate-pulse shrink-0" />
+                          <span className="font-bold text-white text-xs truncate">
+                            {aiSpeech.isPlaying ? 'Speaking aloud' : 'Speech paused'} (sentence {aiSpeech.currentIndex + 1}/{aiSpeech.sentences.length})
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-zinc-400 font-mono shrink-0 ml-1">
+                          {Math.round(((aiSpeech.currentIndex + 1) / aiSpeech.sentences.length) * 100)}%
+                        </span>
+                      </div>
+                      <div className="text-xs text-white bg-black/40 p-2.5 rounded-xl italic border border-white/5">
+                        "{aiSpeech.sentences[aiSpeech.currentIndex]}"
+                      </div>
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="flex items-center space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={handleRewindAiSpeech}
+                            disabled={aiSpeech.currentIndex === 0}
+                            className="px-2 py-1 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] disabled:opacity-30 text-white flex items-center space-x-0.5 text-[11px] font-mono cursor-pointer transition-colors"
+                            title="Rewind 5s / previous sentence"
+                          >
+                            <RotateCcw className="w-3 h-3 text-white" />
+                            <span>-5s</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={aiSpeech.isPlaying ? handlePauseAiSpeech : handleResumeAiSpeech}
+                            className="px-2.5 py-1 rounded-lg bg-[#22C55E] hover:bg-[#16A34A] text-white flex items-center space-x-1 text-xs font-bold cursor-pointer transition-colors"
+                            title={aiSpeech.isPlaying ? 'Pause' : 'Resume'}
+                          >
+                            {aiSpeech.isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                            <span>{aiSpeech.isPlaying ? 'Pause' : 'Play'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleForwardAiSpeech}
+                            disabled={aiSpeech.currentIndex >= aiSpeech.sentences.length - 1}
+                            className="px-2 py-1 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] disabled:opacity-30 text-white flex items-center space-x-0.5 text-[11px] font-mono cursor-pointer transition-colors"
+                            title="Forward 5s / next sentence"
+                          >
+                            <RotateCw className="w-3 h-3 text-white" />
+                            <span>+5s</span>
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleStopAiSpeech}
+                          className="px-2 py-1 rounded-lg bg-[#27272A] hover:bg-rose-500/20 text-zinc-300 hover:text-rose-400 text-xs font-semibold cursor-pointer transition-colors"
+                          title="Stop speaking"
+                        >
+                          Stop
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Actions Bar for Assistant Bubble */}
                   {!isUser && !msg.isStreaming && msg.id !== 'welcome-msg' && (
                     <div className="mt-4 pt-3 border-t border-[#27272A] flex items-center justify-between text-xs text-zinc-400">
@@ -1635,18 +1872,25 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                         <button
                           type="button"
                           onClick={() => handleSpeakMessage(msg.id, msg.content)}
-                          className="flex items-center space-x-1 px-2.5 py-1 rounded-lg hover:bg-[#27272A] text-zinc-300 hover:text-[#22C55E] transition-colors cursor-pointer"
-                          title={speakingMessageId === msg.id ? 'Stop Voice Note' : 'Listen to Voice'}
+                          className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg hover:bg-[#27272A] text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                          title={aiSpeech?.messageId === msg.id ? (aiSpeech.isPlaying ? 'Pause voice playback' : 'Resume voice playback') : 'Listen to Voice'}
                         >
-                          {speakingMessageId === msg.id ? (
-                            <>
-                              <VolumeX className="w-3.5 h-3.5 text-rose-400" />
-                              <span className="text-rose-400">Stop Voice</span>
-                            </>
+                          {aiSpeech?.messageId === msg.id ? (
+                            aiSpeech.isPlaying ? (
+                              <>
+                                <Pause className="w-3.5 h-3.5 text-white" />
+                                <span className="text-white font-bold">Pause</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-3.5 h-3.5 text-white" />
+                                <span className="text-white font-bold">Resume</span>
+                              </>
+                            )
                           ) : (
                             <>
-                              <Volume2 className="w-3.5 h-3.5 text-[#22C55E]" />
-                              <span>Listen</span>
+                              <Volume2 className="w-3.5 h-3.5 text-white" />
+                              <span className="text-white">Listen</span>
                             </>
                           )}
                         </button>
@@ -1723,11 +1967,135 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                   className="p-2.5 rounded-xl bg-[#141418] hover:bg-[#1C1C22] border border-[#27272A] text-left text-xs text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center justify-between group"
                 >
                   <span className="truncate">{q.label}</span>
-                  <span className="text-[10px] text-[#22C55E] group-hover:translate-x-0.5 transition-transform ml-2">
+                  <span className="text-[10px] text-white font-bold group-hover:translate-x-0.5 transition-transform ml-2">
                     Ask →
                   </span>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* DOCKED AI VOICE CONTROLS BAR (Mobile & Desktop with Rewind, Forward, Pause, Resume, Stop, Speed, & Scrub Slider) */}
+        {aiSpeech && (
+          <div className="bg-[#15151A] border-t border-[#27272A] p-3 sm:px-4 sm:py-3 shadow-2xl animate-fadeIn space-y-2.5">
+            <div className="flex items-center justify-between text-xs text-white">
+              <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                <div className="w-7 h-7 rounded-xl bg-[#22C55E]/20 border border-[#22C55E]/40 flex items-center justify-center shrink-0">
+                  {aiSpeech.isPlaying ? (
+                    <Volume2 className="w-4 h-4 text-white animate-pulse" />
+                  ) : (
+                    <Pause className="w-4 h-4 text-zinc-400" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-bold text-xs text-white">
+                      {aiSpeech.isPlaying ? 'AI Voice Speaking Aloud' : 'AI Voice Paused'}
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-mono">
+                      Sentence {aiSpeech.currentIndex + 1} of {aiSpeech.sentences.length}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 truncate italic max-w-md sm:max-w-xl">
+                    "{aiSpeech.sentences[aiSpeech.currentIndex]}"
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 shrink-0 ml-2">
+                {/* Playback Speed Cycle */}
+                <button
+                  type="button"
+                  onClick={handleCycleAiSpeechSpeed}
+                  className="px-2 py-1 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-white font-mono text-[11px] font-bold cursor-pointer transition-colors"
+                  title="Cycle playback speed (0.8x, 1x, 1.25x, 1.5x, 2x)"
+                >
+                  {aiSpeech.playbackRate.toFixed(1)}x
+                </button>
+                {/* Close / Stop */}
+                <button
+                  type="button"
+                  onClick={handleStopAiSpeech}
+                  className="p-1.5 rounded-lg bg-[#27272A] hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 transition-colors cursor-pointer"
+                  title="Stop voice playback"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrub Slider across sentences */}
+            <div className="flex items-center space-x-2">
+              <input
+                type="range"
+                min="0"
+                max={Math.max(0, aiSpeech.sentences.length - 1)}
+                value={aiSpeech.currentIndex}
+                onChange={(e) => handleSeekAiSpeech(parseInt(e.target.value, 10))}
+                className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#22C55E]"
+                aria-label="Seek AI voice playback backwards and forwards"
+              />
+            </div>
+
+            {/* AI Voice Playback Controls Row: Backward (-5s), Play/Pause, Forward (+5s), Stop */}
+            <div className="flex items-center justify-between pt-0.5">
+              <div className="flex items-center space-x-2">
+                {/* Backward / Rewind -5s (Previous sentence) */}
+                <button
+                  type="button"
+                  onClick={handleRewindAiSpeech}
+                  disabled={aiSpeech.currentIndex === 0}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#27272A] hover:bg-[#3F3F46] disabled:opacity-30 disabled:hover:bg-[#27272A] text-white flex items-center space-x-1 text-xs font-mono font-bold cursor-pointer transition-colors active:scale-95"
+                  title="Rewind to previous sentence (-5s)"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-white" />
+                  <span>-5s</span>
+                </button>
+
+                {/* Pause / Resume */}
+                <button
+                  type="button"
+                  onClick={aiSpeech.isPlaying ? handlePauseAiSpeech : handleResumeAiSpeech}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white flex items-center space-x-1.5 text-xs font-bold cursor-pointer transition-all shadow-md shadow-emerald-500/20 active:scale-95"
+                  title={aiSpeech.isPlaying ? 'Pause speech' : 'Resume speech'}
+                >
+                  {aiSpeech.isPlaying ? (
+                    <>
+                      <Pause className="w-3.5 h-3.5" />
+                      <span>Pause</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5" />
+                      <span>Resume</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Forward / Fast-Forward +5s (Next sentence) */}
+                <button
+                  type="button"
+                  onClick={handleForwardAiSpeech}
+                  disabled={aiSpeech.currentIndex >= aiSpeech.sentences.length - 1}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#27272A] hover:bg-[#3F3F46] disabled:opacity-30 disabled:hover:bg-[#27272A] text-white flex items-center space-x-1 text-xs font-mono font-bold cursor-pointer transition-colors active:scale-95"
+                  title="Fast forward to next sentence (+5s)"
+                >
+                  <RotateCw className="w-3.5 h-3.5 text-white" />
+                  <span>+5s</span>
+                </button>
+              </div>
+
+              {/* Stop button */}
+              <button
+                type="button"
+                onClick={handleStopAiSpeech}
+                className="px-3 py-1.5 rounded-xl bg-[#27272A] hover:bg-rose-500/20 text-zinc-300 hover:text-rose-400 flex items-center space-x-1.5 text-xs font-bold cursor-pointer transition-colors active:scale-95"
+                title="Stop voice playback"
+              >
+                <Square className="w-3 h-3 text-rose-400" />
+                <span>Stop</span>
+              </button>
             </div>
           </div>
         )}
@@ -1867,7 +2235,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2.5 rounded-xl bg-[#18181D] hover:bg-[#27272A] text-zinc-300 hover:text-[#22C55E] border border-[#27272A] transition-colors cursor-pointer"
+                  className="p-2.5 rounded-xl bg-[#18181D] hover:bg-[#27272A] text-zinc-300 hover:text-white border border-[#27272A] transition-colors cursor-pointer"
                   title="Upload Image (PNG, JPG, WEBP)"
                 >
                   <ImageIcon className="w-4 h-4" />
@@ -1877,7 +2245,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                 <button
                   type="button"
                   onClick={() => cameraInputRef.current?.click()}
-                  className="p-2.5 rounded-xl bg-[#18181D] hover:bg-[#27272A] text-zinc-300 hover:text-[#22C55E] border border-[#27272A] transition-colors cursor-pointer"
+                  className="p-2.5 rounded-xl bg-[#18181D] hover:bg-[#27272A] text-zinc-300 hover:text-white border border-[#27272A] transition-colors cursor-pointer"
                   title="Take Photo with Camera"
                 >
                   <Camera className="w-4 h-4" />
@@ -1887,7 +2255,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                 <button
                   type="button"
                   onClick={() => audioFileInputRef.current?.click()}
-                  className="p-2.5 rounded-xl bg-[#18181D] hover:bg-[#27272A] text-zinc-300 hover:text-[#22C55E] border border-[#27272A] transition-colors cursor-pointer hidden sm:block"
+                  className="p-2.5 rounded-xl bg-[#18181D] hover:bg-[#27272A] text-zinc-300 hover:text-white border border-[#27272A] transition-colors cursor-pointer hidden sm:block"
                   title="Upload Audio File (MP3, WAV, M4A, WebM)"
                 >
                   <FileAudio className="w-4 h-4" />
@@ -1897,7 +2265,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                 <button
                   type="button"
                   onClick={startVoiceRecording}
-                  className="p-2.5 rounded-xl bg-[#18181D] hover:bg-[#22C55E]/20 text-zinc-300 hover:text-[#22C55E] border border-[#27272A] transition-colors cursor-pointer"
+                  className="p-2.5 rounded-xl bg-[#18181D] hover:bg-[#22C55E]/20 text-zinc-300 hover:text-white border border-[#27272A] transition-colors cursor-pointer"
                   title="Record Spoken Voice Note"
                 >
                   <Mic className="w-4 h-4" />
@@ -2012,7 +2380,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                   }}
                   className={`py-3 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
                     voiceSettings.gender === 'female'
-                      ? 'bg-[#22C55E]/20 text-[#22C55E] border-[#22C55E] shadow-md shadow-emerald-500/10'
+                      ? 'bg-[#22C55E]/20 text-white border-[#22C55E] shadow-md shadow-emerald-500/10'
                       : 'bg-[#0A0A0C] text-zinc-400 hover:text-white border-[#27272A] hover:bg-[#18181D]'
                   }`}
                 >
@@ -2031,7 +2399,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                   }}
                   className={`py-3 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
                     voiceSettings.gender === 'male'
-                      ? 'bg-[#22C55E]/20 text-[#22C55E] border-[#22C55E] shadow-md shadow-emerald-500/10'
+                      ? 'bg-[#22C55E]/20 text-white border-[#22C55E] shadow-md shadow-emerald-500/10'
                       : 'bg-[#0A0A0C] text-zinc-400 hover:text-white border-[#27272A] hover:bg-[#18181D]'
                   }`}
                 >
@@ -2048,10 +2416,10 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-zinc-300 flex items-center space-x-1.5">
-                  <Globe className="w-3.5 h-3.5 text-[#22C55E]" />
+                  <Globe className="w-3.5 h-3.5 text-white" />
                   <span>Choose Language / Accent:</span>
                 </label>
-                <span className="text-[11px] text-[#22C55E] font-medium">
+                <span className="text-[11px] text-white font-semibold">
                   {SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.flag}{' '}
                   {SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.short}
                 </span>
@@ -2117,7 +2485,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-zinc-300">Speaking Speed:</span>
-                <span className="text-[#22C55E] font-mono">{voiceSettings.rate.toFixed(1)}x</span>
+                <span className="text-white font-mono font-bold">{voiceSettings.rate.toFixed(1)}x</span>
               </div>
               <input
                 type="range"

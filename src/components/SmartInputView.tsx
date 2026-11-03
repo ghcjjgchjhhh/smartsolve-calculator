@@ -51,7 +51,7 @@ export const SmartInputView: React.FC = () => {
       <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
         <div>
           <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E] font-bold text-xs uppercase tracking-wider">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#22C55E]/20 text-white font-bold text-xs uppercase tracking-wider">
               Smart Natural Language Processing
             </span>
           </div>
@@ -97,7 +97,7 @@ export const SmartInputView: React.FC = () => {
               <button
                 key={sample}
                 onClick={() => handleSelectSample(sample)}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 hover:text-[#22C55E] dark:hover:bg-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700"
+                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-900 hover:bg-white/10 hover:text-white dark:hover:bg-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700"
               >
                 {sample}
               </button>

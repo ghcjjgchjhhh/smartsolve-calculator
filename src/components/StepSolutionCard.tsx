@@ -174,9 +174,9 @@ Answer: ${solution.finalAnswer}
               ))}
             </div>
             {solution.whatIsRequired && (
-              <div className="pt-1 text-[#22C55E] flex items-center space-x-1.5">
+              <div className="pt-1 text-white flex items-center space-x-1.5">
                 <span className="font-bold text-[#A1A1AA]">Required:</span>
-                <span className="font-semibold">{solution.whatIsRequired}</span>
+                <span className="font-semibold text-white">{solution.whatIsRequired}</span>
               </div>
             )}
           </div>
@@ -211,7 +211,7 @@ Answer: ${solution.finalAnswer}
             )}
             {solution.tips && (
               <p className="leading-relaxed">
-                <span className="font-semibold text-[#22C55E]">Tip: </span>
+                <span className="font-semibold text-white">Tip: </span>
                 {solution.tips}
               </p>
             )}

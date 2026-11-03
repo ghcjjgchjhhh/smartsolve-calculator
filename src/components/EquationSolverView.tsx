@@ -149,7 +149,7 @@ export const EquationSolverView: React.FC = () => {
               <button
                 key={sample}
                 onClick={() => handleSelectSample(sample)}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-900 hover:bg-emerald-500/10 hover:text-emerald-500 dark:hover:bg-slate-700 text-xs font-mono font-semibold text-[#A1A1AA] transition-colors border border-[#27272A]"
+                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-900 hover:bg-white/10 hover:text-white dark:hover:bg-slate-700 text-xs font-mono font-semibold text-[#A1A1AA] transition-colors border border-[#27272A]"
               >
                 {sample}
               </button>
@@ -161,10 +161,10 @@ export const EquationSolverView: React.FC = () => {
         {analyzed && (
           <div className="p-4 bg-[#000000] rounded-xl border border-[#27272A] space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#22C55E]">
+              <span className="text-xs font-bold uppercase tracking-wider text-white">
                 Equation Type Detected:
               </span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 dark:bg-emerald-950 text-[#22C55E] capitalize">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#22C55E]/20 dark:bg-emerald-950 text-white capitalize">
                 {analyzed.type.replace('_', ' ')}
               </span>
             </div>

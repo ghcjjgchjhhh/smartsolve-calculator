@@ -29,8 +29,9 @@ import {
   ArrowLeft,
   MessageSquare,
 } from 'lucide-react';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 
-export default function App() {
+function MainApp() {
   const [activeTab, setActiveTab] = useState<string>(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -275,17 +276,7 @@ export default function App() {
   });
 
   const { isInstalled, canInstall, triggerInstall } = usePWAInstall();
-
-  // Dark mode state: default to dark (optimal for scientific calculators)
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('smartsolve_dark_mode');
-      if (saved !== null) return saved === 'true';
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    } catch {
-      return true;
-    }
-  });
+  const { isDark } = useTheme();
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -299,23 +290,6 @@ export default function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    try {
-      localStorage.setItem('smartsolve_dark_mode', darkMode.toString());
-    } catch (e) {
-      console.error(e);
-    }
-  }, [darkMode]);
-
-  const toggleDarkMode = () => {
-    setDarkMode((prev) => !prev);
-  };
 
   const handleSelectFromSearch = (tab: string) => {
     navigateTab(tab);
@@ -370,8 +344,6 @@ export default function App() {
 
       {/* Sticky Header */}
       <Header
-        darkMode={darkMode}
-        onToggleDarkMode={toggleDarkMode}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         activeTab={activeTab}
@@ -421,10 +393,10 @@ export default function App() {
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <button
               onClick={handleGoBack}
-              className="flex items-center space-x-1.5 text-xs font-bold text-[#22C55E] hover:text-[#4ADE80] bg-[#18181B] hover:bg-[#27272A] px-2.5 py-1 rounded-lg border border-[#22C55E]/30 transition-all active:scale-95 cursor-pointer shadow-sm"
+              className="flex items-center space-x-1.5 text-xs font-bold text-white bg-[#18181B] hover:bg-[#27272A] px-2.5 py-1 rounded-lg border border-[#27272A] transition-all active:scale-95 cursor-pointer shadow-sm"
               title="Slide from the left edge of your screen or tap here to go back"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-[#22C55E]" />
+              <ArrowLeft className="w-3.5 h-3.5 text-white" />
               <span>Back to {getTabName(tabHistory[tabHistory.length - 2])}</span>
             </button>
             <span className="text-[11px] text-[#71717A] hidden sm:inline">
@@ -545,19 +517,27 @@ export default function App() {
             {!isInstalled && (
               <button
                 onClick={() => setIsInstallModalOpen(true)}
-                className="text-[#22C55E] hover:text-[#4ADE80] font-bold hover:underline flex items-center space-x-1"
+                className="text-white hover:underline font-bold flex items-center space-x-1"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Install on Phone / PC</span>
               </button>
             )}
-            <span className="text-[#22C55E] font-semibold flex items-center space-x-1">
-              <Sparkles className="w-3 h-3 inline" />
+            <span className="text-zinc-300 font-semibold flex items-center space-x-1">
+              <Sparkles className="w-3 h-3 inline text-white" />
               <span>Fast & Offline Ready</span>
             </span>
           </div>
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <MainApp />
+    </ThemeProvider>
   );
 }

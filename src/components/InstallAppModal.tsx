@@ -305,7 +305,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </div>
                   <div>
                     <p className="font-semibold text-[#FFFFFF] flex items-center gap-1.5">
-                      Scroll down and tap <PlusSquare className="w-4 h-4 text-[#22C55E] inline" /> <span className="font-bold underline text-[#22C55E]">“Add to Home Screen”</span>
+                      Scroll down and tap <PlusSquare className="w-4 h-4 text-white inline" /> <span className="font-bold underline text-white">“Add to Home Screen”</span>
                     </p>
                     <p className="text-[#A1A1AA] text-xs mt-0.5">
                       If you don't see it, swipe down in the share sheet. Then tap <strong>“Add”</strong> in the top-right corner.
@@ -313,7 +313,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#22C55E]/10 border border-[#22C55E]/20 text-xs text-[#22C55E] flex items-center space-x-2">
+                <div className="p-3 rounded-xl bg-[#22C55E]/10 border border-[#22C55E]/20 text-xs text-white flex items-center space-x-2">
                   <CheckCircle2 className="w-4 h-4 shrink-0 text-[#22C55E]" />
                   <span>The app will appear with its icon on your iPhone home screen and run standalone!</span>
                 </div>

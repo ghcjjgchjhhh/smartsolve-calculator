@@ -371,7 +371,7 @@ export const MathHub: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-3 bg-slate-50 dark:bg-zinc-900/50 rounded-xl space-y-2 border border-[#27272A]">
-                <span className="text-xs font-bold text-emerald-500 uppercase">Equation 1</span>
+                <span className="text-xs font-bold text-white uppercase">Equation 1</span>
                 <div className="grid grid-cols-3 gap-2">
                   <input
                     type="number"
@@ -680,7 +680,7 @@ export const MathHub: React.FC = () => {
             </div>
 
             <div className="p-4 bg-slate-50 dark:bg-zinc-900/40 rounded-xl space-y-3">
-              <span className="text-xs font-bold text-emerald-500 uppercase">Arithmetic Progression (AP)</span>
+              <span className="text-xs font-bold text-white uppercase">Arithmetic Progression (AP)</span>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-slate-500 block mb-1">First term (a)</label>
@@ -840,7 +840,7 @@ export const MathHub: React.FC = () => {
             </div>
 
             <div className="p-4 bg-slate-50 dark:bg-zinc-900/40 rounded-xl space-y-3">
-              <span className="text-xs font-bold text-emerald-500 uppercase">Percentage Calculator</span>
+              <span className="text-xs font-bold text-white uppercase">Percentage Calculator</span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <select
                   value={pctType}
@@ -1060,7 +1060,7 @@ export const MathHub: React.FC = () => {
             </div>
 
             <div className="p-4 bg-slate-50 dark:bg-zinc-900/40 rounded-xl space-y-3">
-              <span className="text-xs font-bold text-emerald-500 uppercase">2x2 Matrix [[a, b], [c, d]]</span>
+              <span className="text-xs font-bold text-white uppercase">2x2 Matrix [[a, b], [c, d]]</span>
               <div className="grid grid-cols-2 gap-2 max-w-xs mx-auto">
                 <input
                   type="number"

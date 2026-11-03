@@ -235,7 +235,7 @@ export const ScientificCalculator: React.FC = () => {
             {errorMsg ? (
               <span className="text-[#EF4444] text-xs sm:text-sm font-sans font-medium">{errorMsg}</span>
             ) : previewResult ? (
-              <span className="text-[#22C55E] flex items-center space-x-1 font-bold">
+              <span className="text-white flex items-center space-x-1 font-bold">
                 <span className="text-xs text-[#A1A1AA] mr-1 font-normal">=</span> {previewResult}
               </span>
             ) : (
@@ -260,7 +260,7 @@ export const ScientificCalculator: React.FC = () => {
                 className={`px-3 py-1 rounded-xl font-bold text-xs sm:text-sm border transition-all cursor-pointer shadow-xs active:scale-95 ${
                   expression === val.toString()
                     ? 'bg-[#22C55E] text-[#FFFFFF] border-[#22C55E] shadow-emerald-500/30'
-                    : 'bg-[#18181B] text-[#FFFFFF] border-[#27272A] hover:border-[#22C55E]/60 hover:text-[#22C55E]'
+                    : 'bg-[#18181B] text-[#FFFFFF] border-[#27272A] hover:border-[#22C55E]/60 hover:text-white'
                 }`}
                 title={`Set calculator value directly to ${val}`}
               >

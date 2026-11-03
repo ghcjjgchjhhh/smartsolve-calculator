@@ -136,13 +136,13 @@ export const PhysicsHub: React.FC = () => {
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-[#FFFFFF] mt-1">{f.name}</h4>
-                  <div className="text-xs font-mono font-semibold text-[#22C55E] mt-0.5">
+                  <div className="text-xs font-mono font-semibold text-white mt-0.5">
                     {f.baseFormula}
                   </div>
                 </div>
                 <ArrowRight
                   className={`w-4 h-4 mt-1 transition-transform ${
-                    isSelected ? 'text-emerald-500 translate-x-0.5' : 'text-slate-300 dark:text-slate-600'
+                    isSelected ? 'text-white translate-x-0.5' : 'text-slate-300 dark:text-slate-600'
                   }`}
                 />
               </button>
@@ -162,7 +162,7 @@ export const PhysicsHub: React.FC = () => {
             {/* Header */}
             <div>
               <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#22C55E]">
+                <span className="text-xs font-bold uppercase tracking-wider text-white">
                   {currentFormula.category}
                 </span>
               </div>
@@ -173,7 +173,7 @@ export const PhysicsHub: React.FC = () => {
             {/* Base Formula Banner */}
             <div className="p-3.5 bg-[#000000] rounded-xl border border-[#27272A] flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-[#22C55E] uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider block">
                   Base Formula
                 </span>
                 <span className="text-lg font-black text-[#FFFFFF] math-display">
@@ -239,7 +239,7 @@ export const PhysicsHub: React.FC = () => {
                       </div>
 
                       {isTarget ? (
-                        <div className="py-2 text-xs font-bold text-[#22C55E] italic">
+                        <div className="py-2 text-xs font-bold text-white italic">
                           Unknown to calculate →
                         </div>
                       ) : (

@@ -1208,7 +1208,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">1</span>
                 <span>Select Examination Target</span>
               </span>
-              <span className="text-[11px] text-[#22C55E] font-medium">JAMB · WAEC · JUPEB · University</span>
+              <span className="text-[11px] text-white font-medium">JAMB · WAEC · JUPEB · University</span>
             </label>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
               {[
@@ -1462,7 +1462,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
           <div className="space-y-1 pt-1">
             <div className="flex items-center justify-between text-[11px] text-[#A1A1AA]">
               <span className="font-bold text-[#FFFFFF]">Recommended Syllabus Topics:</span>
-              <span className="text-[#22C55E]">Tap any topic to set fresh questions instantly</span>
+              <span className="text-white font-medium">Tap any topic to set fresh questions instantly</span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {(topicPresets[effectiveSubject] || topicPresets[aiSubject] || topicPresets['Literature'] || []).map((preset) => (
@@ -1475,7 +1475,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                   }}
                   className={`px-2.5 py-1 rounded-lg text-xs transition-all cursor-pointer active:scale-95 ${
                     aiTopic === preset
-                      ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40 font-bold'
+                      ? 'bg-[#22C55E]/20 text-white border border-[#22C55E]/40 font-bold'
                       : 'bg-[#000000] text-[#A1A1AA] border border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/40'
                   }`}
                   title={`Tap to generate fresh questions on: ${preset}`}
@@ -1658,7 +1658,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
               </span>
               <span className="flex items-center space-x-1">
                 <span className="w-2.5 h-2.5 rounded-full ring-2 ring-[#22C55E] bg-black inline-block"></span>
-                <span className="text-[#22C55E] font-semibold">Q{currentIndex + 1} Current</span>
+                <span className="text-white font-semibold">Q{currentIndex + 1} Current</span>
               </span>
             </div>
           </div>
@@ -1672,9 +1672,9 @@ Respond with ONLY a valid JSON object matching this exact structure:
               if (isCurrent) {
                 style = isAnswered
                   ? 'bg-[#22C55E] text-[#FFFFFF] font-black ring-2 ring-white ring-offset-2 ring-offset-black scale-105'
-                  : 'bg-[#18181B] text-[#22C55E] font-black ring-2 ring-[#22C55E] ring-offset-1 ring-offset-black scale-105';
+                  : 'bg-[#18181B] text-white font-black ring-2 ring-[#22C55E] ring-offset-1 ring-offset-black scale-105';
               } else if (isAnswered) {
-                style = 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/50 font-bold';
+                style = 'bg-[#22C55E]/20 text-white border border-[#22C55E]/50 font-bold';
               }
 
               return (
@@ -1980,9 +1980,9 @@ Respond with ONLY a valid JSON object matching this exact structure:
                       const fullQ = `[Deep AI Derivation Request]\nQuestion: ${currentQ.question}\nOptions:\nA: ${currentQ.options.A}\nB: ${currentQ.options.B}\nC: ${currentQ.options.C}\nD: ${currentQ.options.D}\nCorrect Answer: Option ${currentQ.correctAnswer}\n\nPlease explain alternative derivation methods and in-depth conceptual breakdown.`;
                       onOpenInGemini(fullQ, currentQ.subject);
                     }}
-                    className="text-xs text-[#22C55E] hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                    className="text-xs text-white hover:underline flex items-center space-x-1 cursor-pointer font-bold"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Sparkles className="w-3.5 h-3.5 text-white" />
                     <span>AI Deep Explanation</span>
                   </button>
                 )}
@@ -2059,7 +2059,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                   )}
                   {currentQ.examTip && (
                     <p className="leading-relaxed">
-                      <span className="font-bold text-[#22C55E]">Exam Trap & Tip: </span>
+                      <span className="font-bold text-white">Exam Trap & Tip: </span>
                       {currentQ.examTip}
                     </p>
                   )}
@@ -2178,7 +2178,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider block">
                   Percentage
                 </span>
-                <div className="text-2xl font-black text-[#22C55E] mt-1 font-mono">
+                <div className="text-2xl font-black text-white mt-1 font-mono">
                   {scorePercent}%
                 </div>
               </div>
