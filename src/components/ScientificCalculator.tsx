@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { evaluateExpression, formatNum } from '../services/mathEngine';
 import { StepSolutionCard } from './StepSolutionCard';
-import { StepSolution } from '../types';
-import { saveToHistory } from '../services/historyStorage';
-import { Delete, Equal } from 'lucide-react';
+import { StepSolution, HistoryItem } from '../types';
+import { saveToHistory, getHistory } from '../services/historyStorage';
+import { Delete, Equal, History } from 'lucide-react';
 
-export const ScientificCalculator: React.FC = () => {
+interface Props {
+  onOpenHistory?: () => void;
+}
+
+export const ScientificCalculator: React.FC<Props> = ({ onOpenHistory }) => {
   const [expression, setExpression] = useState<string>('');
   const [angleMode, setAngleMode] = useState<'deg' | 'rad'>('deg');
   const [isShift, setIsShift] = useState<boolean>(false);
@@ -13,7 +17,27 @@ export const ScientificCalculator: React.FC = () => {
   const [lastSolution, setLastSolution] = useState<StepSolution | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [calcMode, setCalcMode] = useState<'standard' | 'scientific'>('standard');
+  const [recentHistory, setRecentHistory] = useState<HistoryItem[]>([]);
+  const [historyCount, setHistoryCount] = useState<number>(0);
   const displayEndRef = useRef<HTMLDivElement>(null);
+
+  const refreshHistory = () => {
+    try {
+      const all = getHistory();
+      setHistoryCount(all.length);
+      setRecentHistory(all.slice(0, 4));
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    refreshHistory();
+    window.addEventListener('smartsolve_history_changed', refreshHistory);
+    return () => {
+      window.removeEventListener('smartsolve_history_changed', refreshHistory);
+    };
+  }, []);
 
   // Auto-scroll display to the end as user types
   useEffect(() => {
@@ -178,8 +202,24 @@ export const ScientificCalculator: React.FC = () => {
             </button>
           </div>
 
-          {/* Angle Mode & 2nd INV toggles */}
+          {/* Angle Mode, 2nd INV & History toggles */}
           <div className="flex items-center space-x-1.5">
+            {/* Direct In-Calculator History Button */}
+            <button
+              type="button"
+              onClick={() => onOpenHistory?.()}
+              className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer bg-[#18181B] text-[#FFFFFF] border-[#27272A] hover:border-[#22C55E]/60 active:scale-95 shadow-xs"
+              title="Open calculation history"
+            >
+              <History className="w-3.5 h-3.5 text-[#22C55E]" />
+              <span className="hidden xs:inline">History</span>
+              {historyCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-[#22C55E] text-white text-[10px] font-extrabold">
+                  {historyCount}
+                </span>
+              )}
+            </button>
+
             <button
               onClick={() => {
                 triggerHaptic();
@@ -269,6 +309,44 @@ export const ScientificCalculator: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* Recent Calculations Strip (live in-app history access) */}
+        {recentHistory.length > 0 && (
+          <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-2.5 mb-3 shadow-inner">
+            <div className="flex items-center justify-between text-[11px] font-bold text-[#A1A1AA] mb-1.5 px-1">
+              <span className="flex items-center space-x-1.5">
+                <History className="w-3 h-3 text-[#22C55E]" />
+                <span>Recent Calculations:</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => onOpenHistory?.()}
+                className="text-[#22C55E] hover:underline font-bold text-[11px] cursor-pointer"
+              >
+                View All ({historyCount}) →
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+              {recentHistory.map((h) => (
+                <button
+                  key={h.id}
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic();
+                    handleSetValue(h.finalAnswer);
+                  }}
+                  className="flex-shrink-0 px-2.5 py-1 rounded-xl bg-[#18181B] hover:bg-[#27272A] border border-[#27272A] hover:border-[#22C55E]/60 text-xs font-mono transition-all text-left flex items-center space-x-1.5 cursor-pointer group active:scale-95"
+                  title={`Tap to load answer (${h.finalAnswer}) into calculator`}
+                >
+                  <span className="text-[#A1A1AA] group-hover:text-white max-w-[130px] truncate">
+                    {h.problemStatement || h.title}
+                  </span>
+                  <span className="text-[#22C55E] font-bold">= {h.finalAnswer}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Keypad Section (White, Black, and Emerald Green) */}
         {calcMode === 'standard' ? (

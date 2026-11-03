@@ -191,86 +191,221 @@ button, a, input, select, textarea, label, [role="button"] {
 /* ========================================================
    LIGHT MODE ADAPTIVE OVERRIDES (Automatic System & Manual)
    ======================================================== */
-html:not(.dark) {
+html.light,
+html.light body,
+html:not(.dark),
+html:not(.dark) body,
+[data-theme="light"],
+[data-theme="light"] body {
   background-color: #F8FAFC !important;
   color: #0F172A !important;
 }
 
-html:not(.dark) body {
-  background-color: #F8FAFC !important;
-  color: #0F172A !important;
-}
-
-/* Root layout surfaces */
+/* Primary Page Backdrops */
+html.light .bg-\[\#000000\],
 html:not(.dark) .bg-\[\#000000\],
-html:not(.dark) .bg-black {
+[data-theme="light"] .bg-\[\#000000\],
+html.light .bg-black,
+html:not(.dark) .bg-black,
+[data-theme="light"] .bg-black {
   background-color: #F8FAFC !important;
 }
 
+/* Card & Modal Containers (Clean Crisp White in Light Mode) */
+html.light .bg-\[\#0A0A0A\],
 html:not(.dark) .bg-\[\#0A0A0A\],
+[data-theme="light"] .bg-\[\#0A0A0A\],
+html.light .bg-\[\#0A0A0C\],
 html:not(.dark) .bg-\[\#0A0A0C\],
-html:not(.dark) .bg-\[\#0D0D0E\] {
+[data-theme="light"] .bg-\[\#0A0A0C\],
+html.light .bg-\[\#0D0D0E\],
+html:not(.dark) .bg-\[\#0D0D0E\],
+[data-theme="light"] .bg-\[\#0D0D0E\],
+html.light .bg-\[\#0E0E12\],
+html:not(.dark) .bg-\[\#0E0E12\],
+[data-theme="light"] .bg-\[\#0E0E12\],
+html.light .bg-\[\#0F0F12\],
+html:not(.dark) .bg-\[\#0F0F12\],
+[data-theme="light"] .bg-\[\#0F0F12\] {
   background-color: #FFFFFF !important;
 }
 
+/* Secondary Panels, Inputs & Inner Cards */
+html.light .bg-\[\#111115\],
 html:not(.dark) .bg-\[\#111115\],
+[data-theme="light"] .bg-\[\#111115\],
+html.light .bg-\[\#121216\],
 html:not(.dark) .bg-\[\#121216\],
+[data-theme="light"] .bg-\[\#121216\],
+html.light .bg-\[\#141418\],
 html:not(.dark) .bg-\[\#141418\],
+[data-theme="light"] .bg-\[\#141418\],
+html.light .bg-\[\#151518\],
+html:not(.dark) .bg-\[\#151518\],
+[data-theme="light"] .bg-\[\#151518\],
+html.light .bg-\[\#15151A\],
+html:not(.dark) .bg-\[\#15151A\],
+[data-theme="light"] .bg-\[\#15151A\],
+html.light .bg-\[\#16161B\],
+html:not(.dark) .bg-\[\#16161B\],
+[data-theme="light"] .bg-\[\#16161B\],
+html.light .bg-\[\#18181B\],
 html:not(.dark) .bg-\[\#18181B\],
+[data-theme="light"] .bg-\[\#18181B\],
+html.light .bg-\[\#18181D\],
 html:not(.dark) .bg-\[\#18181D\],
+[data-theme="light"] .bg-\[\#18181D\],
+html.light .bg-\[\#1C1C20\],
 html:not(.dark) .bg-\[\#1C1C20\],
+[data-theme="light"] .bg-\[\#1C1C20\],
+html.light .bg-\[\#1C1C22\],
 html:not(.dark) .bg-\[\#1C1C22\],
-html:not(.dark) .bg-\[\#27272A\] {
+[data-theme="light"] .bg-\[\#1C1C22\],
+html.light .bg-\[\#1C1C24\],
+html:not(.dark) .bg-\[\#1C1C24\],
+[data-theme="light"] .bg-\[\#1C1C24\],
+html.light .bg-\[\#1F1F26\],
+html:not(.dark) .bg-\[\#1F1F26\],
+[data-theme="light"] .bg-\[\#1F1F26\],
+html.light .bg-\[\#27272A\],
+html:not(.dark) .bg-\[\#27272A\],
+[data-theme="light"] .bg-\[\#27272A\] {
   background-color: #F1F5F9 !important;
 }
 
 /* Border overrides */
+html.light .border-\[\#27272A\],
 html:not(.dark) .border-\[\#27272A\],
-html:not(.dark) .border-\[\#3F3F46\] {
+[data-theme="light"] .border-\[\#27272A\],
+html.light .border-\[\#3F3F46\],
+html:not(.dark) .border-\[\#3F3F46\],
+[data-theme="light"] .border-\[\#3F3F46\],
+html.light .border-white\/10,
+html:not(.dark) .border-white\/10,
+[data-theme="light"] .border-white\/10,
+html.light .border-white\/5,
+html:not(.dark) .border-white\/5,
+[data-theme="light"] .border-white\/5 {
   border-color: #E2E8F0 !important;
 }
 
-/* Text overrides in Light Mode */
+/* Primary Text overrides in Light Mode */
+html.light .text-\[\#FFFFFF\],
 html:not(.dark) .text-\[\#FFFFFF\],
-html:not(.dark) .text-white {
+[data-theme="light"] .text-\[\#FFFFFF\],
+html.light .text-white,
+html:not(.dark) .text-white,
+[data-theme="light"] .text-white {
   color: #0F172A !important;
 }
 
+/* Secondary & Muted Text in Light Mode */
+html.light .text-\[\#F4F4F5\],
 html:not(.dark) .text-\[\#F4F4F5\],
+[data-theme="light"] .text-\[\#F4F4F5\],
+html.light .text-\[\#E4E4E7\],
 html:not(.dark) .text-\[\#E4E4E7\],
-html:not(.dark) .text-\[\#D4D4D8\] {
-  color: #334155 !important;
+[data-theme="light"] .text-\[\#E4E4E7\],
+html.light .text-\[\#D4D4D8\],
+html:not(.dark) .text-\[\#D4D4D8\],
+[data-theme="light"] .text-\[\#D4D4D8\] {
+  color: #1E293B !important;
 }
 
+html.light .text-\[\#A1A1AA\],
 html:not(.dark) .text-\[\#A1A1AA\],
-html:not(.dark) .text-\[\#71717A\] {
+[data-theme="light"] .text-\[\#A1A1AA\],
+html.light .text-\[\#71717A\],
+html:not(.dark) .text-\[\#71717A\],
+[data-theme="light"] .text-\[\#71717A\],
+html.light .text-zinc-400,
+html:not(.dark) .text-zinc-400,
+[data-theme="light"] .text-zinc-400,
+html.light .text-zinc-500,
+html:not(.dark) .text-zinc-500,
+[data-theme="light"] .text-zinc-500 {
   color: #64748B !important;
 }
 
-/* Preserve White Text on Solid Emerald/Green and Red Action Buttons */
+/* Preserve White Text on Solid Emerald & Action Buttons */
+html.light .bg-\[\#22C55E\],
 html:not(.dark) .bg-\[\#22C55E\],
+[data-theme="light"] .bg-\[\#22C55E\],
+html.light .bg-\[\#16A34A\],
 html:not(.dark) .bg-\[\#16A34A\],
+[data-theme="light"] .bg-\[\#16A34A\],
+html.light .bg-\[\#EF4444\],
 html:not(.dark) .bg-\[\#EF4444\],
+[data-theme="light"] .bg-\[\#EF4444\],
+html.light .bg-\[\#DC2626\],
 html:not(.dark) .bg-\[\#DC2626\],
+[data-theme="light"] .bg-\[\#DC2626\],
+html.light .bg-emerald-500,
 html:not(.dark) .bg-emerald-500,
+[data-theme="light"] .bg-emerald-500,
+html.light .bg-emerald-600,
 html:not(.dark) .bg-emerald-600,
+[data-theme="light"] .bg-emerald-600,
+html.light .bg-rose-500,
+html:not(.dark) .bg-rose-500,
+[data-theme="light"] .bg-rose-500,
+html.light .bg-rose-600,
+html:not(.dark) .bg-rose-600,
+[data-theme="light"] .bg-rose-600,
+html.light button.bg-\[\#22C55E\],
 html:not(.dark) button.bg-\[\#22C55E\],
+[data-theme="light"] button.bg-\[\#22C55E\],
+html.light button.bg-\[\#EF4444\],
 html:not(.dark) button.bg-\[\#EF4444\],
+[data-theme="light"] button.bg-\[\#EF4444\],
+html.light .bg-\[\#22C55E\] span,
 html:not(.dark) .bg-\[\#22C55E\] span,
+[data-theme="light"] .bg-\[\#22C55E\] span,
+html.light .bg-\[\#22C55E\] p,
 html:not(.dark) .bg-\[\#22C55E\] p,
+[data-theme="light"] .bg-\[\#22C55E\] p,
+html.light .bg-\[\#EF4444\] span,
 html:not(.dark) .bg-\[\#EF4444\] span,
-html:not(.dark) .bg-\[\#EF4444\] p {
+[data-theme="light"] .bg-\[\#EF4444\] span,
+html.light .bg-\[\#EF4444\] p,
+html:not(.dark) .bg-\[\#EF4444\] p,
+[data-theme="light"] .bg-\[\#EF4444\] p {
   color: #FFFFFF !important;
 }
 
-/* Light mode input & textarea elements */
+/* Light mode form controls */
+html.light input,
 html:not(.dark) input,
+[data-theme="light"] input,
+html.light textarea,
 html:not(.dark) textarea,
-html:not(.dark) select {
+[data-theme="light"] textarea,
+html.light select,
+html:not(.dark) select,
+[data-theme="light"] select {
+  color: #0F172A !important;
+  background-color: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+}
+
+html.light input::placeholder,
+html:not(.dark) input::placeholder,
+[data-theme="light"] input::placeholder,
+html.light textarea::placeholder,
+html:not(.dark) textarea::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+/* KaTeX in Light Mode */
+html.light .katex,
+html:not(.dark) .katex,
+[data-theme="light"] .katex {
   color: #0F172A !important;
 }
 
-html:not(.dark) input::placeholder,
-html:not(.dark) textarea::placeholder {
-  color: #94A3B8 !important;
+html.light .katex .fbox,
+html:not(.dark) .katex .fbox,
+[data-theme="light"] .katex .fbox {
+  border-color: #0F172A !important;
 }

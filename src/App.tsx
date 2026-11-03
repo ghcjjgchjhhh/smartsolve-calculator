@@ -333,7 +333,11 @@ function MainApp() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#000000] text-[#FFFFFF] flex flex-col font-sans">
+    <div
+      className={`min-h-screen w-full flex flex-col font-sans transition-colors duration-200 ${
+        isDark ? 'bg-[#000000] text-[#FFFFFF]' : 'bg-[#F8FAFC] text-[#0F172A]'
+      }`}
+    >
       {/* Offline Status Toast */}
       {!isOnline && (
         <div className="bg-[#EF4444] text-[#FFFFFF] text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center space-x-2">
@@ -351,7 +355,11 @@ function MainApp() {
       />
 
       {/* Main Tab Navigation Ribbon */}
-      <div className="bg-[#0A0A0A] border-b border-[#27272A] sticky top-16 sm:top-18 z-30 shadow-sm">
+      <div
+        className={`border-b sticky top-16 sm:top-18 z-30 shadow-xs transition-colors ${
+          isDark ? 'bg-[#0A0A0A] border-[#27272A]' : 'bg-white border-slate-200'
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto py-2.5 scrollbar-none">
             {navigationTabs.map((tab) => {
@@ -364,7 +372,9 @@ function MainApp() {
                   className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
                     isActive
                       ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-md shadow-emerald-500/25 scale-[1.02]'
-                      : 'text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#18181B]'
+                      : isDark
+                      ? 'text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#18181B]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -374,7 +384,9 @@ function MainApp() {
                       className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
                         isActive
                           ? 'bg-black/25 text-[#FFFFFF]'
-                          : 'bg-[#18181B] text-[#A1A1AA]'
+                          : isDark
+                          ? 'bg-[#18181B] text-[#A1A1AA]'
+                          : 'bg-slate-200 text-slate-700'
                       }`}
                     >
                       {tab.badge}
@@ -389,17 +401,25 @@ function MainApp() {
 
       {/* Back Navigation Bar (shown when user navigated from another tab or feature) */}
       {tabHistory.length > 1 && (
-        <div className="bg-[#0D0D0E] border-b border-[#27272A] px-4 py-1.5 transition-all">
+        <div
+          className={`border-b px-4 py-1.5 transition-all ${
+            isDark ? 'bg-[#0D0D0E] border-[#27272A]' : 'bg-white border-slate-200'
+          }`}
+        >
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <button
               onClick={handleGoBack}
-              className="flex items-center space-x-1.5 text-xs font-bold text-white bg-[#18181B] hover:bg-[#27272A] px-2.5 py-1 rounded-lg border border-[#27272A] transition-all active:scale-95 cursor-pointer shadow-sm"
+              className={`flex items-center space-x-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border transition-all active:scale-95 cursor-pointer shadow-sm ${
+                isDark
+                  ? 'bg-[#18181B] hover:bg-[#27272A] text-white border-[#27272A]'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300'
+              }`}
               title="Slide from the left edge of your screen or tap here to go back"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-white" />
+              <ArrowLeft className={`w-3.5 h-3.5 ${isDark ? 'text-white' : 'text-slate-900'}`} />
               <span>Back to {getTabName(tabHistory[tabHistory.length - 2])}</span>
             </button>
-            <span className="text-[11px] text-[#71717A] hidden sm:inline">
+            <span className={`text-[11px] hidden sm:inline ${isDark ? 'text-[#71717A]' : 'text-slate-500'}`}>
               Slide from left screen edge or tap back to return
             </span>
           </div>
@@ -408,16 +428,20 @@ function MainApp() {
 
       {/* Mobile Install Promotion Banner (if not installed and not dismissed) */}
       {!isInstalled && !isBannerDismissed && (
-        <div className="bg-[#0A0A0A] text-[#FFFFFF] px-4 py-2.5 border-b border-[#27272A]">
+        <div
+          className={`px-4 py-2.5 border-b transition-colors ${
+            isDark ? 'bg-[#0A0A0A] text-[#FFFFFF] border-[#27272A]' : 'bg-slate-100 text-slate-900 border-slate-200'
+          }`}
+        >
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center space-x-2.5 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-[#22C55E]/15 border border-[#22C55E]/30 flex items-center justify-center flex-shrink-0">
                 <Smartphone className="w-4 h-4 text-[#22C55E]" />
               </div>
-              <div className="text-xs truncate text-[#A1A1AA]">
-                <span className="font-bold text-[#FFFFFF]">Install as Phone App:</span>{' '}
-                <span className="text-[#A1A1AA] hidden sm:inline">Add to home screen for fullscreen solver without browser bars!</span>
-                <span className="text-[#A1A1AA] sm:hidden">Add to home screen!</span>
+              <div className={`text-xs truncate ${isDark ? 'text-[#A1A1AA]' : 'text-slate-600'}`}>
+                <span className={`font-bold ${isDark ? 'text-[#FFFFFF]' : 'text-slate-900'}`}>Install as Phone App:</span>{' '}
+                <span className={`${isDark ? 'text-[#A1A1AA]' : 'text-slate-600'} hidden sm:inline`}>Add to home screen for fullscreen solver without browser bars!</span>
+                <span className={`${isDark ? 'text-[#A1A1AA]' : 'text-slate-600'} sm:hidden`}>Add to home screen!</span>
               </div>
             </div>
             <div className="flex items-center space-x-2 flex-shrink-0">
@@ -431,7 +455,7 @@ function MainApp() {
               <button
                 onClick={handleDismissBanner}
                 aria-label="Dismiss banner"
-                className="p-1 rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-white/10"
+                className={`p-1 rounded-lg ${isDark ? 'text-[#A1A1AA] hover:text-[#FFFFFF]' : 'text-slate-500 hover:text-slate-900'} hover:bg-black/10`}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -443,7 +467,7 @@ function MainApp() {
       {/* Main Content Area: Preserved tabs keep DOM state intact across navigation */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
         <div className={activeTab === 'scientific' ? 'block' : 'hidden'}>
-          <ScientificCalculator />
+          <ScientificCalculator onOpenHistory={() => setIsHistoryOpen(true)} />
         </div>
         <div className={activeTab === 'ai_chat' ? 'block' : 'hidden'}>
           <AiChatAssistantView />
