@@ -23,10 +23,28 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index-CV2jEf6C.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-4RiELokk.css">
+    <script>
+      (function() {
+        try {
+          var pref = localStorage.getItem('smartsolve_theme_preference');
+          var isDark = pref === 'dark' || ((!pref || pref === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var root = document.documentElement;
+          if (isDark) {
+            root.classList.add('dark');
+            root.setAttribute('data-theme', 'dark');
+            root.style.colorScheme = 'dark';
+          } else {
+            root.classList.add('light');
+            root.setAttribute('data-theme', 'light');
+            root.style.colorScheme = 'light';
+          }
+        } catch(e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index-C5SVRenf.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-edJMuif_.css">
   </head>
-  <body class="bg-[#000000] text-[#FFFFFF]">
+  <body class="transition-colors duration-200">
     <div id="root"></div>
     <script>
       if ('serviceWorker' in navigator) {
