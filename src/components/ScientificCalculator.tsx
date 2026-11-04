@@ -3,22 +3,55 @@ import { evaluateExpression, formatNum } from '../services/mathEngine';
 import { StepSolutionCard } from './StepSolutionCard';
 import { StepSolution, HistoryItem } from '../types';
 import { saveToHistory, getHistory } from '../services/historyStorage';
-import { Delete, Equal, History } from 'lucide-react';
+import { useAppLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
+import {
+  History,
+  Delete,
+  Menu,
+  Sparkles,
+  Palette,
+  Sigma,
+  Settings,
+  Camera,
+  MoreHorizontal,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 
 interface Props {
   onOpenHistory?: () => void;
+  onOpenSearch?: () => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
-export const ScientificCalculator: React.FC<Props> = ({ onOpenHistory }) => {
+export const ScientificCalculator: React.FC<Props> = ({
+  onOpenHistory,
+  onOpenSearch,
+  onNavigateTab,
+}) => {
+  const { t, setIsLanguageModalOpen } = useAppLanguage();
+  const { resolvedTheme } = useTheme();
+
   const [expression, setExpression] = useState<string>('');
+  const [previousExpression, setPreviousExpression] = useState<string>('6 ÷ 9');
+  const [lastResultStr, setLastResultStr] = useState<string>('0.666 666 666 67');
   const [angleMode, setAngleMode] = useState<'deg' | 'rad'>('deg');
   const [isShift, setIsShift] = useState<boolean>(false);
+  const [isAlpha, setIsAlpha] = useState<boolean>(false);
+  const [isHyp, setIsHyp] = useState<boolean>(false);
+  const [is2nd, setIs2nd] = useState<boolean>(false);
+  const [memoryVal, setMemoryVal] = useState<number>(0);
+  const [hasMemory, setHasMemory] = useState<boolean>(false);
   const [previewResult, setPreviewResult] = useState<string>('');
   const [lastSolution, setLastSolution] = useState<StepSolution | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [calcMode, setCalcMode] = useState<'standard' | 'scientific'>('standard');
   const [recentHistory, setRecentHistory] = useState<HistoryItem[]>([]);
   const [historyCount, setHistoryCount] = useState<number>(0);
+  const [historyCursor, setHistoryCursor] = useState<number>(-1);
+
   const displayEndRef = useRef<HTMLDivElement>(null);
 
   const refreshHistory = () => {
@@ -56,7 +89,7 @@ export const ScientificCalculator: React.FC<Props> = ({ onOpenHistory }) => {
 
     try {
       const res = evaluateExpression(expression, angleMode);
-      setPreviewResult(formatNum(res.result, 6));
+      setPreviewResult(formatNum(res.result, 8));
       setErrorMsg(null);
     } catch {
       setPreviewResult('');
@@ -92,12 +125,16 @@ export const ScientificCalculator: React.FC<Props> = ({ onOpenHistory }) => {
         handleBackspace();
       } else if (e.key === 'Escape') {
         handleClear();
+      } else if (e.key === 'ArrowUp') {
+        handleDpad('up');
+      } else if (e.key === 'ArrowDown') {
+        handleDpad('down');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [expression, angleMode]);
+  }, [expression, angleMode, historyCursor]);
 
   const triggerHaptic = () => {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -113,9 +150,10 @@ export const ScientificCalculator: React.FC<Props> = ({ onOpenHistory }) => {
     triggerHaptic();
     setErrorMsg(null);
     setExpression((prev) => prev + char);
+    if (isShift) setIsShift(false);
+    if (isAlpha) setIsAlpha(false);
   };
 
-  // Quick-Value button action: SETS the value directly (e.g., 75 becomes 20, not 95)
   const handleSetValue = (val: string) => {
     triggerHaptic();
     setErrorMsg(null);
@@ -127,6 +165,9 @@ export const ScientificCalculator: React.FC<Props> = ({ onOpenHistory }) => {
     setExpression('');
     setPreviewResult('');
     setErrorMsg(null);
+    setIsShift(false);
+    setIsAlpha(false);
+    setHistoryCursor(-1);
   };
 
   const handleBackspace = () => {
@@ -141,7 +182,7 @@ export const ScientificCalculator: React.FC<Props> = ({ onOpenHistory }) => {
 
     try {
       const res = evaluateExpression(expression, angleMode);
-      const finalStr = formatNum(res.result, 6);
+      const finalStr = formatNum(res.result, 8);
 
       const solution: StepSolution = {
         title: 'Scientific Calculation',
@@ -157,572 +198,948 @@ export const ScientificCalculator: React.FC<Props> = ({ onOpenHistory }) => {
         finalAnswer: finalStr,
       };
 
+      setPreviousExpression(expression);
+      setLastResultStr(finalStr);
       setLastSolution(solution);
       saveToHistory(solution);
       setExpression(finalStr);
       setErrorMsg(null);
+      setIsShift(false);
+      setIsAlpha(false);
+      setHistoryCursor(-1);
     } catch (err: any) {
       setErrorMsg(err.message || 'Syntax error in calculation.');
     }
   };
 
+  // Directional D-Pad Navigation
+  const handleDpad = (direction: 'up' | 'down' | 'left' | 'right' | 'center') => {
+    triggerHaptic();
+    const all = getHistory();
+
+    if (direction === 'center') {
+      handleCalculate();
+      return;
+    }
+
+    if (direction === 'up') {
+      if (all.length === 0) return;
+      const nextIndex = Math.min(all.length - 1, historyCursor + 1);
+      setHistoryCursor(nextIndex);
+      const item = all[nextIndex];
+      if (item) {
+        setExpression(item.problemStatement || item.finalAnswer);
+      }
+      return;
+    }
+
+    if (direction === 'down') {
+      if (historyCursor <= 0) {
+        setHistoryCursor(-1);
+        setExpression('');
+        return;
+      }
+      const prevIndex = historyCursor - 1;
+      setHistoryCursor(prevIndex);
+      const item = all[prevIndex];
+      if (item) {
+        setExpression(item.problemStatement || item.finalAnswer);
+      }
+      return;
+    }
+
+    if (direction === 'left') {
+      // Move back or remove last token
+      handleBackspace();
+      return;
+    }
+
+    if (direction === 'right') {
+      // Repeat last answer or append Ans
+      if (lastResultStr) {
+        handleInput(lastResultStr);
+      }
+    }
+  };
+
+  // Fraction to Decimal toggle (S <=> D key)
+  const handleFractionToggle = () => {
+    triggerHaptic();
+    if (!expression.trim()) return;
+    try {
+      const num = parseFloat(expression);
+      if (!isNaN(num) && isFinite(num)) {
+        if (expression.includes('/')) {
+          setExpression(num.toString());
+        } else {
+          // Approximate decimal to fraction
+          const tolerance = 1.0e-6;
+          let h1 = 1, h2 = 0, k1 = 0, k2 = 1;
+          let b = num;
+          do {
+            const a = Math.floor(b);
+            let aux = h1; h1 = a * h1 + h2; h2 = aux;
+            aux = k1; k1 = a * k1 + k2; k2 = aux;
+            b = 1 / (b - a);
+          } while (Math.abs(num - h1 / k1) > num * tolerance);
+          if (k1 !== 1 && k1 > 0) {
+            setExpression(`${h1}/${k1}`);
+            return;
+          }
+        }
+      }
+      handleCalculate();
+    } catch {
+      handleCalculate();
+    }
+  };
+
+  // Memory keys handlers
+  const handleMemoryAdd = () => {
+    triggerHaptic();
+    try {
+      const val = parseFloat(previewResult || expression);
+      if (!isNaN(val)) {
+        setMemoryVal((prev) => prev + val);
+        setHasMemory(true);
+      }
+    } catch {}
+  };
+
+  const handleMemoryRecall = () => {
+    triggerHaptic();
+    if (isShift) {
+      // STO
+      try {
+        const val = parseFloat(previewResult || expression);
+        if (!isNaN(val)) {
+          setMemoryVal(val);
+          setHasMemory(true);
+          setIsShift(false);
+        }
+      } catch {}
+    } else {
+      // RCL
+      handleInput(memoryVal.toString());
+    }
+  };
+
   return (
-    <div className="max-w-md sm:max-w-lg lg:max-w-xl mx-auto space-y-6">
-      {/* Polished Modern Calculator Chassis (Pure Black & Emerald Green) */}
-      <div className="bg-[#000000] border border-[#27272A] rounded-3xl p-4 sm:p-6 shadow-2xl shadow-black transition-all">
-        {/* Top Control Bar: Mode Toggle & Angle Settings */}
-        <div className="flex items-center justify-between gap-2 mb-3.5 pb-2 border-b border-[#27272A]">
-          {/* Segmented Mode Switcher */}
-          <div className="flex items-center p-1 bg-[#0A0A0A] border border-[#27272A] rounded-xl">
+    <div className="max-w-md sm:max-w-lg mx-auto space-y-4 select-none pb-8">
+      {/* =========================================================
+          AUTHENTIC CASIO fx-991EX CLASSWIZ HARDWARE CHASSIS
+          Matches the reference image layout, proportions, and styling
+          ========================================================= */}
+      <div
+        className="rounded-[28px] p-3.5 sm:p-5 shadow-2xl border border-[#2E333B] relative overflow-hidden transition-all"
+        style={{
+          backgroundColor: '#121417',
+          backgroundImage:
+            'radial-gradient(#252A30 0.85px, transparent 0.85px), radial-gradient(#252A30 0.85px, #121417 0.85px)',
+          backgroundSize: '10px 10px',
+          backgroundPosition: '0 0, 5px 5px',
+          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.1)',
+        }}
+      >
+        {/* Top Status Indicators Row (Directly above LCD screen) */}
+        <div className="flex items-center justify-between text-[10px] font-mono tracking-widest px-2 mb-1.5 text-zinc-500 font-bold select-none">
+          <div className="flex items-center space-x-2">
+            <span
+              className={`transition-colors ${
+                isShift ? 'text-[#FBBF24] font-black scale-110 drop-shadow' : 'text-zinc-600'
+              }`}
+            >
+              S
+            </span>
+            <span
+              className={`transition-colors ${
+                isAlpha ? 'text-[#C084FC] font-black scale-110 drop-shadow' : 'text-zinc-600'
+              }`}
+            >
+              A
+            </span>
+            <span className={hasMemory ? 'text-emerald-400 font-bold' : 'text-zinc-600'}>
+              STO
+            </span>
+            <span className={hasMemory ? 'text-emerald-400 font-bold' : 'text-zinc-600'}>
+              RCL
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <span className="text-zinc-500">NORM-11</span>
+            <span className="text-zinc-400 font-bold">MATH</span>
             <button
               onClick={() => {
                 triggerHaptic();
-                setCalcMode('standard');
+                setAngleMode((prev) => (prev === 'deg' ? 'rad' : 'deg'));
               }}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                calcMode === 'standard'
-                  ? 'bg-[#22C55E] text-[#FFFFFF] shadow-sm'
-                  : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
-              }`}
+              className="text-[#22C55E] hover:underline font-extrabold cursor-pointer"
+              title="Toggle DEG / RAD angle mode"
             >
-              Standard
+              {angleMode === 'deg' ? 'DECI' : 'RAD'}
             </button>
+          </div>
+        </div>
+
+        {/* =========================================================
+            LCD DISPLAY SCREEN (Authentic Sage-Grey Retro Dot-Matrix)
+            Matches reference image LCD glass with top expression,
+            right-aligned result and blinking purple caret cursor.
+            ========================================================= */}
+        <div
+          className="rounded-2xl p-3 sm:p-4 mb-3 relative overflow-hidden transition-all border border-[#8EA194]"
+          style={{
+            backgroundColor: '#C5D6CC',
+            boxShadow: 'inset 0 2px 7px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.4)',
+          }}
+        >
+          {/* Top Line: Previous Expression + Options dots */}
+          <div className="flex items-center justify-between font-mono text-sm sm:text-base text-[#111613] tracking-wide mb-1 min-h-[22px]">
+            <div className="truncate font-semibold opacity-90">
+              {previousExpression || '0'}
+            </div>
+            <div className="text-xs text-[#202722] opacity-70 flex flex-col items-center leading-none">
+              <span>•</span>
+              <span>•</span>
+              <span>•</span>
+            </div>
+          </div>
+
+          {/* Middle Line: Evaluated Result Aligned to the Right */}
+          <div className="flex items-center justify-between text-right text-xl sm:text-2xl font-mono font-bold text-[#0D120F] tracking-tight my-1 min-h-[32px]">
+            <div className="text-xs text-[#202722] opacity-50 flex flex-col items-center leading-none">
+              <span>•</span>
+              <span>•</span>
+              <span>•</span>
+            </div>
+            <div className="truncate ml-2 text-right w-full">
+              {lastResultStr || '0'}
+            </div>
+          </div>
+
+          {/* Bottom Line: Active Input Line with Purple Vertical Cursor */}
+          <div className="flex items-center justify-between mt-1 pt-1 border-t border-[#9EB0A3]/60 min-h-[28px]">
+            <div className="flex items-center text-base sm:text-lg font-mono font-bold text-[#0F1411] tracking-wide overflow-x-auto scrollbar-none flex-1 mr-2">
+              <span className="w-0.5 h-5 bg-[#9333EA] animate-pulse mr-1 shrink-0 rounded-full" />
+              <span>{expression || <span className="opacity-35 font-normal">0</span>}</span>
+              <div ref={displayEndRef} />
+            </div>
+            <div className="text-xs text-[#202722] opacity-70 flex flex-col items-center leading-none">
+              <span>•</span>
+              <span>•</span>
+              <span>•</span>
+            </div>
+          </div>
+
+          {/* Live Preview / Error Banner */}
+          {(errorMsg || previewResult) && (
+            <div className="mt-1 pt-0.5 flex items-center justify-end text-[11px] font-mono font-semibold">
+              {errorMsg ? (
+                <span className="text-rose-700 font-bold">{errorMsg}</span>
+              ) : previewResult && previewResult !== lastResultStr ? (
+                <span className="text-[#134E2E]">= {previewResult}</span>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        {/* =========================================================
+            TOOLBAR BUTTONS STRIP (Directly below the LCD screen)
+            8 high-contrast circular/pill buttons as in reference image
+            ========================================================= */}
+        <div className="flex items-center justify-between gap-1 sm:gap-1.5 mb-3 px-0.5">
+          {/* 1. Menu Icon */}
+          <button
+            type="button"
+            onClick={() => onOpenHistory?.()}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Menu & History"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+
+          {/* 2. PRO Badge Pill */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab?.('ai_solver')}
+            className="px-2.5 py-1 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#9333EA]/70 flex items-center space-x-1 text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Open AI Step-by-Step Solver"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#C084FC]" />
+            <span className="text-[11px] font-extrabold text-[#C084FC]">PRO</span>
+          </button>
+
+          {/* 3. Theme Palette Icon */}
+          <button
+            type="button"
+            onClick={() => {
+              // Dispatch open theme modal event
+              window.dispatchEvent(new Event('smartsolve_open_theme_modal'));
+            }}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Theme & Colors"
+          >
+            <Palette className="w-3.5 h-3.5 text-zinc-300" />
+          </button>
+
+          {/* 4. Sigma ∑ Icon (Math Hub) */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab?.('math')}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Mathematics Hub & Formulas"
+          >
+            <Sigma className="w-4 h-4 text-zinc-300" />
+          </button>
+
+          {/* 5. Settings Gear Icon (Language & Writing Settings) */}
+          <button
+            type="button"
+            onClick={() => setIsLanguageModalOpen(true)}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            title="App Language & Writing Settings"
+          >
+            <Settings className="w-4 h-4 text-zinc-300" />
+          </button>
+
+          {/* 6. Plus-Minus Tool Icon */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab?.('equation')}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Equation Solver"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 4v8M8 8h8M8 18h8" />
+            </svg>
+          </button>
+
+          {/* 7. Camera Icon (AI Scanner) */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab?.('ai_solver')}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Snap Photo of Problem"
+          >
+            <Camera className="w-3.5 h-3.5 text-zinc-300" />
+          </button>
+
+          {/* 8. MORE Badge Pill */}
+          <button
+            type="button"
+            onClick={() => onOpenSearch?.()}
+            className="px-2.5 py-1 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Quick Search & 60+ Tools"
+          >
+            <span className="text-[10px] font-bold">MORE</span>
+          </button>
+        </div>
+
+        {/* =========================================================
+            UPPER CONTROL SECTION
+            SHIFT (Yellow), ALPHA (Purple), D-PAD (Center), MODE, 2nd
+            ========================================================= */}
+        <div className="grid grid-cols-12 gap-1.5 sm:gap-2 items-center mb-2 px-0.5">
+          {/* Left: SHIFT & ALPHA Buttons */}
+          <div className="col-span-3 flex flex-col gap-1.5">
+            {/* SHIFT Button (Yellow Background) */}
             <button
+              type="button"
               onClick={() => {
                 triggerHaptic();
-                setCalcMode('scientific');
+                setIsShift((prev) => !prev);
               }}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                calcMode === 'scientific'
-                  ? 'bg-[#22C55E] text-[#FFFFFF] shadow-sm'
-                  : 'text-[#A1A1AA] hover:text-[#FFFFFF]'
+              className={`h-9 sm:h-10 rounded-xl font-black text-xs sm:text-sm tracking-wider uppercase transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center ${
+                isShift
+                  ? 'bg-[#FBBF24] text-black ring-2 ring-yellow-400 ring-offset-1 ring-offset-black'
+                  : 'bg-[#EAB308] text-black hover:bg-[#FACC15]'
               }`}
             >
-              Scientific
+              SHIFT
+            </button>
+
+            {/* ALPHA Button (Purple Background) */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic();
+                setIsAlpha((prev) => !prev);
+              }}
+              className={`h-9 sm:h-10 rounded-xl font-black text-xs sm:text-sm tracking-wider uppercase transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center ${
+                isAlpha
+                  ? 'bg-[#9333EA] text-white ring-2 ring-purple-400 ring-offset-1 ring-offset-black'
+                  : 'bg-[#7E22CE] text-white hover:bg-[#9333EA]'
+              }`}
+            >
+              ALPHA
             </button>
           </div>
 
-          {/* Angle Mode, 2nd INV & History toggles */}
-          <div className="flex items-center space-x-1.5">
-            {/* Direct In-Calculator History Button */}
+          {/* Center: Circular Directional Navigation Pad (D-Pad) */}
+          <div className="col-span-6 flex items-center justify-center">
+            <div
+              className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-[#404652] relative shadow-lg flex items-center justify-center transition-all"
+              style={{
+                backgroundColor: '#2D323A',
+                boxShadow:
+                  '0 8px 18px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.4)',
+              }}
+            >
+              {/* Up Triangle */}
+              <button
+                type="button"
+                onClick={() => handleDpad('up')}
+                className="absolute top-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                title="Previous calculation history (Up)"
+              >
+                <ChevronUp className="w-5 h-5" />
+              </button>
+
+              {/* Down Triangle */}
+              <button
+                type="button"
+                onClick={() => handleDpad('down')}
+                className="absolute bottom-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                title="Next calculation history (Down)"
+              >
+                <ChevronDown className="w-5 h-5" />
+              </button>
+
+              {/* Left Triangle */}
+              <button
+                type="button"
+                onClick={() => handleDpad('left')}
+                className="absolute left-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                title="Move cursor left / Backspace"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              {/* Right Triangle */}
+              <button
+                type="button"
+                onClick={() => handleDpad('right')}
+                className="absolute right-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                title="Move cursor right / Insert Ans"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+
+              {/* Center Dot Button */}
+              <button
+                type="button"
+                onClick={() => handleDpad('center')}
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#181B20] border border-[#3E4552] text-zinc-400 hover:text-white shadow-inner flex items-center justify-center active:scale-95 cursor-pointer"
+                title="Calculate / Confirm"
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-zinc-500 hover:bg-emerald-400" />
+              </button>
+            </div>
+          </div>
+
+          {/* Right: MODE & 2nd Buttons */}
+          <div className="col-span-3 flex flex-col gap-1.5">
+            {/* MODE Button */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic();
+                setAngleMode((prev) => (prev === 'deg' ? 'rad' : 'deg'));
+              }}
+              className="h-9 sm:h-10 rounded-xl bg-[#373C44] hover:bg-[#434A54] border border-[#4B525E] font-bold text-xs sm:text-sm text-white transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center uppercase tracking-wider"
+              title="Toggle DEG / RAD Angle Mode"
+            >
+              MODE
+            </button>
+
+            {/* 2nd Button */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic();
+                setIs2nd((prev) => !prev);
+              }}
+              className={`h-9 sm:h-10 rounded-xl border font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center italic tracking-wider ${
+                is2nd
+                  ? 'bg-[#22C55E] text-white border-[#22C55E]'
+                  : 'bg-[#373C44] text-white hover:bg-[#434A54] border-[#4B525E]'
+              }`}
+            >
+              2nd
+            </button>
+          </div>
+        </div>
+
+        {/* =========================================================
+            ROW OF 4 KEYS UNDER D-PAD: CALC, ∫dx, x^-1, Log_x y
+            ========================================================= */}
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-2 px-0.5">
+          {/* 1. CALC (Shift: SOLVE, Alpha: =) */}
+          <FunctionKey
+            mainLabel="CALC"
+            shiftLabel="SOLVE"
+            alphaLabel="="
+            onClick={() => (isShift ? handleCalculate() : handleCalculate())}
+          />
+
+          {/* 2. ∫dx (Shift: d/dx, Alpha: ;) */}
+          <FunctionKey
+            mainLabel="∫dx"
+            shiftLabel="d/dx"
+            alphaLabel=";"
+            onClick={() => handleInput(isShift ? 'd/dx(' : 'integrate(')}
+          />
+
+          {/* 3. x^-1 (Shift: x!, Alpha: Σ) */}
+          <FunctionKey
+            mainLabel="x⁻¹"
+            shiftLabel="x!"
+            alphaLabel="Σ"
+            onClick={() => handleInput(isShift ? '!' : '^(-1)')}
+          />
+
+          {/* 4. Log_x y (Shift: ∏) */}
+          <FunctionKey
+            mainLabel="Log_x y"
+            shiftLabel="∏"
+            alphaLabel=""
+            onClick={() => handleInput('log(')}
+          />
+        </div>
+
+        {/* =========================================================
+            ROW 1 OF SCIENTIFIC KEYS (6 keys):
+            x/y, √x, x², x^y, Log, Ln
+            ========================================================= */}
+        <div className="grid grid-cols-6 gap-1 sm:gap-1.5 mb-2 px-0.5">
+          <FunctionKey
+            mainLabel="x/y"
+            shiftLabel="x y/z"
+            alphaLabel="÷R"
+            onClick={() => handleInput(' / ')}
+          />
+          <FunctionKey
+            mainLabel="√x"
+            shiftLabel="³√x"
+            alphaLabel="mod"
+            onClick={() => handleInput(isShift ? 'cbrt(' : 'sqrt(')}
+          />
+          <FunctionKey
+            mainLabel="x²"
+            shiftLabel="x³"
+            alphaLabel="¯"
+            onClick={() => handleInput(isShift ? '^3' : '^2')}
+          />
+          <FunctionKey
+            mainLabel="xʸ"
+            shiftLabel="ˣ√y"
+            alphaLabel=""
+            onClick={() => handleInput('^')}
+          />
+          <FunctionKey
+            mainLabel="Log"
+            shiftLabel="10ˣ"
+            alphaLabel=""
+            onClick={() => handleInput(isShift ? '10^(' : 'log10(')}
+          />
+          <FunctionKey
+            mainLabel="Ln"
+            shiftLabel="eˣ"
+            alphaLabel="t"
+            onClick={() => handleInput(isShift ? 'e^(' : 'ln(')}
+          />
+        </div>
+
+        {/* =========================================================
+            ROW 2 OF SCIENTIFIC KEYS (6 keys):
+            ( - ), ° ' ", hyp, Sin, Cos, Tan
+            ========================================================= */}
+        <div className="grid grid-cols-6 gap-1 sm:gap-1.5 mb-2 px-0.5">
+          <FunctionKey
+            mainLabel="( - )"
+            shiftLabel="∠"
+            alphaLabel="a"
+            onClick={() => handleInput('(-')}
+          />
+          <FunctionKey
+            mainLabel="° ' ″"
+            shiftLabel="FACT"
+            alphaLabel="b"
+            onClick={() => handleInput('°')}
+          />
+          <FunctionKey
+            mainLabel="hyp"
+            shiftLabel="|x|"
+            alphaLabel="c"
+            onClick={() => {
+              triggerHaptic();
+              setIsHyp((prev) => !prev);
+            }}
+            isActive={isHyp}
+          />
+          <FunctionKey
+            mainLabel="Sin"
+            shiftLabel="Sin⁻¹"
+            alphaLabel="d"
+            onClick={() =>
+              handleInput(isShift ? 'asin(' : isHyp ? 'sinh(' : 'sin(')
+            }
+          />
+          <FunctionKey
+            mainLabel="Cos"
+            shiftLabel="Cos⁻¹"
+            alphaLabel="e"
+            onClick={() =>
+              handleInput(isShift ? 'acos(' : isHyp ? 'cosh(' : 'cos(')
+            }
+          />
+          <FunctionKey
+            mainLabel="Tan"
+            shiftLabel="Tan⁻¹"
+            alphaLabel="f"
+            onClick={() =>
+              handleInput(isShift ? 'atan(' : isHyp ? 'tanh(' : 'tan(')
+            }
+          />
+        </div>
+
+        {/* =========================================================
+            ROW 3 OF SCIENTIFIC KEYS (6 keys):
+            RCL, ENG, (, ), S<=>D, M+
+            ========================================================= */}
+        <div className="grid grid-cols-6 gap-1 sm:gap-1.5 mb-2.5 px-0.5">
+          <FunctionKey
+            mainLabel="RCL"
+            shiftLabel="STO"
+            alphaLabel="CLRv"
+            onClick={handleMemoryRecall}
+          />
+          <FunctionKey
+            mainLabel="ENG"
+            shiftLabel="i"
+            alphaLabel="Cot"
+            onClick={() => handleInput('*10^')}
+          />
+          <FunctionKey
+            mainLabel="("
+            shiftLabel="%"
+            alphaLabel="Cot⁻¹"
+            onClick={() => handleInput(isShift ? '%' : '(')}
+          />
+          <FunctionKey
+            mainLabel=")"
+            shiftLabel=","
+            alphaLabel="x"
+            onClick={() => handleInput(')')}
+          />
+          <FunctionKey
+            mainLabel="S ⇔ D"
+            shiftLabel="a b/c"
+            alphaLabel="y"
+            onClick={handleFractionToggle}
+          />
+          <FunctionKey
+            mainLabel="M+"
+            shiftLabel="M-"
+            alphaLabel="m"
+            onClick={handleMemoryAdd}
+          />
+        </div>
+
+        {/* =========================================================
+            MAIN NUMERIC & OPERATOR KEYPAD (5 Columns x 4 Rows)
+            Matching Casio fx-991EX layout with Orange DEL & AC keys
+            ========================================================= */}
+        <div className="space-y-1.5 sm:space-y-2 px-0.5">
+          {/* Row 1: 7, 8, 9, DEL (Orange), AC (Orange) */}
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+            <KeypadButton
+              mainLabel="7"
+              shiftLabel="CONST"
+              alphaLabel=""
+              onClick={() => handleInput('7')}
+            />
+            <KeypadButton
+              mainLabel="8"
+              shiftLabel="CONV"
+              alphaLabel="SI"
+              onClick={() => handleInput('8')}
+            />
+            <KeypadButton
+              mainLabel="9"
+              shiftLabel="Limit"
+              alphaLabel="∞"
+              onClick={() => handleInput('9')}
+            />
+            {/* DEL Key (Orange with Backspace icon) */}
+            <div className="flex flex-col items-center">
+              <div className="h-3 text-[9px] font-bold text-zinc-500 font-mono invisible">DEL</div>
+              <button
+                type="button"
+                onClick={handleBackspace}
+                className="w-full h-12 sm:h-14 rounded-2xl bg-[#EA580C] hover:bg-[#C2410C] text-black font-black text-lg flex items-center justify-center shadow-md active:scale-95 cursor-pointer transition-all border border-[#F97316]"
+                title="Delete previous character"
+              >
+                <Delete className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
+              </button>
+            </div>
+            {/* AC Key (Orange with bold text) */}
+            <div className="flex flex-col items-center">
+              <div className="h-3 text-[9px] font-bold text-[#FBBF24] font-mono leading-none">
+                CLR ALL
+              </div>
+              <button
+                type="button"
+                onClick={handleClear}
+                className="w-full h-12 sm:h-14 rounded-2xl bg-[#F97316] hover:bg-[#EA580C] text-black font-black text-lg sm:text-xl flex items-center justify-center shadow-md active:scale-95 cursor-pointer transition-all border border-[#FB923C]"
+                title="All Clear"
+              >
+                AC
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: 4, 5, 6, ×, ÷ */}
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+            <KeypadButton
+              mainLabel="4"
+              shiftLabel="MATRIX"
+              alphaLabel="⁞⁞"
+              onClick={() => handleInput('4')}
+            />
+            <KeypadButton
+              mainLabel="5"
+              shiftLabel="VECTOR"
+              alphaLabel=""
+              onClick={() => handleInput('5')}
+            />
+            <KeypadButton
+              mainLabel="6"
+              shiftLabel="FUNC"
+              alphaLabel="HELP"
+              onClick={() => handleInput('6')}
+            />
+            <KeypadButton
+              mainLabel="×"
+              shiftLabel="nPr"
+              alphaLabel="GCD"
+              onClick={() => handleInput(' * ')}
+            />
+            <KeypadButton
+              mainLabel="÷"
+              shiftLabel="nCr"
+              alphaLabel="LCM"
+              onClick={() => handleInput(' / ')}
+            />
+          </div>
+
+          {/* Row 3: 1, 2, 3, +, − */}
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+            <KeypadButton
+              mainLabel="1"
+              shiftLabel="STAT"
+              alphaLabel=""
+              onClick={() => handleInput('1')}
+            />
+            <KeypadButton
+              mainLabel="2"
+              shiftLabel="CMPLX"
+              alphaLabel=""
+              onClick={() => handleInput('2')}
+            />
+            <KeypadButton
+              mainLabel="3"
+              shiftLabel="DISTR"
+              alphaLabel=""
+              onClick={() => handleInput('3')}
+            />
+            <KeypadButton
+              mainLabel="+"
+              shiftLabel="Pol"
+              alphaLabel="Ceil"
+              onClick={() => handleInput(' + ')}
+            />
+            <KeypadButton
+              mainLabel="−"
+              shiftLabel="Rec"
+              alphaLabel="Floor"
+              onClick={() => handleInput(' - ')}
+            />
+          </div>
+
+          {/* Row 4: 0, ., Exp, Ans, = */}
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+            <KeypadButton
+              mainLabel="0"
+              shiftLabel="COPY"
+              alphaLabel="PASTE"
+              onClick={() => handleInput('0')}
+            />
+            <KeypadButton
+              mainLabel="."
+              shiftLabel="Ran#"
+              alphaLabel="RanInt"
+              onClick={() => handleInput('.')}
+            />
+            <KeypadButton
+              mainLabel="Exp"
+              shiftLabel="π"
+              alphaLabel="e"
+              onClick={() => handleInput(isShift ? 'pi' : isAlpha ? 'e' : 'E')}
+            />
+            <KeypadButton
+              mainLabel="Ans"
+              shiftLabel=""
+              alphaLabel="PreAns"
+              onClick={() => handleInput(lastResultStr || 'Ans')}
+            />
+            <KeypadButton
+              mainLabel="="
+              shiftLabel="History"
+              alphaLabel=""
+              isPrimary
+              onClick={() => (isShift ? onOpenHistory?.() : handleCalculate())}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================
+          RECENT CALCULATIONS ACCESS STRIP
+          Preserves convenient click-to-load calculations
+          ========================================================= */}
+      {recentHistory.length > 0 && (
+        <div className="bg-[#121417] border border-[#27272A] rounded-2xl p-2.5 shadow-md">
+          <div className="flex items-center justify-between text-[11px] font-bold text-[#A1A1AA] mb-1.5 px-1">
+            <span className="flex items-center space-x-1.5">
+              <History className="w-3 h-3 text-[#22C55E]" />
+              <span>{t('recent_history', 'Recent Calculations')}:</span>
+            </span>
             <button
               type="button"
               onClick={() => onOpenHistory?.()}
-              className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer bg-[#18181B] text-[#FFFFFF] border-[#27272A] hover:border-[#22C55E]/60 active:scale-95 shadow-xs"
-              title="Open calculation history"
+              className="text-[#22C55E] hover:underline font-bold text-[11px] cursor-pointer"
             >
-              <History className="w-3.5 h-3.5 text-[#22C55E]" />
-              <span className="hidden xs:inline">History</span>
-              {historyCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-[#22C55E] text-white text-[10px] font-extrabold">
-                  {historyCount}
-                </span>
-              )}
+              {t('view_all', 'View All')} ({historyCount}) →
             </button>
-
-            <button
-              onClick={() => {
-                triggerHaptic();
-                setAngleMode(angleMode === 'deg' ? 'rad' : 'deg');
-              }}
-              aria-label="Toggle degree or radian mode"
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                angleMode === 'deg'
-                  ? 'bg-[#18181B] text-[#FFFFFF] border-[#22C55E]/60 shadow-xs'
-                  : 'bg-[#0A0A0A] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF]'
-              }`}
-            >
-              {angleMode.toUpperCase()}
-            </button>
-
-            {calcMode === 'scientific' && (
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+            {recentHistory.map((h) => (
               <button
+                key={h.id}
+                type="button"
                 onClick={() => {
                   triggerHaptic();
-                  setIsShift((prev) => !prev);
+                  handleSetValue(h.finalAnswer);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                  isShift
-                    ? 'bg-[#22C55E] text-[#FFFFFF] border-[#22C55E] shadow-sm'
-                    : 'bg-[#0A0A0A] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF]'
-                }`}
+                className="flex-shrink-0 px-2.5 py-1 rounded-xl bg-[#1C1F26] hover:bg-[#272C35] border border-[#2E333D] hover:border-[#22C55E]/60 text-xs font-mono transition-all text-left flex items-center space-x-1.5 cursor-pointer group active:scale-95 text-white"
+                title={`Tap to load answer (${h.finalAnswer}) into calculator`}
               >
-                2nd
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Calculator Display (Deep Black #0A0A0A with Green Accents) */}
-        <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-4 sm:p-5 mb-4 shadow-inner">
-          {/* Status line */}
-          <div className="flex items-center justify-between text-xs text-[#A1A1AA] font-mono mb-1">
-            <span className="text-[11px] font-semibold tracking-wider text-[#A1A1AA]">
-              {calcMode.toUpperCase()} · {angleMode.toUpperCase()}
-              {isShift ? ' · INV' : ''}
-            </span>
-            <span className="text-[11px] font-semibold text-[#A1A1AA]">SmartSolve FX</span>
-          </div>
-
-          {/* Main Input Text (#FFFFFF) */}
-          <div className="min-h-12 flex items-center justify-end overflow-x-auto text-right math-display text-2xl sm:text-3xl text-[#FFFFFF] font-bold whitespace-nowrap tracking-wide scrollbar-none">
-            {expression || <span className="text-[#A1A1AA]/50 font-normal">0</span>}
-            <div ref={displayEndRef} />
-          </div>
-
-          {/* Live Preview / Error line */}
-          <div className="min-h-6 flex items-center justify-end text-right font-mono text-sm sm:text-base mt-1">
-            {errorMsg ? (
-              <span className="text-[#EF4444] text-xs sm:text-sm font-sans font-medium">{errorMsg}</span>
-            ) : previewResult ? (
-              <span className="text-white flex items-center space-x-1 font-bold">
-                <span className="text-xs text-[#A1A1AA] mr-1 font-normal">=</span> {previewResult}
-              </span>
-            ) : (
-              <span className="text-xs text-[#A1A1AA]/40 select-none">Ready</span>
-            )}
-          </div>
-        </div>
-
-        {/* Quick-Value Buttons: 10, 20, 40 (Explicitly SETS value directly; e.g. 75 becomes 20, not 95) */}
-        <div className="flex items-center justify-between bg-[#0A0A0A] border border-[#27272A] rounded-2xl px-3.5 py-2 mb-3 shadow-inner">
-          <div className="flex items-center space-x-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#A1A1AA]">
-              Set Value:
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            {[10, 20, 40].map((val) => (
-              <button
-                key={val}
-                type="button"
-                onClick={() => handleSetValue(val.toString())}
-                className={`px-3 py-1 rounded-xl font-bold text-xs sm:text-sm border transition-all cursor-pointer shadow-xs active:scale-95 ${
-                  expression === val.toString()
-                    ? 'bg-[#22C55E] text-[#FFFFFF] border-[#22C55E] shadow-emerald-500/30'
-                    : 'bg-[#18181B] text-[#FFFFFF] border-[#27272A] hover:border-[#22C55E]/60 hover:text-white'
-                }`}
-                title={`Set calculator value directly to ${val}`}
-              >
-                {val}
+                <span className="text-[#A1A1AA] group-hover:text-white max-w-[130px] truncate">
+                  {h.problemStatement || h.title}
+                </span>
+                <span className="text-[#22C55E] font-bold">= {h.finalAnswer}</span>
               </button>
             ))}
           </div>
         </div>
+      )}
 
-        {/* Recent Calculations Strip (live in-app history access) */}
-        {recentHistory.length > 0 && (
-          <div className="bg-[#0A0A0A] border border-[#27272A] rounded-2xl p-2.5 mb-3 shadow-inner">
-            <div className="flex items-center justify-between text-[11px] font-bold text-[#A1A1AA] mb-1.5 px-1">
-              <span className="flex items-center space-x-1.5">
-                <History className="w-3 h-3 text-[#22C55E]" />
-                <span>Recent Calculations:</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => onOpenHistory?.()}
-                className="text-[#22C55E] hover:underline font-bold text-[11px] cursor-pointer"
-              >
-                View All ({historyCount}) →
-              </button>
-            </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
-              {recentHistory.map((h) => (
-                <button
-                  key={h.id}
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic();
-                    handleSetValue(h.finalAnswer);
-                  }}
-                  className="flex-shrink-0 px-2.5 py-1 rounded-xl bg-[#18181B] hover:bg-[#27272A] border border-[#27272A] hover:border-[#22C55E]/60 text-xs font-mono transition-all text-left flex items-center space-x-1.5 cursor-pointer group active:scale-95"
-                  title={`Tap to load answer (${h.finalAnswer}) into calculator`}
-                >
-                  <span className="text-[#A1A1AA] group-hover:text-white max-w-[130px] truncate">
-                    {h.problemStatement || h.title}
-                  </span>
-                  <span className="text-[#22C55E] font-bold">= {h.finalAnswer}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Keypad Section (White, Black, and Emerald Green) */}
-        {calcMode === 'standard' ? (
-          /* STANDARD 4-COLUMN PHONE LAYOUT */
-          <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
-            {/* Row 1 */}
-            <button
-              onClick={handleClear}
-              className="h-14 sm:h-16 bg-[#EF4444] hover:bg-[#DC2626] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-base sm:text-lg shadow-sm shadow-red-500/20 flex items-center justify-center transition-all cursor-pointer"
-            >
-              AC
-            </button>
-            <button
-              onClick={handleBackspace}
-              aria-label="Backspace"
-              className="h-14 sm:h-16 bg-[#EF4444] hover:bg-[#DC2626] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold shadow-sm shadow-red-500/20 flex items-center justify-center transition-all cursor-pointer"
-            >
-              <Delete className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-            <button
-              onClick={() => handleInput('%')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-lg sm:text-xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              %
-            </button>
-            <button
-              onClick={() => handleInput(' / ')}
-              className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-emerald-500/25 flex items-center justify-center transition-all cursor-pointer"
-            >
-              ÷
-            </button>
-
-            {/* Row 2 */}
-            <button
-              onClick={() => handleInput('7')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              7
-            </button>
-            <button
-              onClick={() => handleInput('8')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              8
-            </button>
-            <button
-              onClick={() => handleInput('9')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              9
-            </button>
-            <button
-              onClick={() => handleInput(' * ')}
-              className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-emerald-500/25 flex items-center justify-center transition-all cursor-pointer"
-            >
-              ×
-            </button>
-
-            {/* Row 3 */}
-            <button
-              onClick={() => handleInput('4')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              4
-            </button>
-            <button
-              onClick={() => handleInput('5')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              5
-            </button>
-            <button
-              onClick={() => handleInput('6')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              6
-            </button>
-            <button
-              onClick={() => handleInput(' - ')}
-              className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-emerald-500/25 flex items-center justify-center transition-all cursor-pointer"
-            >
-              −
-            </button>
-
-            {/* Row 4 */}
-            <button
-              onClick={() => handleInput('1')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              1
-            </button>
-            <button
-              onClick={() => handleInput('2')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              2
-            </button>
-            <button
-              onClick={() => handleInput('3')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              3
-            </button>
-            <button
-              onClick={() => handleInput(' + ')}
-              className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl shadow-md shadow-emerald-500/25 flex items-center justify-center transition-all cursor-pointer"
-            >
-              +
-            </button>
-
-            {/* Row 5 */}
-            <button
-              onClick={() => {
-                if (expression.startsWith('-(') && expression.endsWith(')')) {
-                  setExpression(expression.slice(2, -1));
-                } else if (expression.startsWith('-')) {
-                  setExpression(expression.slice(1));
-                } else if (expression) {
-                  setExpression(`-(${expression})`);
-                }
-              }}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-base sm:text-lg border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              ±
-            </button>
-            <button
-              onClick={() => handleInput('0')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              0
-            </button>
-            <button
-              onClick={() => handleInput('.')}
-              className="h-14 sm:h-16 bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#FFFFFF] rounded-2xl font-bold text-xl sm:text-2xl border border-white/5 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-            >
-              .
-            </button>
-            <button
-              onClick={handleCalculate}
-              className="h-14 sm:h-16 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-2xl font-extrabold text-xl sm:text-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center transition-all cursor-pointer"
-            >
-              <Equal className="w-6 h-6 stroke-[3]" />
-            </button>
-          </div>
-        ) : (
-          /* SCIENTIFIC 5-COLUMN HIGH-PERFORMANCE GRID */
-          <div className="grid grid-cols-5 gap-2 sm:gap-2.5">
-            {/* Scientific Function Row 1 */}
-            <button
-              onClick={() => handleInput(isShift ? 'asin(' : 'sin(')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              {isShift ? 'sin⁻¹' : 'sin'}
-            </button>
-            <button
-              onClick={() => handleInput(isShift ? 'acos(' : 'cos(')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              {isShift ? 'cos⁻¹' : 'cos'}
-            </button>
-            <button
-              onClick={() => handleInput(isShift ? 'atan(' : 'tan(')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              {isShift ? 'tan⁻¹' : 'tan'}
-            </button>
-            <button
-              onClick={() => handleInput('π')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              π
-            </button>
-            <button
-              onClick={() => handleInput('e')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              e
-            </button>
-
-            {/* Scientific Function Row 2 */}
-            <button
-              onClick={() => handleInput('log(')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              log
-            </button>
-            <button
-              onClick={() => handleInput('ln(')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              ln
-            </button>
-            <button
-              onClick={() => handleInput('sqrt(')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              √
-            </button>
-            <button
-              onClick={() => handleInput('^2')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              x²
-            </button>
-            <button
-              onClick={() => handleInput('^')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              xʸ
-            </button>
-
-            {/* Scientific Function Row 3: Brackets & Clear/Del */}
-            <button
-              onClick={() => handleInput('(')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#FFFFFF] font-bold text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              (
-            </button>
-            <button
-              onClick={() => handleInput(')')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#FFFFFF] font-bold text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              )
-            </button>
-            <button
-              onClick={() => handleInput('!')}
-              className="h-11 sm:h-12 bg-[#121212] hover:bg-[#18181B] active:scale-95 rounded-xl text-[#A1A1AA] hover:text-[#FFFFFF] font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              n!
-            </button>
-            <button
-              onClick={handleClear}
-              className="h-11 sm:h-12 bg-[#EF4444] hover:bg-[#DC2626] active:scale-95 rounded-xl text-[#FFFFFF] font-bold text-xs sm:text-sm shadow-sm shadow-red-500/20 transition-all cursor-pointer"
-            >
-              AC
-            </button>
-            <button
-              onClick={handleBackspace}
-              aria-label="Backspace"
-              className="h-11 sm:h-12 bg-[#EF4444] hover:bg-[#DC2626] active:scale-95 rounded-xl text-[#FFFFFF] flex items-center justify-center shadow-sm shadow-red-500/20 transition-all cursor-pointer"
-            >
-              <Delete className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-
-            {/* Scientific Row 4: 7, 8, 9, ÷, % */}
-            <button
-              onClick={() => handleInput('7')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              7
-            </button>
-            <button
-              onClick={() => handleInput('8')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              8
-            </button>
-            <button
-              onClick={() => handleInput('9')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              9
-            </button>
-            <button
-              onClick={() => handleInput(' / ')}
-              className="h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
-            >
-              ÷
-            </button>
-            <button
-              onClick={() => handleInput('%')}
-              className="h-12 sm:h-14 bg-[#121212] hover:bg-[#18181B] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              %
-            </button>
-
-            {/* Scientific Row 5: 4, 5, 6, ×, |x| */}
-            <button
-              onClick={() => handleInput('4')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              4
-            </button>
-            <button
-              onClick={() => handleInput('5')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              5
-            </button>
-            <button
-              onClick={() => handleInput('6')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              6
-            </button>
-            <button
-              onClick={() => handleInput(' * ')}
-              className="h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
-            >
-              ×
-            </button>
-            <button
-              onClick={() => handleInput('abs(')}
-              className="h-12 sm:h-14 bg-[#121212] hover:bg-[#18181B] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              |x|
-            </button>
-
-            {/* Scientific Row 6: 1, 2, 3, −, EXP */}
-            <button
-              onClick={() => handleInput('1')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              1
-            </button>
-            <button
-              onClick={() => handleInput('2')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              2
-            </button>
-            <button
-              onClick={() => handleInput('3')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              3
-            </button>
-            <button
-              onClick={() => handleInput(' - ')}
-              className="h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
-            >
-              −
-            </button>
-            <button
-              onClick={() => handleInput('* 10^')}
-              className="h-12 sm:h-14 bg-[#121212] hover:bg-[#18181B] active:scale-95 text-[#A1A1AA] hover:text-[#FFFFFF] rounded-xl font-semibold text-xs sm:text-sm border border-[#27272A] transition-all cursor-pointer"
-            >
-              EXP
-            </button>
-
-            {/* Scientific Row 7: 0, ., +, Equals (Span 2) */}
-            <button
-              onClick={() => handleInput('0')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              0
-            </button>
-            <button
-              onClick={() => handleInput('.')}
-              className="h-12 sm:h-14 bg-[#18181B] hover:bg-[#27272A] active:scale-95 rounded-xl text-lg sm:text-xl font-bold text-[#FFFFFF] border border-white/5 shadow-xs transition-all cursor-pointer"
-            >
-              .
-            </button>
-            <button
-              onClick={() => handleInput(' + ')}
-              className="h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-xl font-bold shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
-            >
-              +
-            </button>
-            <button
-              onClick={handleCalculate}
-              className="col-span-2 h-12 sm:h-14 bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 text-[#FFFFFF] rounded-xl text-lg sm:text-xl font-extrabold shadow-lg shadow-emerald-500/30 flex items-center justify-center space-x-2 transition-all cursor-pointer"
-            >
-              <Equal className="w-5 h-5 stroke-[3]" />
-              <span>SOLVE</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Step by Step Breakdown Solution Display */}
+      {/* Verified Step-by-Step Solution Card */}
       {lastSolution && (
-        <div className="pt-2 animate-fadeIn">
+        <div className="animate-fadeIn mt-4">
           <StepSolutionCard solution={lastSolution} />
         </div>
       )}
+    </div>
+  );
+};
+
+// =========================================================
+// SUB-COMPONENTS FOR AUTHENTIC SCIENTIFIC KEYPAD
+// =========================================================
+
+interface FunctionKeyProps {
+  mainLabel: string;
+  shiftLabel: string;
+  alphaLabel: string;
+  onClick: () => void;
+  isActive?: boolean;
+}
+
+const FunctionKey: React.FC<FunctionKeyProps> = ({
+  mainLabel,
+  shiftLabel,
+  alphaLabel,
+  onClick,
+  isActive,
+}) => {
+  return (
+    <div className="flex flex-col items-center select-none">
+      {/* Yellow Shift Label & Purple Alpha Label above key */}
+      <div className="h-3.5 w-full flex items-center justify-between px-0.5 text-[8.5px] sm:text-[9.5px] font-bold font-mono leading-none truncate">
+        <span className="text-[#FBBF24] truncate mr-0.5">{shiftLabel}</span>
+        <span className="text-[#C084FC] truncate">{alphaLabel}</span>
+      </div>
+
+      {/* Main Scientific Button */}
+      <button
+        type="button"
+        onClick={onClick}
+        className={`w-full h-8 sm:h-9 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center transition-all shadow-sm active:scale-95 cursor-pointer ${
+          isActive
+            ? 'bg-[#22C55E] text-white border-[#22C55E]'
+            : 'bg-[#2B3037] hover:bg-[#383F49] text-white border-[#3C434E]'
+        }`}
+        style={{
+          boxShadow: '0 2px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+        }}
+      >
+        <span className="truncate px-0.5">{mainLabel}</span>
+      </button>
+    </div>
+  );
+};
+
+interface KeypadButtonProps {
+  mainLabel: string;
+  shiftLabel: string;
+  alphaLabel: string;
+  onClick: () => void;
+  isPrimary?: boolean;
+}
+
+const KeypadButton: React.FC<KeypadButtonProps> = ({
+  mainLabel,
+  shiftLabel,
+  alphaLabel,
+  onClick,
+  isPrimary,
+}) => {
+  return (
+    <div className="flex flex-col items-center select-none">
+      {/* Shift & Alpha Labels */}
+      <div className="h-3 w-full flex items-center justify-between px-0.5 text-[9px] sm:text-[10px] font-bold font-mono leading-none truncate">
+        <span className="text-[#FBBF24] truncate mr-0.5">{shiftLabel}</span>
+        <span className="text-[#C084FC] truncate">{alphaLabel}</span>
+      </div>
+
+      {/* Main Key */}
+      <button
+        type="button"
+        onClick={onClick}
+        className={`w-full h-12 sm:h-14 rounded-2xl border text-lg sm:text-xl font-bold flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer ${
+          isPrimary
+            ? 'bg-[#22C55E] hover:bg-[#16A34A] text-white border-[#22C55E] shadow-emerald-500/20'
+            : 'bg-[#2A2E35] hover:bg-[#373C45] text-white border-[#3B424D]'
+        }`}
+        style={{
+          boxShadow: '0 3px 6px rgba(0,0,0,0.45), inset 0 1px 1px rgba(255,255,255,0.1)',
+        }}
+      >
+        <span>{mainLabel}</span>
+      </button>
     </div>
   );
 };

@@ -12,10 +12,12 @@ import {
   MessageSquare,
   Check,
   X,
+  Globe,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { InstallAppModal } from './InstallAppModal';
 import { useTheme, ThemePreference } from '../contexts/ThemeContext';
+import { useAppLanguage } from '../contexts/LanguageContext';
 import { getHistory } from '../services/historyStorage';
 
 interface Props {
@@ -36,6 +38,7 @@ export const Header: React.FC<Props> = ({
   const { isInstalled, canInstall, triggerInstall } = usePWAInstall();
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const { currentLanguage, setIsLanguageModalOpen } = useAppLanguage();
   const [historyCount, setHistoryCount] = useState<number>(() => {
     try {
       return getHistory().length;
@@ -57,8 +60,13 @@ export const Header: React.FC<Props> = ({
     };
     updateCount();
     window.addEventListener('smartsolve_history_changed', updateCount);
+
+    const handleOpenTheme = () => setIsThemeModalOpen(true);
+    window.addEventListener('smartsolve_open_theme_modal', handleOpenTheme);
+
     return () => {
       window.removeEventListener('smartsolve_history_changed', updateCount);
+      window.removeEventListener('smartsolve_open_theme_modal', handleOpenTheme);
     };
   }, []);
 
@@ -249,6 +257,25 @@ export const Header: React.FC<Props> = ({
                 {themePreference === 'system' && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#22C55E] ring-2 ring-black/50" />
                 )}
+              </button>
+
+              {/* App Language & Writing Selector */}
+              <button
+                onClick={() => setIsLanguageModalOpen(true)}
+                title={`App Language & Writing: ${currentLanguage.name} (${currentLanguage.nativeName})`}
+                className={`flex items-center space-x-1 sm:space-x-1.5 p-1.5 sm:px-2.5 sm:py-2 rounded-xl transition-colors border cursor-pointer active:scale-95 ${
+                  isDark
+                    ? 'bg-[#18181B] hover:bg-[#27272A] text-white border-[#27272A]'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-200'
+                }`}
+              >
+                <span className="text-sm leading-none" role="img" aria-label={currentLanguage.name}>
+                  {currentLanguage.flag}
+                </span>
+                <span className="text-xs font-bold hidden sm:inline uppercase">
+                  {currentLanguage.code}
+                </span>
+                <Globe className="w-3.5 h-3.5 text-[#22C55E]" />
               </button>
             </div>
           </div>

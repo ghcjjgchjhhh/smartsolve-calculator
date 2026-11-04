@@ -30,6 +30,8 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { LanguageProvider } from './contexts/LanguageContext';
+import { LanguageSettingsModal } from './components/LanguageSettingsModal';
 
 function MainApp() {
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -467,7 +469,11 @@ function MainApp() {
       {/* Main Content Area: Preserved tabs keep DOM state intact across navigation */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
         <div className={activeTab === 'scientific' ? 'block' : 'hidden'}>
-          <ScientificCalculator onOpenHistory={() => setIsHistoryOpen(true)} />
+          <ScientificCalculator
+            onOpenHistory={() => setIsHistoryOpen(true)}
+            onOpenSearch={() => setIsSearchOpen(true)}
+            onNavigateTab={navigateTab}
+          />
         </div>
         <div className={activeTab === 'ai_chat' ? 'block' : 'hidden'}>
           <AiChatAssistantView />
@@ -529,6 +535,7 @@ function MainApp() {
         isOpen={isInstallModalOpen}
         onClose={() => setIsInstallModalOpen(false)}
       />
+      <LanguageSettingsModal />
 
       {/* Footer */}
       <footer className="border-t border-[#27272A] bg-[#000000] py-6 text-center text-xs text-[#A1A1AA]">
@@ -561,7 +568,9 @@ function MainApp() {
 export default function App() {
   return (
     <ThemeProvider>
-      <MainApp />
+      <LanguageProvider>
+        <MainApp />
+      </LanguageProvider>
     </ThemeProvider>
   );
 }
