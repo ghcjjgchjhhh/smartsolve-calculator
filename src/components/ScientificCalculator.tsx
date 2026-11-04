@@ -36,8 +36,8 @@ export const ScientificCalculator: React.FC<Props> = ({
   const { resolvedTheme } = useTheme();
 
   const [expression, setExpression] = useState<string>('');
-  const [previousExpression, setPreviousExpression] = useState<string>('6 ÷ 9');
-  const [lastResultStr, setLastResultStr] = useState<string>('0.666 666 666 67');
+  const [previousExpression, setPreviousExpression] = useState<string>('');
+  const [lastResultStr, setLastResultStr] = useState<string>('');
   const [angleMode, setAngleMode] = useState<'deg' | 'rad'>('deg');
   const [isShift, setIsShift] = useState<boolean>(false);
   const [isAlpha, setIsAlpha] = useState<boolean>(false);
@@ -53,6 +53,44 @@ export const ScientificCalculator: React.FC<Props> = ({
   const [historyCursor, setHistoryCursor] = useState<number>(-1);
 
   const displayEndRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Format mathematical expression for clean, authentic scientific display
+   * Uses proper mathematical symbols: ×, ÷, −, √, ∛, π, ∞, superscripts
+   */
+  const formatMathDisplay = (expr: string): string => {
+    if (!expr) return '';
+    return expr
+      .replace(/\*/g, ' × ')
+      .replace(/\//g, ' ÷ ')
+      .replace(/\b([0-9]+)\s*-\s*([0-9]+)/g, '$1 − $2')
+      .replace(/(^|\s)-(\d+)/g, '$1−$2')
+      .replace(/\bsqrt\(/gi, '√(')
+      .replace(/\bcbrt\(/gi, '∛(')
+      .replace(/\bpi\b/gi, 'π')
+      .replace(/\bInfinity\b/gi, '∞')
+      .replace(/\^2\b/g, '²')
+      .replace(/\^3\b/g, '³')
+      .replace(/\^\(-1\)/g, '⁻¹')
+      .replace(/\^-1\b/g, '⁻¹')
+      .replace(/\^0\b/g, '⁰')
+      .replace(/\^1\b/g, '¹')
+      .replace(/\^4\b/g, '⁴')
+      .replace(/\^5\b/g, '⁵')
+      .replace(/\^6\b/g, '⁶')
+      .replace(/\^7\b/g, '⁷')
+      .replace(/\^8\b/g, '⁸')
+      .replace(/\^9\b/g, '⁹')
+      .replace(/\s+/g, ' ');
+  };
+
+  const formatMathResult = (val: string): string => {
+    if (!val) return '';
+    return val
+      .replace(/-Infinity/gi, '−∞')
+      .replace(/\bInfinity\b/gi, '∞')
+      .replace(/^-/, '−');
+  };
 
   const refreshHistory = () => {
     try {
@@ -108,16 +146,18 @@ export const ScientificCalculator: React.FC<Props> = ({
       } else if (e.key === '+') {
         handleInput(' + ');
       } else if (e.key === '-') {
-        handleInput(' - ');
+        handleInput(' − ');
       } else if (e.key === '*' || e.key === 'x') {
-        handleInput(' * ');
+        handleInput(' × ');
       } else if (e.key === '/') {
         e.preventDefault();
-        handleInput(' / ');
+        handleInput(' ÷ ');
       } else if (e.key === '%') {
         handleInput('%');
       } else if (e.key === '(' || e.key === ')') {
         handleInput(e.key);
+      } else if (e.key === '^') {
+        handleInput('^');
       } else if (e.key === 'Enter' || e.key === '=') {
         e.preventDefault();
         handleCalculate();
@@ -163,6 +203,8 @@ export const ScientificCalculator: React.FC<Props> = ({
   const handleClear = () => {
     triggerHaptic();
     setExpression('');
+    setPreviousExpression('');
+    setLastResultStr('');
     setPreviewResult('');
     setErrorMsg(null);
     setIsShift(false);
@@ -325,13 +367,13 @@ export const ScientificCalculator: React.FC<Props> = ({
   };
 
   return (
-    <div className="max-w-md sm:max-w-lg mx-auto space-y-4 select-none pb-8">
+    <div className="w-full max-w-sm sm:max-w-md mx-auto space-y-3 sm:space-y-4 select-none pb-8 px-0.5 sm:px-0">
       {/* =========================================================
           AUTHENTIC CASIO fx-991EX CLASSWIZ HARDWARE CHASSIS
           Matches the reference image layout, proportions, and styling
           ========================================================= */}
       <div
-        className="rounded-[28px] p-3.5 sm:p-5 shadow-2xl border border-[#2E333B] relative overflow-hidden transition-all"
+        className="rounded-3xl sm:rounded-[28px] p-2.5 xs:p-3 sm:p-4.5 shadow-2xl border border-[#2E333B] relative overflow-hidden transition-all"
         style={{
           backgroundColor: '#121417',
           backgroundImage:
@@ -387,58 +429,79 @@ export const ScientificCalculator: React.FC<Props> = ({
             Matches reference image LCD glass with top expression,
             right-aligned result and blinking purple caret cursor.
             ========================================================= */}
+        {/* =========================================================
+            LCD DISPLAY SCREEN (Authentic Sage-Grey Retro Dot-Matrix)
+            Completely BLANK on initial load per user instruction #1.
+            Only shows content when user enters something or calculates.
+            ========================================================= */}
         <div
-          className="rounded-2xl p-3 sm:p-4 mb-3 relative overflow-hidden transition-all border border-[#8EA194]"
+          className="rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 mb-2 sm:mb-2.5 relative overflow-hidden transition-all border border-[#8EA194] flex flex-col justify-between min-h-[92px] sm:min-h-[110px]"
           style={{
             backgroundColor: '#C5D6CC',
             boxShadow: 'inset 0 2px 7px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.4)',
           }}
         >
-          {/* Top Line: Previous Expression + Options dots */}
-          <div className="flex items-center justify-between font-mono text-sm sm:text-base text-[#111613] tracking-wide mb-1 min-h-[22px]">
-            <div className="truncate font-semibold opacity-90">
-              {previousExpression || '0'}
-            </div>
-            <div className="text-xs text-[#202722] opacity-70 flex flex-col items-center leading-none">
-              <span>•</span>
-              <span>•</span>
-              <span>•</span>
-            </div>
+          {/* Top Line: Previous Expression (ONLY rendered if a previous calculation exists) */}
+          <div className="flex items-center justify-between font-mono text-xs sm:text-sm text-[#111613] tracking-wide min-h-[18px]">
+            {previousExpression ? (
+              <>
+                <div className="truncate font-semibold opacity-85 overflow-x-auto scrollbar-none whitespace-nowrap flex-1">
+                  {formatMathDisplay(previousExpression)}
+                </div>
+                <div className="text-[10px] text-[#202722] opacity-60 flex flex-col items-center leading-none ml-1 shrink-0">
+                  <span>•</span>
+                  <span>•</span>
+                  <span>•</span>
+                </div>
+              </>
+            ) : (
+              <div />
+            )}
           </div>
 
-          {/* Middle Line: Evaluated Result Aligned to the Right */}
-          <div className="flex items-center justify-between text-right text-xl sm:text-2xl font-mono font-bold text-[#0D120F] tracking-tight my-1 min-h-[32px]">
-            <div className="text-xs text-[#202722] opacity-50 flex flex-col items-center leading-none">
-              <span>•</span>
-              <span>•</span>
-              <span>•</span>
-            </div>
-            <div className="truncate ml-2 text-right w-full">
-              {lastResultStr || '0'}
-            </div>
+          {/* Middle Line: Evaluated Result (ONLY rendered if a result exists) */}
+          <div className="flex items-center justify-between text-right font-mono font-bold text-[#0D120F] tracking-tight min-h-[26px] sm:min-h-[32px] my-0.5">
+            {lastResultStr ? (
+              <>
+                <div className="text-[10px] text-[#202722] opacity-40 flex flex-col items-center leading-none mr-1 shrink-0">
+                  <span>•</span>
+                  <span>•</span>
+                  <span>•</span>
+                </div>
+                <div className="truncate text-right w-full text-lg sm:text-2xl font-mono overflow-x-auto scrollbar-none whitespace-nowrap">
+                  {formatMathResult(lastResultStr)}
+                </div>
+              </>
+            ) : (
+              <div />
+            )}
           </div>
 
           {/* Bottom Line: Active Input Line with Purple Vertical Cursor */}
-          <div className="flex items-center justify-between mt-1 pt-1 border-t border-[#9EB0A3]/60 min-h-[28px]">
-            <div className="flex items-center text-base sm:text-lg font-mono font-bold text-[#0F1411] tracking-wide overflow-x-auto scrollbar-none flex-1 mr-2">
-              <span className="w-0.5 h-5 bg-[#9333EA] animate-pulse mr-1 shrink-0 rounded-full" />
-              <span>{expression || <span className="opacity-35 font-normal">0</span>}</span>
+          <div className="flex items-center justify-between pt-0.5 border-t border-[#9EB0A3]/50 min-h-[24px] sm:min-h-[28px]">
+            <div className="flex items-center text-sm sm:text-lg font-mono font-bold text-[#0F1411] tracking-wide overflow-x-auto scrollbar-none flex-1 mr-1.5 whitespace-nowrap">
+              <span className="w-0.5 h-4 sm:h-5 bg-[#9333EA] animate-pulse mr-1 shrink-0 rounded-full" />
+              {expression ? (
+                <span>{formatMathDisplay(expression)}</span>
+              ) : null}
               <div ref={displayEndRef} />
             </div>
-            <div className="text-xs text-[#202722] opacity-70 flex flex-col items-center leading-none">
-              <span>•</span>
-              <span>•</span>
-              <span>•</span>
-            </div>
+            {expression ? (
+              <div className="text-[10px] text-[#202722] opacity-60 flex flex-col items-center leading-none shrink-0">
+                <span>•</span>
+                <span>•</span>
+                <span>•</span>
+              </div>
+            ) : null}
           </div>
 
           {/* Live Preview / Error Banner */}
-          {(errorMsg || previewResult) && (
-            <div className="mt-1 pt-0.5 flex items-center justify-end text-[11px] font-mono font-semibold">
+          {(errorMsg || (previewResult && expression && previewResult !== lastResultStr)) && (
+            <div className="mt-0.5 flex items-center justify-end text-[10px] sm:text-[11px] font-mono font-semibold">
               {errorMsg ? (
-                <span className="text-rose-700 font-bold">{errorMsg}</span>
-              ) : previewResult && previewResult !== lastResultStr ? (
-                <span className="text-[#134E2E]">= {previewResult}</span>
+                <span className="text-rose-700 font-bold truncate">{errorMsg}</span>
+              ) : previewResult ? (
+                <span className="text-[#134E2E] truncate">= {formatMathResult(previewResult)}</span>
               ) : null}
             </div>
           )}
@@ -446,68 +509,67 @@ export const ScientificCalculator: React.FC<Props> = ({
 
         {/* =========================================================
             TOOLBAR BUTTONS STRIP (Directly below the LCD screen)
-            8 high-contrast circular/pill buttons as in reference image
+            8 high-contrast circular/pill buttons perfectly fitted for mobile
             ========================================================= */}
-        <div className="flex items-center justify-between gap-1 sm:gap-1.5 mb-3 px-0.5">
+        <div className="flex items-center justify-between gap-0.5 xs:gap-1 sm:gap-1.5 mb-2.5 sm:mb-3 px-0.5">
           {/* 1. Menu Icon */}
           <button
             type="button"
             onClick={() => onOpenHistory?.()}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            className="w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
             title="Menu & History"
           >
-            <Menu className="w-4 h-4" />
+            <Menu className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
           {/* 2. PRO Badge Pill */}
           <button
             type="button"
             onClick={() => onNavigateTab?.('ai_solver')}
-            className="px-2.5 py-1 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#9333EA]/70 flex items-center space-x-1 text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            className="px-2 xs:px-2.5 py-0.5 xs:py-1 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#9333EA]/70 flex items-center space-x-1 text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
             title="Open AI Step-by-Step Solver"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#C084FC]" />
-            <span className="text-[11px] font-extrabold text-[#C084FC]">PRO</span>
+            <Sparkles className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-[#C084FC]" />
+            <span className="text-[10px] xs:text-[11px] font-extrabold text-[#C084FC]">PRO</span>
           </button>
 
           {/* 3. Theme Palette Icon */}
           <button
             type="button"
             onClick={() => {
-              // Dispatch open theme modal event
               window.dispatchEvent(new Event('smartsolve_open_theme_modal'));
             }}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            className="w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
             title="Theme & Colors"
           >
-            <Palette className="w-3.5 h-3.5 text-zinc-300" />
+            <Palette className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-zinc-300" />
           </button>
 
           {/* 4. Sigma ∑ Icon (Math Hub) */}
           <button
             type="button"
             onClick={() => onNavigateTab?.('math')}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            className="w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
             title="Mathematics Hub & Formulas"
           >
-            <Sigma className="w-4 h-4 text-zinc-300" />
+            <Sigma className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-300" />
           </button>
 
           {/* 5. Settings Gear Icon (Language & Writing Settings) */}
           <button
             type="button"
             onClick={() => setIsLanguageModalOpen(true)}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            className="w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
             title="App Language & Writing Settings"
           >
-            <Settings className="w-4 h-4 text-zinc-300" />
+            <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-300" />
           </button>
 
           {/* 6. Plus-Minus Tool Icon */}
           <button
             type="button"
             onClick={() => onNavigateTab?.('equation')}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            className="w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
             title="Equation Solver"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -519,20 +581,20 @@ export const ScientificCalculator: React.FC<Props> = ({
           <button
             type="button"
             onClick={() => onNavigateTab?.('ai_solver')}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            className="w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
             title="Snap Photo of Problem"
           >
-            <Camera className="w-3.5 h-3.5 text-zinc-300" />
+            <Camera className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-zinc-300" />
           </button>
 
           {/* 8. MORE Badge Pill */}
           <button
             type="button"
             onClick={() => onOpenSearch?.()}
-            className="px-2.5 py-1 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            className="px-2 xs:px-2.5 py-0.5 xs:py-1 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
             title="Quick Search & 60+ Tools"
           >
-            <span className="text-[10px] font-bold">MORE</span>
+            <span className="text-[9.5px] xs:text-[10px] font-bold">MORE</span>
           </button>
         </div>
 
@@ -550,7 +612,7 @@ export const ScientificCalculator: React.FC<Props> = ({
                 triggerHaptic();
                 setIsShift((prev) => !prev);
               }}
-              className={`h-9 sm:h-10 rounded-xl font-black text-xs sm:text-sm tracking-wider uppercase transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center ${
+              className={`h-8 xs:h-8.5 sm:h-9.5 rounded-lg sm:rounded-xl font-black text-[11px] xs:text-xs sm:text-sm tracking-wider uppercase transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center ${
                 isShift
                   ? 'bg-[#FBBF24] text-black ring-2 ring-yellow-400 ring-offset-1 ring-offset-black'
                   : 'bg-[#EAB308] text-black hover:bg-[#FACC15]'
@@ -566,7 +628,7 @@ export const ScientificCalculator: React.FC<Props> = ({
                 triggerHaptic();
                 setIsAlpha((prev) => !prev);
               }}
-              className={`h-9 sm:h-10 rounded-xl font-black text-xs sm:text-sm tracking-wider uppercase transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center ${
+              className={`h-8 xs:h-8.5 sm:h-9.5 rounded-lg sm:rounded-xl font-black text-[11px] xs:text-xs sm:text-sm tracking-wider uppercase transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center ${
                 isAlpha
                   ? 'bg-[#9333EA] text-white ring-2 ring-purple-400 ring-offset-1 ring-offset-black'
                   : 'bg-[#7E22CE] text-white hover:bg-[#9333EA]'
@@ -579,7 +641,7 @@ export const ScientificCalculator: React.FC<Props> = ({
           {/* Center: Circular Directional Navigation Pad (D-Pad) */}
           <div className="col-span-6 flex items-center justify-center">
             <div
-              className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-[#404652] relative shadow-lg flex items-center justify-center transition-all"
+              className="w-20 h-20 xs:w-22 xs:h-22 sm:w-26 sm:h-26 rounded-full border-2 border-[#404652] relative shadow-lg flex items-center justify-center transition-all"
               style={{
                 backgroundColor: '#2D323A',
                 boxShadow:
@@ -590,50 +652,50 @@ export const ScientificCalculator: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => handleDpad('up')}
-                className="absolute top-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                className="absolute top-0.5 sm:top-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
                 title="Previous calculation history (Up)"
               >
-                <ChevronUp className="w-5 h-5" />
+                <ChevronUp className="w-4 h-4 xs:w-4.5 xs:h-4.5 sm:w-5 sm:h-5" />
               </button>
 
               {/* Down Triangle */}
               <button
                 type="button"
                 onClick={() => handleDpad('down')}
-                className="absolute bottom-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                className="absolute bottom-0.5 sm:bottom-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
                 title="Next calculation history (Down)"
               >
-                <ChevronDown className="w-5 h-5" />
+                <ChevronDown className="w-4 h-4 xs:w-4.5 xs:h-4.5 sm:w-5 sm:h-5" />
               </button>
 
               {/* Left Triangle */}
               <button
                 type="button"
                 onClick={() => handleDpad('left')}
-                className="absolute left-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                className="absolute left-0.5 sm:left-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
                 title="Move cursor left / Backspace"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-4 h-4 xs:w-4.5 xs:h-4.5 sm:w-5 sm:h-5" />
               </button>
 
               {/* Right Triangle */}
               <button
                 type="button"
                 onClick={() => handleDpad('right')}
-                className="absolute right-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                className="absolute right-0.5 sm:right-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
                 title="Move cursor right / Insert Ans"
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4 xs:w-4.5 xs:h-4.5 sm:w-5 sm:h-5" />
               </button>
 
               {/* Center Dot Button */}
               <button
                 type="button"
                 onClick={() => handleDpad('center')}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#181B20] border border-[#3E4552] text-zinc-400 hover:text-white shadow-inner flex items-center justify-center active:scale-95 cursor-pointer"
+                className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full bg-[#181B20] border border-[#3E4552] text-zinc-400 hover:text-white shadow-inner flex items-center justify-center active:scale-95 cursor-pointer"
                 title="Calculate / Confirm"
               >
-                <span className="w-2.5 h-2.5 rounded-full bg-zinc-500 hover:bg-emerald-400" />
+                <span className="w-2 h-2 xs:w-2.5 xs:h-2.5 rounded-full bg-zinc-500 hover:bg-emerald-400" />
               </button>
             </div>
           </div>
@@ -647,7 +709,7 @@ export const ScientificCalculator: React.FC<Props> = ({
                 triggerHaptic();
                 setAngleMode((prev) => (prev === 'deg' ? 'rad' : 'deg'));
               }}
-              className="h-9 sm:h-10 rounded-xl bg-[#373C44] hover:bg-[#434A54] border border-[#4B525E] font-bold text-xs sm:text-sm text-white transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center uppercase tracking-wider"
+              className="h-8 xs:h-8.5 sm:h-9.5 rounded-lg sm:rounded-xl bg-[#373C44] hover:bg-[#434A54] border border-[#4B525E] font-bold text-[11px] xs:text-xs sm:text-sm text-white transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center uppercase tracking-wider"
               title="Toggle DEG / RAD Angle Mode"
             >
               MODE
@@ -660,7 +722,7 @@ export const ScientificCalculator: React.FC<Props> = ({
                 triggerHaptic();
                 setIs2nd((prev) => !prev);
               }}
-              className={`h-9 sm:h-10 rounded-xl border font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center italic tracking-wider ${
+              className={`h-8 xs:h-8.5 sm:h-9.5 rounded-lg sm:rounded-xl border font-bold text-[11px] xs:text-xs sm:text-sm transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center italic tracking-wider ${
                 is2nd
                   ? 'bg-[#22C55E] text-white border-[#22C55E]'
                   : 'bg-[#373C44] text-white hover:bg-[#434A54] border-[#4B525E]'
@@ -696,7 +758,7 @@ export const ScientificCalculator: React.FC<Props> = ({
             mainLabel="x⁻¹"
             shiftLabel="x!"
             alphaLabel="Σ"
-            onClick={() => handleInput(isShift ? '!' : '^(-1)')}
+            onClick={() => handleInput(isShift ? '!' : '⁻¹')}
           />
 
           {/* 4. Log_x y (Shift: ∏) */}
@@ -712,24 +774,24 @@ export const ScientificCalculator: React.FC<Props> = ({
             ROW 1 OF SCIENTIFIC KEYS (6 keys):
             x/y, √x, x², x^y, Log, Ln
             ========================================================= */}
-        <div className="grid grid-cols-6 gap-1 sm:gap-1.5 mb-2 px-0.5">
+        <div className="grid grid-cols-6 gap-0.5 xs:gap-1 sm:gap-1.5 mb-2 px-0.5">
           <FunctionKey
             mainLabel="x/y"
             shiftLabel="x y/z"
             alphaLabel="÷R"
-            onClick={() => handleInput(' / ')}
+            onClick={() => handleInput(' ÷ ')}
           />
           <FunctionKey
             mainLabel="√x"
             shiftLabel="³√x"
             alphaLabel="mod"
-            onClick={() => handleInput(isShift ? 'cbrt(' : 'sqrt(')}
+            onClick={() => handleInput(isShift ? '∛(' : '√(')}
           />
           <FunctionKey
             mainLabel="x²"
             shiftLabel="x³"
             alphaLabel="¯"
-            onClick={() => handleInput(isShift ? '^3' : '^2')}
+            onClick={() => handleInput(isShift ? '³' : '²')}
           />
           <FunctionKey
             mainLabel="xʸ"
@@ -741,7 +803,7 @@ export const ScientificCalculator: React.FC<Props> = ({
             mainLabel="Log"
             shiftLabel="10ˣ"
             alphaLabel=""
-            onClick={() => handleInput(isShift ? '10^(' : 'log10(')}
+            onClick={() => handleInput(isShift ? '10^(' : 'log(')}
           />
           <FunctionKey
             mainLabel="Ln"
@@ -755,12 +817,12 @@ export const ScientificCalculator: React.FC<Props> = ({
             ROW 2 OF SCIENTIFIC KEYS (6 keys):
             ( - ), ° ' ", hyp, Sin, Cos, Tan
             ========================================================= */}
-        <div className="grid grid-cols-6 gap-1 sm:gap-1.5 mb-2 px-0.5">
+        <div className="grid grid-cols-6 gap-0.5 xs:gap-1 sm:gap-1.5 mb-2 px-0.5">
           <FunctionKey
             mainLabel="( - )"
             shiftLabel="∠"
             alphaLabel="a"
-            onClick={() => handleInput('(-')}
+            onClick={() => handleInput('(−')}
           />
           <FunctionKey
             mainLabel="° ' ″"
@@ -819,7 +881,7 @@ export const ScientificCalculator: React.FC<Props> = ({
             mainLabel="ENG"
             shiftLabel="i"
             alphaLabel="Cot"
-            onClick={() => handleInput('*10^')}
+            onClick={() => handleInput(' × 10^')}
           />
           <FunctionKey
             mainLabel="("
@@ -851,9 +913,9 @@ export const ScientificCalculator: React.FC<Props> = ({
             MAIN NUMERIC & OPERATOR KEYPAD (5 Columns x 4 Rows)
             Matching Casio fx-991EX layout with Orange DEL & AC keys
             ========================================================= */}
-        <div className="space-y-1.5 sm:space-y-2 px-0.5">
+        <div className="space-y-1 xs:space-y-1.5 sm:space-y-2 px-0.5">
           {/* Row 1: 7, 8, 9, DEL (Orange), AC (Orange) */}
-          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-5 gap-1 xs:gap-1.5 sm:gap-2">
             <KeypadButton
               mainLabel="7"
               shiftLabel="CONST"
@@ -873,26 +935,26 @@ export const ScientificCalculator: React.FC<Props> = ({
               onClick={() => handleInput('9')}
             />
             {/* DEL Key (Orange with Backspace icon) */}
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center min-w-0 w-full">
               <div className="h-3 text-[9px] font-bold text-zinc-500 font-mono invisible">DEL</div>
               <button
                 type="button"
                 onClick={handleBackspace}
-                className="w-full h-12 sm:h-14 rounded-2xl bg-[#EA580C] hover:bg-[#C2410C] text-black font-black text-lg flex items-center justify-center shadow-md active:scale-95 cursor-pointer transition-all border border-[#F97316]"
+                className="w-full h-10.5 xs:h-11.5 sm:h-13.5 rounded-xl sm:rounded-2xl bg-[#EA580C] hover:bg-[#C2410C] text-black font-black text-lg flex items-center justify-center shadow-md active:scale-95 cursor-pointer transition-all border border-[#F97316] min-w-0"
                 title="Delete previous character"
               >
-                <Delete className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
+                <Delete className="w-4 h-4 xs:w-5 xs:h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
               </button>
             </div>
             {/* AC Key (Orange with bold text) */}
-            <div className="flex flex-col items-center">
-              <div className="h-3 text-[9px] font-bold text-[#FBBF24] font-mono leading-none">
+            <div className="flex flex-col items-center min-w-0 w-full">
+              <div className="h-3 text-[8px] xs:text-[9px] font-bold text-[#FBBF24] font-mono leading-none truncate">
                 CLR ALL
               </div>
               <button
                 type="button"
                 onClick={handleClear}
-                className="w-full h-12 sm:h-14 rounded-2xl bg-[#F97316] hover:bg-[#EA580C] text-black font-black text-lg sm:text-xl flex items-center justify-center shadow-md active:scale-95 cursor-pointer transition-all border border-[#FB923C]"
+                className="w-full h-10.5 xs:h-11.5 sm:h-13.5 rounded-xl sm:rounded-2xl bg-[#F97316] hover:bg-[#EA580C] text-black font-black text-base xs:text-lg sm:text-xl flex items-center justify-center shadow-md active:scale-95 cursor-pointer transition-all border border-[#FB923C] min-w-0"
                 title="All Clear"
               >
                 AC
@@ -901,7 +963,7 @@ export const ScientificCalculator: React.FC<Props> = ({
           </div>
 
           {/* Row 2: 4, 5, 6, ×, ÷ */}
-          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-5 gap-1 xs:gap-1.5 sm:gap-2">
             <KeypadButton
               mainLabel="4"
               shiftLabel="MATRIX"
@@ -924,18 +986,18 @@ export const ScientificCalculator: React.FC<Props> = ({
               mainLabel="×"
               shiftLabel="nPr"
               alphaLabel="GCD"
-              onClick={() => handleInput(' * ')}
+              onClick={() => handleInput(' × ')}
             />
             <KeypadButton
               mainLabel="÷"
               shiftLabel="nCr"
               alphaLabel="LCM"
-              onClick={() => handleInput(' / ')}
+              onClick={() => handleInput(' ÷ ')}
             />
           </div>
 
           {/* Row 3: 1, 2, 3, +, − */}
-          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-5 gap-1 xs:gap-1.5 sm:gap-2">
             <KeypadButton
               mainLabel="1"
               shiftLabel="STAT"
@@ -964,12 +1026,12 @@ export const ScientificCalculator: React.FC<Props> = ({
               mainLabel="−"
               shiftLabel="Rec"
               alphaLabel="Floor"
-              onClick={() => handleInput(' - ')}
+              onClick={() => handleInput(' − ')}
             />
           </div>
 
           {/* Row 4: 0, ., Exp, Ans, = */}
-          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-5 gap-1 xs:gap-1.5 sm:gap-2">
             <KeypadButton
               mainLabel="0"
               shiftLabel="COPY"
@@ -986,7 +1048,7 @@ export const ScientificCalculator: React.FC<Props> = ({
               mainLabel="Exp"
               shiftLabel="π"
               alphaLabel="e"
-              onClick={() => handleInput(isShift ? 'pi' : isAlpha ? 'e' : 'E')}
+              onClick={() => handleInput(isShift ? 'π' : isAlpha ? 'e' : ' × 10^')}
             />
             <KeypadButton
               mainLabel="Ans"
@@ -1076,9 +1138,9 @@ const FunctionKey: React.FC<FunctionKeyProps> = ({
   isActive,
 }) => {
   return (
-    <div className="flex flex-col items-center select-none">
+    <div className="flex flex-col items-center select-none min-w-0 w-full">
       {/* Yellow Shift Label & Purple Alpha Label above key */}
-      <div className="h-3.5 w-full flex items-center justify-between px-0.5 text-[8.5px] sm:text-[9.5px] font-bold font-mono leading-none truncate">
+      <div className="h-3 sm:h-3.5 w-full flex items-center justify-between px-0.5 text-[7px] xs:text-[8px] sm:text-[9.5px] font-bold font-mono leading-none truncate">
         <span className="text-[#FBBF24] truncate mr-0.5">{shiftLabel}</span>
         <span className="text-[#C084FC] truncate">{alphaLabel}</span>
       </div>
@@ -1087,7 +1149,7 @@ const FunctionKey: React.FC<FunctionKeyProps> = ({
       <button
         type="button"
         onClick={onClick}
-        className={`w-full h-8 sm:h-9 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center transition-all shadow-sm active:scale-95 cursor-pointer ${
+        className={`w-full h-7.5 xs:h-8 sm:h-9 rounded-lg sm:rounded-xl border text-[11px] xs:text-xs sm:text-sm font-semibold flex items-center justify-center transition-all shadow-sm active:scale-95 cursor-pointer min-w-0 ${
           isActive
             ? 'bg-[#22C55E] text-white border-[#22C55E]'
             : 'bg-[#2B3037] hover:bg-[#383F49] text-white border-[#3C434E]'
@@ -1118,9 +1180,9 @@ const KeypadButton: React.FC<KeypadButtonProps> = ({
   isPrimary,
 }) => {
   return (
-    <div className="flex flex-col items-center select-none">
+    <div className="flex flex-col items-center select-none min-w-0 w-full">
       {/* Shift & Alpha Labels */}
-      <div className="h-3 w-full flex items-center justify-between px-0.5 text-[9px] sm:text-[10px] font-bold font-mono leading-none truncate">
+      <div className="h-3 w-full flex items-center justify-between px-0.5 text-[7.5px] xs:text-[8.5px] sm:text-[9.5px] font-bold font-mono leading-none truncate">
         <span className="text-[#FBBF24] truncate mr-0.5">{shiftLabel}</span>
         <span className="text-[#C084FC] truncate">{alphaLabel}</span>
       </div>
@@ -1129,7 +1191,7 @@ const KeypadButton: React.FC<KeypadButtonProps> = ({
       <button
         type="button"
         onClick={onClick}
-        className={`w-full h-12 sm:h-14 rounded-2xl border text-lg sm:text-xl font-bold flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer ${
+        className={`w-full h-10.5 xs:h-11.5 sm:h-13.5 rounded-xl sm:rounded-2xl border text-base xs:text-lg sm:text-xl font-bold flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer min-w-0 ${
           isPrimary
             ? 'bg-[#22C55E] hover:bg-[#16A34A] text-white border-[#22C55E] shadow-emerald-500/20'
             : 'bg-[#2A2E35] hover:bg-[#373C45] text-white border-[#3B424D]'

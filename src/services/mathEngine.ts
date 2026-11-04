@@ -5,7 +5,7 @@ import { StepSolution } from '../types';
  */
 export function formatNum(n: number, decimals: number = 4): string {
   if (isNaN(n)) return 'NaN';
-  if (!isFinite(n)) return n > 0 ? '∞' : '-∞';
+  if (!isFinite(n)) return n > 0 ? '∞' : '−∞';
   if (Math.abs(n) < 1e-12 && n !== 0) return '0';
   if (Number.isInteger(n)) return n.toString();
   // Round to prevent floating point inaccuracies like 0.30000000000000004
@@ -66,15 +66,33 @@ export function evaluateExpression(expr: string, angleMode: 'deg' | 'rad' = 'deg
     .replace(/−/g, '-')
     .replace(/²/g, '^2')
     .replace(/³/g, '^3')
-    .replace(/½/g, '0.5');
+    .replace(/⁰/g, '^0')
+    .replace(/¹/g, '^1')
+    .replace(/⁴/g, '^4')
+    .replace(/⁵/g, '^5')
+    .replace(/⁶/g, '^6')
+    .replace(/⁷/g, '^7')
+    .replace(/⁸/g, '^8')
+    .replace(/⁹/g, '^9')
+    .replace(/⁻¹/g, '^(-1)')
+    .replace(/½/g, '0.5')
+    .replace(/⅓/g, '(1/3)')
+    .replace(/⅔/g, '(2/3)')
+    .replace(/¼/g, '0.25')
+    .replace(/¾/g, '0.75')
+    .replace(/∛\(([^)]+)\)/g, 'cbrt($1)')
+    .replace(/∛(\d+(\.\d+)?)/g, 'cbrt($1)')
+    .replace(/³√\(([^)]+)\)/g, 'cbrt($1)')
+    .replace(/³√(\d+(\.\d+)?)/g, 'cbrt($1)');
 
   // Handle implicit multiplication:
-  // e.g. 2(3) -> 2*(3), (2)(3) -> (2)*(3), 2sin(30) -> 2*sin(30), 5pi -> 5*pi, 3e -> 3*e, 2sqrt(4) -> 2*sqrt(4)
+  // e.g. 2(3) -> 2*(3), (2)(3) -> (2)*(3), 2sin(30) -> 2*sin(30), 5pi -> 5*pi, 3e -> 3*e, 2sqrt(4) -> 2*sqrt(4), 2√4 -> 2*√4
   clean = clean.replace(/(\d)(\()/g, '$1*$2');
   clean = clean.replace(/(\))(\d)/g, '$1*$2');
   clean = clean.replace(/(\))(\()/g, '$1*$2');
-  clean = clean.replace(/(\d)(sin|cos|tan|asin|acos|atan|log|ln|sqrt|π|pi|e)\b/gi, '$1*$2');
-  clean = clean.replace(/(\))(sin|cos|tan|asin|acos|atan|log|ln|sqrt|π|pi|e)\b/gi, '$1*$2');
+  clean = clean.replace(/(\d)(sin|cos|tan|asin|acos|atan|log|ln|sqrt|cbrt|π|pi|e)\b/gi, '$1*$2');
+  clean = clean.replace(/(\))(sin|cos|tan|asin|acos|atan|log|ln|sqrt|cbrt|π|pi|e)\b/gi, '$1*$2');
+  clean = clean.replace(/(\d)(√|∛)/g, '$1*$2');
 
   // Handle percentages: e.g. 50% -> (50*0.01)
   clean = clean.replace(/(\d+(\.\d+)?)%/g, '($1 * 0.01)');
@@ -157,6 +175,9 @@ export function evaluateExpression(expr: string, angleMode: 'deg' | 'rad' = 'deg
       .replace(/sqrt\(([^)]+)\)/gi, (_, v) => `Math.sqrt(${v})`)
       .replace(/√\(([^)]+)\)/g, (_, v) => `Math.sqrt(${v})`)
       .replace(/√(\d+(\.\d+)?)/g, (_, v) => `Math.sqrt(${v})`)
+      .replace(/cbrt\(([^)]+)\)/gi, (_, v) => `Math.cbrt(${v})`)
+      .replace(/∛\(([^)]+)\)/g, (_, v) => `Math.cbrt(${v})`)
+      .replace(/∛(\d+(\.\d+)?)/g, (_, v) => `Math.cbrt(${v})`)
       .replace(/log\(([^)]+)\)/gi, (_, v) => `Math.log10(${v})`)
       .replace(/ln\(([^)]+)\)/gi, (_, v) => `Math.log(${v})`)
       .replace(/abs\(([^)]+)\)/gi, (_, v) => `Math.abs(${v})`)
