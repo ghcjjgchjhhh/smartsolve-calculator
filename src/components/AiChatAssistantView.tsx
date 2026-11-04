@@ -12,6 +12,13 @@ import {
 } from '../services/chatStorage';
 import { ChatMessageRenderer } from './ChatMessageRenderer';
 import {
+  VOICE_PERSONAS,
+  VoicePersona,
+  scoreAndSelectVoice,
+  splitSpeechChunks,
+  convertTextToConversationalSpeech,
+} from '../services/voicePersonaEngine';
+import {
   Send,
   Square,
   Sparkles,
@@ -314,6 +321,7 @@ export interface AiSpeechState {
 }
 
 export interface VoiceSettings {
+  personaId: string;
   language: string;
   gender: 'female' | 'male';
   voiceURI: string;
@@ -326,80 +334,14 @@ const findBestVoice = (
   voices: SpeechSynthesisVoice[],
   languageCode: string,
   gender: 'female' | 'male',
-  preferredVoiceURI?: string
+  preferredVoiceURI?: string,
+  personaId?: string
 ): SpeechSynthesisVoice | null => {
-  if (preferredVoiceURI) {
-    const exact = voices.find((v) => v.voiceURI === preferredVoiceURI);
-    if (exact) return exact;
-  }
-
-  const femaleKeywords = [
-    'female', 'woman', 'girl', 'samantha', 'victoria', 'karen', 'zira',
-    'jenny', 'ava', 'moira', 'fiona', 'tessa', 'veena', 'susan', 'allison',
-    'kendra', 'joanna', 'yuri', 'kyoko', 'amelie', 'helena', 'monica', 'carmen'
-  ];
-  const maleKeywords = [
-    'male', 'man', 'boy', 'david', 'daniel', 'george', 'guy', 'mark',
-    'alex', 'fred', 'bruce', 'tom', 'arthur', 'oliver', 'thomas', 'martin',
-    'diego', 'jorge', 'paul', 'henri'
-  ];
-
-  const targetKeywords = gender === 'female' ? femaleKeywords : maleKeywords;
-  const oppositeKeywords = gender === 'female' ? maleKeywords : femaleKeywords;
-  const langPrefix = (languageCode || 'en').split('-')[0].toLowerCase();
-
-  // 1. Exact language match + targeted gender name
-  const exactLangVoices = voices.filter(
-    (v) => v.lang.toLowerCase().replace('_', '-') === languageCode.toLowerCase()
-  );
-  for (const v of exactLangVoices) {
-    const lowerName = v.name.toLowerCase();
-    if (targetKeywords.some((kw) => lowerName.includes(kw))) {
-      return v;
-    }
-  }
-
-  // 2. Language prefix match (e.g. en, fr, es) + targeted gender
-  const prefixLangVoices = voices.filter((v) =>
-    v.lang.toLowerCase().startsWith(langPrefix)
-  );
-  for (const v of prefixLangVoices) {
-    const lowerName = v.name.toLowerCase();
-    if (
-      targetKeywords.some((kw) => lowerName.includes(kw)) &&
-      !oppositeKeywords.some((kw) => lowerName.includes(kw))
-    ) {
-      return v;
-    }
-  }
-
-  // 3. Exact language match, avoiding opposite gender if possible
-  if (exactLangVoices.length > 0) {
-    const neutral = exactLangVoices.find(
-      (v) => !oppositeKeywords.some((kw) => v.name.toLowerCase().includes(kw))
-    );
-    if (neutral) return neutral;
-    return exactLangVoices[0];
-  }
-
-  // 4. Prefix match
-  if (prefixLangVoices.length > 0) {
-    const neutral = prefixLangVoices.find(
-      (v) => !oppositeKeywords.some((kw) => v.name.toLowerCase().includes(kw))
-    );
-    if (neutral) return neutral;
-    return prefixLangVoices[0];
-  }
-
-  // 5. Any voice matching gender across all languages
-  for (const v of voices) {
-    const lowerName = v.name.toLowerCase();
-    if (targetKeywords.some((kw) => lowerName.includes(kw))) {
-      return v;
-    }
-  }
-
-  return voices[0] || null;
+  const persona =
+    (personaId && VOICE_PERSONAS.find((p) => p.id === personaId)) ||
+    VOICE_PERSONAS.find((p) => p.gender === gender) ||
+    VOICE_PERSONAS[0];
+  return scoreAndSelectVoice(voices, persona, preferredVoiceURI);
 };
 
 interface Props {
@@ -494,12 +436,17 @@ export const AiChatAssistantView: React.FC<Props> = ({
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const speechTimeoutRef = useRef<any>(null);
+
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(() => {
     try {
       const saved = localStorage.getItem('smartsolve_chat_voice_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
+        const resolvedPersona =
+          parsed.personaId || (parsed.gender === 'male' ? 'cove' : 'breeze');
         return {
+          personaId: resolvedPersona,
           language: parsed.language || 'en-NG',
           gender: parsed.gender === 'male' ? 'male' : 'female',
           voiceURI: parsed.voiceURI || '',
@@ -510,6 +457,7 @@ export const AiChatAssistantView: React.FC<Props> = ({
       }
     } catch {}
     return {
+      personaId: 'breeze',
       language: 'en-NG',
       gender: 'female',
       voiceURI: '',
@@ -518,6 +466,11 @@ export const AiChatAssistantView: React.FC<Props> = ({
       autoSpeak: false,
     };
   });
+
+  const currentPersona: VoicePersona =
+    VOICE_PERSONAS.find((p) => p.id === voiceSettings.personaId) ||
+    VOICE_PERSONAS.find((p) => p.gender === voiceSettings.gender) ||
+    VOICE_PERSONAS[0];
 
   // DOM Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1001,6 +954,8 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       attachments: messageAttachments,
       preferredLanguage: voiceSettings.language,
       preferredGender: voiceSettings.gender,
+      persona: currentPersona.name,
+      voicePersona: currentPersona.name,
       stream: true,
     };
 
@@ -1209,44 +1164,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
 
   // Clean text and split into sentences for synchronized audio playback & seeking
   const splitSpeechSentences = (rawText: string): string[] => {
-    const cleanSpeech = rawText
-      .replace(/\$\$(.*?)\$\$/g, ' equation: $1 ')
-      .replace(/\$(.*?)\$/g, ' $1 ')
-      .replace(/\\frac\{(.*?)\}\{(.*?)\}/g, '$1 over $2')
-      .replace(/\\sqrt\{(.*?)\}/g, 'square root of $1')
-      .replace(/\\times/g, ' times ')
-      .replace(/\\div/g, ' divided by ')
-      .replace(/\\pm/g, ' plus or minus ')
-      .replace(/\\theta/g, ' theta ')
-      .replace(/\\pi/g, ' pi ')
-      .replace(/\\boxed\{(.*?)\}/g, '$1')
-      .replace(/```[\s\S]*?```/g, 'Code block omitted.')
-      .replace(/[*#_`]/g, '')
-      .trim();
-
-    if (!cleanSpeech) return [];
-
-    // Split on sentence-ending punctuation or line breaks
-    const rawChunks = cleanSpeech.split(/(?<=[.!?;\n])\s+/);
-    const result: string[] = [];
-
-    for (const chunk of rawChunks) {
-      const trimmed = chunk.trim();
-      if (trimmed.length > 0) {
-        // Break unusually long paragraphs into smaller clauses for snappy seeking
-        if (trimmed.length > 180) {
-          const subClauses = trimmed.split(/(?<=[,;])\s+/);
-          for (const sc of subClauses) {
-            const scTrimmed = sc.trim();
-            if (scTrimmed.length > 0) result.push(scTrimmed);
-          }
-        } else {
-          result.push(trimmed);
-        }
-      }
-    }
-
-    return result.length > 0 ? result : [cleanSpeech];
+    return splitSpeechChunks(rawText);
   };
 
   // Play a specific sentence in the sequence
@@ -1258,6 +1176,11 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
   ) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
+
     const validIndex = Math.max(0, Math.min(targetIndex, sentences.length - 1));
     const sentence = sentences[validIndex];
     if (!sentence) {
@@ -1267,7 +1190,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
     }
 
     const currentRate =
-      rateOverride ?? aiSpeechRef.current?.playbackRate ?? voiceSettings.rate ?? 1.0;
+      rateOverride ?? aiSpeechRef.current?.playbackRate ?? voiceSettings.rate ?? currentPersona.rate ?? 1.0;
 
     // Cancel any active utterance before starting the next
     window.speechSynthesis.cancel();
@@ -1286,19 +1209,16 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
     setSpeakingMessageId(msgId);
 
     const utterance = new SpeechSynthesisUtterance(sentence);
-    utterance.lang = voiceSettings.language || 'en-NG';
+    utterance.lang = currentPersona.accentCode || voiceSettings.language || 'en-US';
 
-    // Female voice: bright, clear, melodic (1.12x base pitch)
-    // Male voice: deeper, resonant, articulate (0.86x base pitch)
-    const isFemale = voiceSettings.gender === 'female';
-    utterance.pitch = Math.max(0.6, Math.min(1.6, voiceSettings.pitch * (isFemale ? 1.12 : 0.86)));
+    // Use natural persona pitch without artificial multiplier distortions
+    utterance.pitch = currentPersona.pitch * (voiceSettings.pitch || 1.0);
     utterance.rate = Math.max(0.7, Math.min(2.0, currentRate));
 
     if (availableVoices.length > 0) {
-      const bestVoice = findBestVoice(
+      const bestVoice = scoreAndSelectVoice(
         availableVoices,
-        voiceSettings.language,
-        voiceSettings.gender,
+        currentPersona,
         voiceSettings.voiceURI
       );
       if (bestVoice) {
@@ -1310,7 +1230,10 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       const latest = aiSpeechRef.current;
       if (latest && latest.messageId === msgId && latest.isPlaying && !latest.isPaused) {
         if (validIndex + 1 < sentences.length) {
-          playAiSpeechSentence(msgId, sentences, validIndex + 1, currentRate);
+          // Human-like inter-sentence breathing pause (110ms)
+          speechTimeoutRef.current = setTimeout(() => {
+            playAiSpeechSentence(msgId, sentences, validIndex + 1, currentRate);
+          }, 110);
         } else {
           setAiSpeech(null);
           setSpeakingMessageId(null);
@@ -1333,6 +1256,10 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
   // Pause AI voice playback
   const handlePauseAiSpeech = () => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
     window.speechSynthesis.cancel();
     if (aiSpeechRef.current) {
       const paused = { ...aiSpeechRef.current, isPlaying: false, isPaused: true };
@@ -1372,6 +1299,10 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
   // Stop AI voice playback
   const handleStopAiSpeech = () => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
     window.speechSynthesis.cancel();
     aiSpeechRef.current = null;
     setAiSpeech(null);
@@ -1675,21 +1606,18 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               <span className="font-bold">{voiceSettings.autoSpeak ? 'ON' : 'OFF'}</span>
             </button>
 
-            {/* Voice Gender & Language Pill */}
+            {/* ChatGPT Voice Persona Pill */}
             <button
               type="button"
               onClick={() => setIsVoiceModalOpen(true)}
-              className="px-2.5 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-zinc-300 hover:text-white border border-[#27272A] hover:border-[#22C55E]/40 transition-all cursor-pointer flex items-center space-x-1.5 text-xs font-semibold"
-              title="Voice Gender (Male/Female) and Language Options"
+              className="px-2.5 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-zinc-200 hover:text-white border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer flex items-center space-x-1.5 text-xs font-semibold shadow-xs"
+              title={`Active Voice Persona: ${currentPersona.name} (${currentPersona.tagline}). Tap to customize voice.`}
             >
-              <span className="text-sm">{voiceSettings.gender === 'female' ? '👩' : '👨'}</span>
-              <span className="hidden md:inline">{voiceSettings.gender === 'female' ? 'Female' : 'Male'}</span>
-              <span className="text-zinc-600 hidden md:inline">•</span>
-              <span>{SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.flag || '🇳🇬'}</span>
-              <span className="hidden sm:inline">
-                {SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.short || 'Nigerian'}
-              </span>
-              <Sliders className="w-3 h-3 text-white ml-0.5" />
+              <span className="text-sm">{currentPersona.emoji}</span>
+              <span className="font-bold text-white">{currentPersona.name}</span>
+              <span className="text-zinc-500 hidden md:inline">•</span>
+              <span className="text-zinc-400 text-[11px] hidden md:inline font-normal">{currentPersona.tagline}</span>
+              <Sliders className="w-3 h-3 text-[#22C55E] ml-0.5" />
             </button>
 
             {/* New Chat Button */}
@@ -2348,13 +2276,23 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       {/* 5. VOICE & LANGUAGE CUSTOMIZATION MODAL */}
       {isVoiceModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#121216] border border-[#27272A] rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto scrollbar-thin animate-scaleUp">
+          <div className="bg-[#121216] border border-[#27272A] rounded-3xl p-5 sm:p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto scrollbar-thin animate-scaleUp">
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#27272A] pb-3">
-              <div className="flex items-center space-x-2">
-                <Sliders className="w-5 h-5 text-[#22C55E]" />
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#22C55E]/15 border border-[#22C55E]/40 flex items-center justify-center text-[#22C55E]">
+                  <Sparkles className="w-5 h-5" />
+                </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">AI Voice & Languages</h3>
-                  <p className="text-[11px] text-zinc-400">Choose gender (Male/Female) and regional languages</p>
+                  <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                    <span>ChatGPT Voice Mode</span>
+                    <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30">
+                      PRO
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">
+                    Lifelike conversational personas with expressive pacing, natural intonation & neural audio
+                  </p>
                 </div>
               </div>
               <button
@@ -2366,146 +2304,156 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               </button>
             </div>
 
-            {/* 1. Voice Gender Selection (Male or Female) */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-zinc-300 block">
-                Voice Gender:
-              </label>
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const updated: VoiceSettings = { ...voiceSettings, gender: 'female' };
-                    handleSaveVoiceSettings(updated);
-                  }}
-                  className={`py-3 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    voiceSettings.gender === 'female'
-                      ? 'bg-[#22C55E]/20 text-white border-[#22C55E] shadow-md shadow-emerald-500/10'
-                      : 'bg-[#0A0A0C] text-zinc-400 hover:text-white border-[#27272A] hover:bg-[#18181D]'
-                  }`}
-                >
-                  <span className="text-xl">👩</span>
-                  <div className="text-left">
-                    <div className="font-bold text-xs">Female Voice</div>
-                    <div className="text-[10px] opacity-75 font-normal">Clear & natural</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const updated: VoiceSettings = { ...voiceSettings, gender: 'male' };
-                    handleSaveVoiceSettings(updated);
-                  }}
-                  className={`py-3 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    voiceSettings.gender === 'male'
-                      ? 'bg-[#22C55E]/20 text-white border-[#22C55E] shadow-md shadow-emerald-500/10'
-                      : 'bg-[#0A0A0C] text-zinc-400 hover:text-white border-[#27272A] hover:bg-[#18181D]'
-                  }`}
-                >
-                  <span className="text-xl">👨</span>
-                  <div className="text-left">
-                    <div className="font-bold text-xs">Male Voice</div>
-                    <div className="text-[10px] opacity-75 font-normal">Deeper & resonant</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* 2. Language Selection (12 Global & Regional Languages) */}
-            <div className="space-y-1.5">
+            {/* 1. Voice Persona Selection (ChatGPT Advanced Voice Mode Personas) */}
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-zinc-300 flex items-center space-x-1.5">
-                  <Globe className="w-3.5 h-3.5 text-white" />
-                  <span>Choose Language / Accent:</span>
+                <label className="text-xs font-bold text-white flex items-center space-x-1.5">
+                  <Headphones className="w-3.5 h-3.5 text-[#22C55E]" />
+                  <span>Choose Voice Persona:</span>
                 </label>
-                <span className="text-[11px] text-white font-semibold">
-                  {SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.flag}{' '}
-                  {SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language)?.short}
+                <span className="text-[11px] text-zinc-400">
+                  Active: <strong className="text-[#22C55E]">{currentPersona.name}</strong>
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
-                {SUPPORTED_LANGUAGES.map((lang) => {
-                  const isSelected = voiceSettings.language === lang.code;
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {VOICE_PERSONAS.map((p) => {
+                  const isSelected = voiceSettings.personaId === p.id;
                   return (
-                    <button
-                      key={lang.code}
-                      type="button"
+                    <div
+                      key={p.id}
                       onClick={() => {
                         const updated: VoiceSettings = {
                           ...voiceSettings,
-                          language: lang.code,
+                          personaId: p.id,
+                          gender: p.gender,
+                          language: p.accentCode,
                           voiceURI: '',
                         };
                         handleSaveVoiceSettings(updated);
                       }}
-                      className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer flex items-center space-x-2 ${
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 text-left relative ${
                         isSelected
-                          ? 'bg-[#22C55E]/15 border-[#22C55E] text-white shadow-xs font-semibold'
-                          : 'bg-[#0A0A0C] border-[#27272A] text-zinc-400 hover:text-white hover:bg-[#18181D]'
+                          ? 'bg-[#22C55E]/15 border-[#22C55E] shadow-md shadow-emerald-500/10'
+                          : 'bg-[#0A0A0C] border-[#27272A] hover:border-[#3F3F46] hover:bg-[#18181D]'
                       }`}
                     >
-                      <span className="text-lg shrink-0">{lang.flag}</span>
-                      <div className="truncate">
-                        <div className="text-[11px] font-bold text-white truncate">{lang.label}</div>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-2xl">{p.emoji}</span>
+                          <div>
+                            <div className="flex items-center space-x-1.5">
+                              <span className="font-bold text-sm text-white">{p.name}</span>
+                              {isSelected && (
+                                <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
+                              )}
+                            </div>
+                            <span className="text-[10px] text-zinc-400 font-medium">{p.accent}</span>
+                          </div>
+                        </div>
+
+                        {/* Test Sample Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const sample = p.sampleGreeting;
+                            // Temporarily play with this persona
+                            handleSpeakMessage(`sample-${p.id}`, sample);
+                          }}
+                          className="px-2 py-1 rounded-lg bg-[#27272A] hover:bg-[#22C55E] hover:text-white text-zinc-300 text-[10px] font-bold transition-all cursor-pointer flex items-center space-x-1 shrink-0"
+                          title={`Listen to ${p.name}'s voice`}
+                        >
+                          <Play className="w-2.5 h-2.5" />
+                          <span>Sample</span>
+                        </button>
                       </div>
-                    </button>
+
+                      <p className="text-[11px] text-zinc-300 leading-snug line-clamp-2">
+                        {p.description}
+                      </p>
+
+                      <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-white/5">
+                        <span className="text-zinc-500 capitalize">{p.gender} voice</span>
+                        <span className="text-zinc-400 font-medium italic">{p.tagline}</span>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* 3. Device Speech Engine (Optional fine-tune) */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-zinc-300 block">
-                Device Voice Engine (Optional):
-              </label>
+            {/* 2. Detected Neural Engine & Hardware Voice */}
+            <div className="p-3.5 rounded-2xl bg-[#0A0A0C] border border-[#27272A] space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-300 flex items-center space-x-1.5">
+                  <Bot className="w-3.5 h-3.5 text-[#22C55E]" />
+                  <span>Device Neural Engine:</span>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#22C55E]/15 text-[#22C55E] font-bold border border-[#22C55E]/30">
+                  Neural Active
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400">
+                Using optimal neural synthesis with conversational math-to-speech pronunciation, natural pauses & pacing.
+              </p>
               <select
                 value={voiceSettings.voiceURI}
                 onChange={(e) => {
                   const updated: VoiceSettings = { ...voiceSettings, voiceURI: e.target.value };
                   handleSaveVoiceSettings(updated);
                 }}
-                className="w-full bg-[#0A0A0C] border border-[#27272A] focus:border-[#22C55E] rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
+                className="w-full bg-[#18181D] border border-[#27272A] focus:border-[#22C55E] rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
               >
                 <option value="">
-                  Auto Natural Matching ({voiceSettings.gender === 'female' ? 'Female' : 'Male'})
+                  ✨ Auto-Select Best Neural Voice (Recommended for {currentPersona.name})
                 </option>
-                {availableVoices
-                  .filter((v) => !voiceSettings.language || v.lang.toLowerCase().startsWith(voiceSettings.language.split('-')[0].toLowerCase()))
-                  .map((v, i) => (
-                    <option key={i} value={v.voiceURI}>
-                      {v.name} ({v.lang})
-                    </option>
-                  ))}
+                {availableVoices.map((v, i) => (
+                  <option key={i} value={v.voiceURI}>
+                    {v.name} ({v.lang})
+                  </option>
+                ))}
               </select>
             </div>
 
-            {/* 4. Speaking Speed Slider */}
+            {/* 3. Speaking Speed Controls */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-zinc-300">Speaking Speed:</span>
-                <span className="text-white font-mono font-bold">{voiceSettings.rate.toFixed(1)}x</span>
+                <span className="font-semibold text-zinc-300">Speaking Pacing & Speed:</span>
+                <span className="text-[#22C55E] font-mono font-bold text-sm">
+                  {voiceSettings.rate.toFixed(2)}x
+                </span>
               </div>
               <input
                 type="range"
-                min="0.7"
+                min="0.8"
                 max="1.5"
-                step="0.1"
+                step="0.05"
                 value={voiceSettings.rate}
                 onChange={(e) => {
-                  const updated: VoiceSettings = { ...voiceSettings, rate: parseFloat(e.target.value) };
+                  const updated: VoiceSettings = {
+                    ...voiceSettings,
+                    rate: parseFloat(e.target.value),
+                  };
                   handleSaveVoiceSettings(updated);
                 }}
                 className="w-full accent-[#22C55E] cursor-pointer"
               />
+              <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
+                <span>0.8x (Relaxed)</span>
+                <span>1.0x (Natural Human)</span>
+                <span>1.25x (Fast)</span>
+                <span>1.5x (Speed)</span>
+              </div>
             </div>
 
-            {/* 5. Auto-Speak Toggle */}
+            {/* 4. Auto Voice Responses Toggle */}
             <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#0A0A0C] border border-[#27272A]">
               <div>
-                <div className="text-xs font-semibold text-white">Auto Voice Responses</div>
-                <div className="text-[11px] text-zinc-400">Read AI answers aloud automatically when generated</div>
+                <div className="text-xs font-semibold text-white">Auto Voice Readout</div>
+                <div className="text-[11px] text-zinc-400">
+                  Automatically speak AI responses with {currentPersona.name}'s voice
+                </div>
               </div>
               <input
                 type="checkbox"
@@ -2518,26 +2466,25 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               />
             </div>
 
-            {/* 6. Test Voice & Save Buttons */}
+            {/* 5. Footer Buttons */}
             <div className="flex items-center space-x-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
-                  const currentLang = SUPPORTED_LANGUAGES.find((l) => l.code === voiceSettings.language);
-                  const sampleText = currentLang?.greeting || "Hello! I am your SmartSolve AI assistant. How does this voice sound to you?";
+                  const sampleText = currentPersona.sampleGreeting;
                   handleSpeakMessage('test-voice', sampleText);
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-[#27272A] hover:bg-[#3F3F46] text-white text-xs font-bold flex items-center justify-center space-x-1.5 cursor-pointer transition-colors"
               >
                 <Volume2 className="w-3.5 h-3.5 text-[#22C55E]" />
-                <span>Test Voice Sample</span>
+                <span>Test {currentPersona.name}'s Voice</span>
               </button>
               <button
                 type="button"
                 onClick={() => setIsVoiceModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold cursor-pointer transition-colors shadow-md shadow-emerald-500/20"
+                className="px-6 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold cursor-pointer transition-colors shadow-md shadow-emerald-500/20"
               >
-                Save & Close
+                Done
               </button>
             </div>
           </div>
