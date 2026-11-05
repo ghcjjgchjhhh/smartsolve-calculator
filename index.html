@@ -41,15 +41,15 @@
         } catch(e) {}
       })();
     </script>
-    <script type="module" crossorigin src="./assets/index-DEQkjptp.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-ChDMrWbO.css">
+    <script type="module" crossorigin src="./assets/index-CzFCDMMv.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DIwcDivL.css">
   </head>
   <body class="transition-colors duration-200">
     <div id="root"></div>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-          navigator.serviceWorker.register('./sw.js').then(function(reg) {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
             reg.onupdatefound = function() {
               var installingWorker = reg.installing;
               if (installingWorker) {
