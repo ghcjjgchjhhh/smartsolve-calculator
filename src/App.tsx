@@ -30,7 +30,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import { LanguageProvider } from './contexts/LanguageContext';
+import { LanguageProvider, useAppLanguage } from './contexts/LanguageContext';
 import { LanguageSettingsModal } from './components/LanguageSettingsModal';
 
 function MainApp() {
@@ -279,6 +279,7 @@ function MainApp() {
 
   const { isInstalled, canInstall, triggerInstall } = usePWAInstall();
   const { isDark } = useTheme();
+  const { t } = useAppLanguage();
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -318,15 +319,15 @@ function MainApp() {
   };
 
   const navigationTabs = [
-    { id: 'scientific', name: 'Scientific', icon: Calculator, badge: 'FX' },
-    { id: 'ai_chat', name: 'AI Chat', icon: MessageSquare, badge: 'Multimodal' },
-    { id: 'ai_solver', name: 'AI Solver', icon: Sparkles, badge: 'Step Solver' },
-    { id: 'math', name: 'Mathematics', icon: FunctionSquare, badge: '19 Topics' },
-    { id: 'physics', name: 'Physics', icon: Atom, badge: '44 Formulas' },
-    { id: 'equation', name: 'Equation Solver', icon: Cpu, badge: 'Auto' },
-    { id: 'converter', name: 'Unit Converter', icon: Scale, badge: '16 Types' },
-    { id: 'jamb', name: 'Exam Tutor (CBT)', icon: GraduationCap, badge: 'JAMB · WAEC · JUPEB' },
-    { id: 'smart_input', name: 'Smart Input', icon: MessageSquareCode, badge: 'AI Parser' },
+    { id: 'scientific', name: t('scientific', 'Scientific'), icon: Calculator, badge: 'FX' },
+    { id: 'ai_chat', name: t('ai_chat', 'AI Chat'), icon: MessageSquare, badge: 'Multimodal' },
+    { id: 'ai_solver', name: t('ai_solver', 'AI Solver'), icon: Sparkles, badge: 'Step Solver' },
+    { id: 'math', name: t('math_hub', 'Mathematics'), icon: FunctionSquare, badge: '19 Topics' },
+    { id: 'physics', name: t('physics_hub', 'Physics'), icon: Atom, badge: '44 Formulas' },
+    { id: 'equation', name: t('equations', 'Equations'), icon: Cpu, badge: 'Auto' },
+    { id: 'converter', name: t('converter', 'Converter'), icon: Scale, badge: '16 Types' },
+    { id: 'jamb', name: t('exam_prep', 'JAMB / WAEC'), icon: GraduationCap, badge: 'JAMB · WAEC' },
+    { id: 'smart_input', name: t('smart_input', 'Smart Input'), icon: MessageSquareCode, badge: 'AI Parser' },
   ];
 
   const getTabName = (tabId: string) => {

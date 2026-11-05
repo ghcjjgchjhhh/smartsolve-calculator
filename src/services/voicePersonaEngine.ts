@@ -152,7 +152,8 @@ export const VOICE_PERSONAS: VoicePersona[] = [
 export function scoreAndSelectVoice(
   voices: SpeechSynthesisVoice[],
   persona: VoicePersona,
-  customVoiceURI?: string
+  customVoiceURI?: string,
+  targetLanguageCode?: string
 ): SpeechSynthesisVoice | null {
   if (!voices || voices.length === 0) return null;
 
@@ -164,6 +165,13 @@ export function scoreAndSelectVoice(
 
   const isFemale = persona.gender === 'female';
   const targetKeywords = persona.preferredKeywords;
+
+  // Resolve target language: use explicit targetLanguageCode if provided, else persona accentCode
+  const effectiveLang = (targetLanguageCode || persona.accentCode || 'en-US')
+    .toLowerCase()
+    .replace('_', '-');
+  const targetPrefix = effectiveLang.split('-')[0];
+  const isNonEnglishTarget = targetPrefix !== 'en';
 
   // Keywords that denote ultra-high-quality neural synthesis
   const highQualityKeywords = [
@@ -181,15 +189,17 @@ export function scoreAndSelectVoice(
     let score = 0;
     const voiceName = voice.name.toLowerCase();
     const voiceLang = voice.lang.toLowerCase().replace('_', '-');
-    const targetLang = persona.accentCode.toLowerCase();
-    const targetLangPrefix = targetLang.split('-')[0];
+    const voicePrefix = voiceLang.split('-')[0];
 
     // Language matching
-    if (voiceLang === targetLang) {
-      score += 1200;
-    } else if (voiceLang.startsWith(targetLangPrefix)) {
-      score += 700;
-    } else if (voiceLang.startsWith('en')) {
+    if (voiceLang === effectiveLang) {
+      score += 2500;
+    } else if (voicePrefix === targetPrefix) {
+      score += 1800;
+    } else if (isNonEnglishTarget) {
+      // Heavily penalize English or mismatched language when user explicitly selected Spanish/French/etc.
+      score -= 2000;
+    } else if (voicePrefix === 'en') {
       score += 300;
     }
 
@@ -234,6 +244,16 @@ export function scoreAndSelectVoice(
     if (score > highestScore) {
       highestScore = score;
       bestVoice = voice;
+    }
+  }
+
+  // If a non-English target language was requested, verify if we found a voice matching that prefix
+  if (isNonEnglishTarget && bestVoice) {
+    const bestPrefix = bestVoice.lang.toLowerCase().replace('_', '-').split('-')[0];
+    if (bestPrefix !== targetPrefix) {
+      // Find ANY voice matching the language prefix
+      const match = voices.find((v) => v.lang.toLowerCase().replace('_', '-').startsWith(targetPrefix));
+      if (match) return match;
     }
   }
 

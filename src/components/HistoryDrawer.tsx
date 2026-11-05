@@ -4,6 +4,7 @@ import { getHistory, deleteHistoryItem, clearHistory } from '../services/history
 import { loadChatSessions, deleteChatSession } from '../services/chatStorage';
 import { StepSolutionCard } from './StepSolutionCard';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAppLanguage } from '../contexts/LanguageContext';
 import {
   History,
   Trash2,
@@ -28,6 +29,7 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
   const [activeItem, setActiveItem] = useState<HistoryItem | null>(null);
 
   const { resolvedTheme } = useTheme();
+  const { t } = useAppLanguage();
   const isDark = resolvedTheme === 'dark';
 
   const loadData = () => {
@@ -90,7 +92,7 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
           <div className="flex items-center space-x-2">
             <History className="w-5 h-5 text-[#22C55E]" />
             <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Activity History
+              {t('history', 'Activity History')}
             </h3>
           </div>
 
@@ -98,7 +100,7 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
             {activeTab === 'calculations' && historyList.length > 0 && (
               <button
                 onClick={handleClearAllCalculations}
-                title="Clear All Calculation History"
+                title={t('clear_history', 'Clear All Calculation History')}
                 className="p-2 hover:bg-[#EF4444]/20 rounded-lg text-[#EF4444] transition-colors cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
@@ -134,7 +136,7 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
             }`}
           >
             <Calculator className="w-3.5 h-3.5" />
-            <span>Calculations</span>
+            <span>{t('calculator', 'Calculations')}</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                 activeTab === 'calculations'
@@ -159,7 +161,7 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span>AI Chats</span>
+            <span>{t('ai_chat', 'AI Chats')}</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                 activeTab === 'chats'

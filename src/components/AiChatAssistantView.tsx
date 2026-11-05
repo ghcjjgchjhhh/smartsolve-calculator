@@ -18,6 +18,7 @@ import {
   splitSpeechChunks,
   convertTextToConversationalSpeech,
 } from '../services/voicePersonaEngine';
+import { useAppLanguage } from '../contexts/LanguageContext';
 import {
   Send,
   Square,
@@ -341,7 +342,7 @@ const findBestVoice = (
     (personaId && VOICE_PERSONAS.find((p) => p.id === personaId)) ||
     VOICE_PERSONAS.find((p) => p.gender === gender) ||
     VOICE_PERSONAS[0];
-  return scoreAndSelectVoice(voices, persona, preferredVoiceURI);
+  return scoreAndSelectVoice(voices, persona, preferredVoiceURI, languageCode);
 };
 
 interface Props {
@@ -438,6 +439,8 @@ export const AiChatAssistantView: React.FC<Props> = ({
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const speechTimeoutRef = useRef<any>(null);
 
+  const { currentLanguage, setIsLanguageModalOpen, t } = useAppLanguage();
+
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(() => {
     try {
       const saved = localStorage.getItem('smartsolve_chat_voice_settings');
@@ -447,7 +450,7 @@ export const AiChatAssistantView: React.FC<Props> = ({
           parsed.personaId || (parsed.gender === 'male' ? 'cove' : 'breeze');
         return {
           personaId: resolvedPersona,
-          language: parsed.language || 'en-NG',
+          language: parsed.language || currentLanguage?.voiceCode || 'en-US',
           gender: parsed.gender === 'male' ? 'male' : 'female',
           voiceURI: parsed.voiceURI || '',
           rate: typeof parsed.rate === 'number' ? parsed.rate : 1.0,
@@ -458,7 +461,7 @@ export const AiChatAssistantView: React.FC<Props> = ({
     } catch {}
     return {
       personaId: 'breeze',
-      language: 'en-NG',
+      language: currentLanguage?.voiceCode || 'en-US',
       gender: 'female',
       voiceURI: '',
       rate: 1.0,
@@ -466,6 +469,20 @@ export const AiChatAssistantView: React.FC<Props> = ({
       autoSpeak: false,
     };
   });
+
+  // Sync voiceSettings when user changes app language
+  useEffect(() => {
+    if (currentLanguage?.voiceCode) {
+      setVoiceSettings((prev) => {
+        if (prev.language === currentLanguage.voiceCode) return prev;
+        const updated = { ...prev, language: currentLanguage.voiceCode };
+        try {
+          localStorage.setItem('smartsolve_chat_voice_settings', JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+    }
+  }, [currentLanguage]);
 
   const currentPersona: VoicePersona =
     VOICE_PERSONAS.find((p) => p.id === voiceSettings.personaId) ||
@@ -952,7 +969,8 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       audioData: primaryAudio?.data,
       audioMimeType: primaryAudio?.mimeType,
       attachments: messageAttachments,
-      preferredLanguage: voiceSettings.language,
+      preferredLanguage: currentLanguage.name,
+      languageCode: voiceSettings.language || currentLanguage.voiceCode,
       preferredGender: voiceSettings.gender,
       persona: currentPersona.name,
       voicePersona: currentPersona.name,
@@ -1208,8 +1226,9 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
     setAiSpeech(updatedState);
     setSpeakingMessageId(msgId);
 
+    const targetLangCode = voiceSettings.language || currentLanguage.voiceCode || 'en-US';
     const utterance = new SpeechSynthesisUtterance(sentence);
-    utterance.lang = currentPersona.accentCode || voiceSettings.language || 'en-US';
+    utterance.lang = targetLangCode;
 
     // Use natural persona pitch without artificial multiplier distortions
     utterance.pitch = currentPersona.pitch * (voiceSettings.pitch || 1.0);
@@ -1219,10 +1238,12 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       const bestVoice = scoreAndSelectVoice(
         availableVoices,
         currentPersona,
-        voiceSettings.voiceURI
+        voiceSettings.voiceURI,
+        targetLangCode
       );
       if (bestVoice) {
         utterance.voice = bestVoice;
+        utterance.lang = bestVoice.lang || targetLangCode;
       }
     }
 
@@ -1604,6 +1625,18 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               <Headphones className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Auto Voice:</span>
               <span className="font-bold">{voiceSettings.autoSpeak ? 'ON' : 'OFF'}</span>
+            </button>
+
+            {/* Active Language Selector Pill */}
+            <button
+              type="button"
+              onClick={() => setIsLanguageModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-zinc-200 hover:text-white border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer flex items-center space-x-1.5 text-xs font-semibold shadow-xs"
+              title={`Active Language: ${currentLanguage.nativeName} (${currentLanguage.name}). Tap to change language.`}
+            >
+              <span className="text-sm leading-none">{currentLanguage.flag}</span>
+              <span className="font-bold text-white hidden xs:inline">{currentLanguage.nativeName}</span>
+              <ChevronDown className="w-3 h-3 text-[#22C55E]" />
             </button>
 
             {/* ChatGPT Voice Persona Pill */}
@@ -2215,8 +2248,8 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                   rows={1}
                   placeholder={
                     attachments.length > 0 || pendingAudioPreview
-                      ? 'Add text or question about these attachments (optional)...'
-                      : 'Ask anything, code, math, essays, or send a voice note...'
+                      ? t('type_message', 'Add text or question about these attachments...')
+                      : t('ask_anything', 'Ask anything, code, math, essays, or send a voice note...')
                   }
                   className="w-full bg-[#0A0A0C] border border-[#27272A] focus:border-[#22C55E] rounded-2xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors resize-none max-h-36 scrollbar-thin"
                 />
@@ -2383,7 +2416,40 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               </div>
             </div>
 
-            {/* 2. Detected Neural Engine & Hardware Voice */}
+            {/* 2. Voice Language & Accent */}
+            <div className="p-3.5 rounded-2xl bg-[#0A0A0C] border border-[#27272A] space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-300 flex items-center space-x-1.5">
+                  <Globe className="w-3.5 h-3.5 text-[#22C55E]" />
+                  <span>Voice Language & Accent:</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsLanguageModalOpen(true)}
+                  className="text-[11px] text-[#22C55E] hover:underline font-bold cursor-pointer"
+                >
+                  Change Language
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLanguageModalOpen(true)}
+                className="w-full bg-[#18181D] hover:bg-[#22222A] border border-[#27272A] hover:border-[#22C55E]/50 rounded-xl px-3 py-2.5 text-xs text-white flex items-center justify-between cursor-pointer transition-colors"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-xl leading-none">{currentLanguage.flag}</span>
+                  <div className="text-left">
+                    <div className="font-bold text-white">{currentLanguage.nativeName}</div>
+                    <div className="text-[11px] text-zinc-400">{currentLanguage.name}</div>
+                  </div>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#22C55E]/15 text-[#22C55E] font-bold border border-[#22C55E]/30 uppercase font-mono">
+                  {currentLanguage.voiceCode}
+                </span>
+              </button>
+            </div>
+
+            {/* 3. Detected Neural Engine & Hardware Voice */}
             <div className="p-3.5 rounded-2xl bg-[#0A0A0C] border border-[#27272A] space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-zinc-300 flex items-center space-x-1.5">

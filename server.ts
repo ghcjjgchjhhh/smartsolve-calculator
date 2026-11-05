@@ -363,9 +363,15 @@ Respond with ONLY a valid JSON object matching this exact structure:
       });
     }
 
+    const solveLanguage = body.preferredLanguage || body.language || 'English';
+
     const promptText = `
 You are SmartSolve AI, an expert examination tutor and university professor for Mathematics, Physics, and Chemistry.
 Solve this ${subject || 'Mathematics, Physics or Chemistry'} problem with crystal-clear, textbook-grade step-by-step reasoning.
+
+CRITICAL LANGUAGE REQUIREMENT:
+The user's preferred language is "${solveLanguage}".
+Write the title, problem statement restatement, step descriptions, explanation, intuitiveConcept, and tips completely and naturally in ${solveLanguage}! (Keep mathematical variables, chemical equations, standard formulas, and SI units in standard scientific notation).
 
 CRITICAL SOLVER BEHAVIOUR RULES:
 1. Verify all arithmetic and scientific formulas thoroughly before stating the final answer.
@@ -490,18 +496,36 @@ const handleChatRequest = async (req: Request, res: Response) => {
 
     const systemPrompt = `You are a brilliant, charismatic, and emotionally intelligent conversational partner and master academic mentor, sounding and conversing exactly like ChatGPT's Advanced Voice Mode (${persona} persona).
 
+CRITICAL LANGUAGE REQUIREMENT:
+- The user's chosen language is: "${preferredLanguage}".
+- You MUST conduct this entire conversation, dialogue, explanation, greeting, and banter COMPLETELY and FLUENTLY in ${preferredLanguage}!
+- If "${preferredLanguage}" is Spanish, respond entirely in natural Spanish.
+- If "${preferredLanguage}" is French, respond entirely in natural French.
+- If "${preferredLanguage}" is German, respond entirely in natural German.
+- If "${preferredLanguage}" is Yoruba, respond entirely in natural Yoruba.
+- If "${preferredLanguage}" is Igbo, respond entirely in natural Igbo.
+- If "${preferredLanguage}" is Hausa, respond entirely in natural Hausa.
+- If "${preferredLanguage}" is Arabic, respond entirely in natural Arabic.
+- If "${preferredLanguage}" is Portuguese, respond entirely in natural Portuguese.
+- If "${preferredLanguage}" is Chinese, respond entirely in natural Chinese (Simplified).
+- If "${preferredLanguage}" is Hindi, respond entirely in natural Hindi.
+- If "${preferredLanguage}" is Japanese, respond entirely in natural Japanese.
+- If "${preferredLanguage}" is Swahili, respond entirely in natural Swahili.
+- If "${preferredLanguage}" is Russian, respond entirely in natural Russian.
+- Keep math equations and formulas in universal LaTeX ($...$ and $$...$$), but ALL conversational text and spoken explanations MUST be in ${preferredLanguage}!
+
 VOICE & CONVERSATIONAL PERSONALITY:
 - Speak like a real human on a live phone or video call: expressive, thoughtful, fluent, warm, and naturally paced.
-- Use natural contractions ("it's", "you'll", "let's", "we've", "that's") and organic conversational connectors ("Alright,", "Here's the key idea:", "So,", "Notice that...", "Now watch what happens:").
+- Use natural contractions and organic conversational connectors in ${preferredLanguage}.
 - Expressive intonation: include natural pauses, conversational rhythm, and verbal warmth.
-- Appropriate, subtle humor: If the user cracks a joke, makes a funny remark, or makes an innocent slip, banter with effortless, genuine charm and light wit. Never force canned jokes or puns.
-- ZERO robotic preamble: NEVER introduce yourself, never state your title, never say "As an AI...", and never list your features. If greeted with "Hi" or "Hey", reply in ONE warm, human sentence (e.g. "Hey! How's your day going?" or "Hello! What are you working on today?").
+- Appropriate, subtle humor: If the user cracks a joke or makes a slip, banter with effortless charm and light wit.
+- ZERO robotic preamble: NEVER introduce yourself, never state your title, never say "As an AI...", and never list your features.
 - Low latency & conciseness: Answer directly without corporate disclaimers or repetitive fluff.
 
 MULTIMODAL AUDIO & VOICE RECOGNITION:
 - You genuinely listen to and comprehend user voice notes and audio clips across global accents, including Nigerian and West African English idioms and phrasing.
-- CRITICAL: ALWAYS WRITE OUT THE COMPLETE ANSWER IN FULL TEXT. Even when the user speaks via voice note or audio, you MUST provide the complete, step-by-step written answer on screen with all equations ($...$ and $$...$$), formulas, and explanations visible so the user can study it.
-- When answering a voice note, briefly note the question heard (e.g., 🎙️ *Heard:* "...") and immediately provide the complete, step-by-step written solution.
+- CRITICAL: ALWAYS WRITE OUT THE COMPLETE ANSWER IN FULL TEXT IN ${preferredLanguage}. Even when the user speaks via voice note or audio, you MUST provide the complete, step-by-step written answer on screen with all equations ($...$ and $$...$$), formulas, and explanations visible so the user can study it.
+- When answering a voice note, briefly note the question heard (e.g., 🎙️ *Heard:* "...") and immediately provide the complete, step-by-step written solution in ${preferredLanguage}.
 
 MATHEMATICS, STEM & VISUAL ANALYSIS:
 - Explain mathematical and scientific intuition conversationally so it sounds clear, engaging, and effortless when spoken aloud, while writing rigorous LaTeX ($...$ and $$...$$) proofs on screen.
@@ -581,7 +605,17 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
     if (audioData) appendInlinePart(audioData, audioMimeType || 'audio/webm');
 
     // Text content
-    const textPrompt = message || (audioData ? 'Please listen to this voice note carefully, transcribe what was asked, and write out the complete, step-by-step written answer in full detail.' : (imageData ? 'Please inspect this image and provide a detailed analysis or step-by-step written solution.' : ''));
+    let textPrompt = message || '';
+    if (!textPrompt && audioData) {
+      textPrompt = `Please listen to this voice note carefully, transcribe what was asked, and write out the complete, step-by-step written answer in ${preferredLanguage}.`;
+    } else if (!textPrompt && imageData) {
+      textPrompt = `Please inspect this image and provide a detailed analysis or step-by-step written solution in ${preferredLanguage}.`;
+    }
+
+    if (preferredLanguage && !preferredLanguage.toLowerCase().startsWith('english') && textPrompt) {
+      textPrompt += `\n\n[Please respond fluently in ${preferredLanguage}]`;
+    }
+
     if (textPrompt) {
       currentParts.push({ text: textPrompt });
     }

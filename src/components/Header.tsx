@@ -38,7 +38,7 @@ export const Header: React.FC<Props> = ({
   const { isInstalled, canInstall, triggerInstall } = usePWAInstall();
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
-  const { currentLanguage, setIsLanguageModalOpen } = useAppLanguage();
+  const { currentLanguage, setIsLanguageModalOpen, t } = useAppLanguage();
   const [historyCount, setHistoryCount] = useState<number>(() => {
     try {
       return getHistory().length;
@@ -170,7 +170,7 @@ export const Header: React.FC<Props> = ({
                 title="Chat with AI Assistant (Voice, Vision & Text)"
               >
                 <MessageSquare className="w-3.5 h-3.5 text-inherit" />
-                <span>AI Chat</span>
+                <span>{t('ai_chat', 'AI Chat')}</span>
               </button>
 
               {/* Direct AI Solver Button (desktop/tablet) */}
@@ -186,7 +186,7 @@ export const Header: React.FC<Props> = ({
                 title="Open AI Solver for Mathematics, Physics & Chemistry"
               >
                 <Sparkles className="w-3.5 h-3.5 text-inherit" />
-                <span>AI Solver</span>
+                <span>{t('ai_solver', 'AI Solver')}</span>
               </button>
 
               {/* Install App Button */}
@@ -197,7 +197,7 @@ export const Header: React.FC<Props> = ({
                   title="Install SmartSolve as a phone or desktop app"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">Install</span>
+                  <span className="hidden xs:inline">{t('install', 'Install')}</span>
                 </button>
               )}
 
@@ -212,7 +212,7 @@ export const Header: React.FC<Props> = ({
                 title="Search formula and tools"
               >
                 <Search className="w-4 h-4 text-[#22C55E]" />
-                <span className="hidden lg:inline">Quick Search</span>
+                <span className="hidden lg:inline">{t('search', 'Quick Search')}</span>
               </button>
 
               {/* History Button - Prominent on both mobile and desktop with counter badge */}
@@ -226,7 +226,7 @@ export const Header: React.FC<Props> = ({
                 }`}
               >
                 <History className="w-4 h-4 text-[#22C55E]" />
-                <span className="text-xs font-bold hidden xs:inline">History</span>
+                <span className="text-xs font-bold hidden xs:inline">{t('history', 'History')}</span>
                 {historyCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-[#22C55E] text-white text-[10px] font-black">
                     {historyCount > 99 ? '99+' : historyCount}
@@ -252,7 +252,7 @@ export const Header: React.FC<Props> = ({
                   <Sun className="w-4 h-4 text-amber-500" />
                 )}
                 <span className="text-xs font-bold hidden md:inline capitalize">
-                  {themePreference === 'system' ? 'Theme' : themePreference}
+                  {themePreference === 'system' ? t('theme', 'Theme') : themePreference}
                 </span>
                 {themePreference === 'system' && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#22C55E] ring-2 ring-black/50" />
@@ -272,8 +272,8 @@ export const Header: React.FC<Props> = ({
                 <span className="text-sm leading-none" role="img" aria-label={currentLanguage.name}>
                   {currentLanguage.flag}
                 </span>
-                <span className="text-xs font-bold hidden sm:inline uppercase">
-                  {currentLanguage.code}
+                <span className="text-xs font-bold hidden sm:inline">
+                  {currentLanguage.nativeName}
                 </span>
                 <Globe className="w-3.5 h-3.5 text-[#22C55E]" />
               </button>

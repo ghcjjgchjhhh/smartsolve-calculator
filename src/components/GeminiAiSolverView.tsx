@@ -32,6 +32,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
+import { useAppLanguage } from '../contexts/LanguageContext';
 
 interface GeminiAiSolverViewProps {
   initialPrompt?: string;
@@ -44,6 +45,7 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
   initialSubject,
   onClearInitialPrompt,
 }) => {
+  const { currentLanguage, t } = useAppLanguage();
   const [prompt, setPrompt] = useState<string>(
     initialPrompt ||
       'A stone of mass 0.5 kg is dropped from a cliff 80m high. Calculate its kinetic energy just before hitting the ground (take g = 9.8 m/s²).'
@@ -476,6 +478,8 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           imageData: imagePreview,
           mimeType: imageMimeType,
           subject: selectedSubject === 'All' ? undefined : selectedSubject,
+          preferredLanguage: currentLanguage.name,
+          language: currentLanguage.name,
         }),
       });
 
@@ -488,6 +492,8 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
             imageData: imagePreview,
             mimeType: imageMimeType,
             subject: selectedSubject === 'All' ? undefined : selectedSubject,
+            preferredLanguage: currentLanguage.name,
+            language: currentLanguage.name,
           }),
         });
       }
