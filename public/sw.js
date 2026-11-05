@@ -1,15 +1,21 @@
-const CACHE_NAME = 'smartsolve-v5-green';
+const CACHE_NAME = 'smartsolve-v6-stable';
 const ASSETS = [
-  './manifest.json',
-  './icon.svg',
-  './pwa-192x192.png',
-  './pwa-512x512.png',
-  './apple-touch-icon.png'
+  '/',
+  '/manifest.json',
+  '/icon.svg',
+  '/pwa-192x192.png',
+  '/pwa-512x512.png',
+  '/pwa-maskable-512x512.png',
+  '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS).catch((err) => {
+        console.warn('PWA cache.addAll warning:', err);
+      });
+    })
   );
   self.skipWaiting();
 });
@@ -51,7 +57,7 @@ self.addEventListener('fetch', (event) => {
           }
           return resp;
         })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
     );
     return;
   }

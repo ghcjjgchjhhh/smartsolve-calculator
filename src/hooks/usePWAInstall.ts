@@ -13,8 +13,18 @@ export function usePWAInstall() {
   const [isIOSOtherBrowser, setIsIOSOtherBrowser] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
 
   useEffect(() => {
+    // 0. Detect if running inside an iframe (e.g. AI Studio preview)
+    let inIframe = false;
+    try {
+      inIframe = window.self !== window.top;
+    } catch {
+      inIframe = true;
+    }
+    setIsInIframe(inIframe);
+
     // 1. Detect if running in standalone mode (already installed on phone/desktop)
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
@@ -85,6 +95,7 @@ export function usePWAInstall() {
     isIOSSafari,
     isIOSOtherBrowser,
     isAndroid,
+    isInIframe,
     triggerInstall,
     deferredPrompt,
   };
