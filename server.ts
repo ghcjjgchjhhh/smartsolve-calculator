@@ -141,14 +141,14 @@ Rules for your solution:
 async function generateWithModelFallback(
   ai: GoogleGenAI,
   contents: any[],
-  timeoutMs: number = 25000,
-  temperature: number = 0.8,
+  timeoutMs: number = 20000,
+  temperature: number = 0.7,
   useThinking: boolean = false,
   responseMimeType?: string,
   systemInstruction?: string
 ) {
-  // Candidate models: gemini-3.8-flash (multimodal audio & image), gemini-3.1-flash-lite, gemini-flash-latest
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  // Candidate models: prioritize ultra-low latency gemini-3.1-flash-lite, fallback to gemini-3.8-flash, gemini-flash-latest
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {
@@ -165,7 +165,12 @@ async function generateWithModelFallback(
       }
       if (useThinking) {
         config.thinkingConfig = {
-          thinkingLevel: 'LOW' as any,
+          thinkingBudget: 1024,
+        };
+      } else {
+        // Zero thinking budget eliminates 3-8s hidden reasoning delays for ultra-fast chat
+        config.thinkingConfig = {
+          thinkingBudget: 0,
         };
       }
       const generatePromise = ai.models.generateContent({
@@ -535,28 +540,17 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
 
     const chatContents: any[] = [];
 
-    // Reconstruct conversation history with previous text and attachments
+    // Reconstruct recent conversation history (prune old heavy base64 to keep payload lightweight and fast)
     if (Array.isArray(history) && history.length > 0) {
-      for (const h of history.slice(-12)) {
+      for (const h of history.slice(-6)) {
         if (!h.content && (!h.attachments || h.attachments.length === 0)) continue;
         const parts: any[] = [];
 
+        // For previous turns, do not re-upload massive duplicate image binaries
         if (Array.isArray(h.attachments)) {
           for (const att of h.attachments) {
-            if (att.data) {
-              const cleanData = att.data.includes(';base64,')
-                ? att.data.split(';base64,')[1]
-                : att.data;
-              let mime = (att.mimeType || 'image/jpeg').trim();
-              if (mime.includes(';')) mime = mime.split(';')[0].trim();
-              if (cleanData) {
-                parts.push({
-                  inlineData: {
-                    mimeType: mime,
-                    data: cleanData,
-                  },
-                });
-              }
+            if (att.name) {
+              parts.push({ text: `[Attached: ${att.name}]` });
             }
           }
         }
@@ -624,16 +618,21 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
 
     // Handle streaming request
     if (shouldStream) {
-      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Prevent proxy buffering for immediate token arrival
       if (typeof res.flushHeaders === 'function') {
         res.flushHeaders();
       }
 
       try {
         const streamClient = activeAi;
-        const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+        const hasMedia = Boolean(imageData || audioData || (attachments && attachments.length > 0));
+        // Prefer ultra-fast gemini-3.1-flash-lite for text-only, gemini-3.8-flash for rich multimodal
+        const candidateModels = hasMedia
+          ? ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest']
+          : ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
         let streamSuccess = false;
 
         for (const model of candidateModels) {
@@ -641,10 +640,8 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
             const streamConfig: any = {
               temperature: 0.7,
               systemInstruction: systemPrompt,
+              thinkingConfig: { thinkingBudget: 0 }, // Disable thinking latency for immediate first token
             };
-            if (!imageData && !audioData && (!attachments || attachments.length === 0)) {
-              streamConfig.thinkingConfig = { thinkingBudget: 0 };
-            }
             const stream = await streamClient.models.generateContentStream({
               model,
               contents: chatContents,
@@ -655,6 +652,9 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
               const text = chunk.text || '';
               if (text) {
                 res.write(`data: ${JSON.stringify({ text })}\n\n`);
+                if (typeof (res as any).flush === 'function') {
+                  (res as any).flush();
+                }
               }
             }
             streamSuccess = true;
@@ -666,7 +666,7 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
 
         if (!streamSuccess) {
           // Fallback to non-streaming inside the stream
-          const resNonStream = await generateWithModelFallback(activeAi, chatContents, 25000, 0.75, false, undefined, systemPrompt);
+          const resNonStream = await generateWithModelFallback(activeAi, chatContents, 15000, 0.7, false, undefined, systemPrompt);
           const fullText = resNonStream?.text?.trim() || '';
           res.write(`data: ${JSON.stringify({ text: fullText })}\n\n`);
         }

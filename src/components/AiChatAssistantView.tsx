@@ -55,9 +55,9 @@ import {
 // Helper to compress/resize high-resolution camera images client-side before sending
 const compressImageFile = (
   file: File,
-  maxWidth = 1600,
-  maxHeight = 1600,
-  quality = 0.85
+  maxWidth = 1200,
+  maxHeight = 1200,
+  quality = 0.80
 ): Promise<{ dataUrl: string; size: string; mimeType: string }> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -947,15 +947,16 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    // Retrieve fresh current messages for history payload
+    // Retrieve fresh current messages for history payload (prune heavy base64 from past turns for speed)
     const activeSess = sessionsRef.current.find((s) => s.id === currentSessionId);
     const historyPayload = (activeSess?.messages || [])
       .filter((m) => m.id !== 'welcome-msg' && !m.error && m.id !== assistantMessageId)
-      .slice(-10)
+      .slice(-6)
       .map((m) => ({
         role: m.role,
         content: m.content,
-        attachments: m.attachments,
+        // Send lightweight metadata for past attachments to avoid megabytes of redundant base64 re-uploads
+        attachments: m.attachments?.map((a) => ({ name: a.name, type: a.type })),
       }));
 
     const primaryImage = messageAttachments.find((a) => a.type === 'image');
@@ -1062,6 +1063,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let lineBuffer = '';
+        let lastRenderTime = 0;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -1071,6 +1073,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
           const lines = lineBuffer.split('\n');
           lineBuffer = lines.pop() || '';
 
+          let hadNewTokens = false;
           for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed.startsWith('data:')) continue;
@@ -1081,11 +1084,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               const dataObj = JSON.parse(dataStr);
               if (dataObj.text) {
                 accumulatedText += dataObj.text;
-                updateSessionMessages(currentSessionId, (msgs) =>
-                  msgs.map((m) =>
-                    m.id === assistantMessageId ? { ...m, content: accumulatedText, isStreaming: true } : m
-                  )
-                );
+                hadNewTokens = true;
               }
               if (dataObj.error) {
                 console.warn('Stream received server error:', dataObj.error);
@@ -1093,13 +1092,20 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
             } catch {
               if (dataStr) {
                 accumulatedText += dataStr;
-                updateSessionMessages(currentSessionId, (msgs) =>
-                  msgs.map((m) =>
-                    m.id === assistantMessageId ? { ...m, content: accumulatedText, isStreaming: true } : m
-                  )
-                );
+                hadNewTokens = true;
               }
             }
+          }
+
+          // Smooth throttled UI update (~30ms) so main thread stays responsive while streaming
+          const now = Date.now();
+          if (hadNewTokens && now - lastRenderTime > 30) {
+            lastRenderTime = now;
+            updateSessionMessages(currentSessionId, (msgs) =>
+              msgs.map((m) =>
+                m.id === assistantMessageId ? { ...m, content: accumulatedText, isStreaming: true } : m
+              )
+            );
           }
         }
       } else {
