@@ -558,7 +558,7 @@ export const JAMB_QUESTIONS: JambQuestion[] = [
 
   // Math 3 - Differentiation / Calculus
   {
-    id: 'jamb_math_03',
+    id: 'jamb_math_10',
     subject: 'Mathematics',
     exam: 'JAMB UTME',
     year: '2024',
@@ -585,7 +585,7 @@ export const JAMB_QUESTIONS: JambQuestion[] = [
 
   // Math 4 - Integration / Calculus
   {
-    id: 'jamb_math_04',
+    id: 'jamb_math_11',
     subject: 'Mathematics',
     exam: 'JAMB UTME',
     year: '2023',
@@ -611,7 +611,7 @@ export const JAMB_QUESTIONS: JambQuestion[] = [
 
   // Math 5 - Matrices & Determinants
   {
-    id: 'jamb_math_05',
+    id: 'jamb_math_12',
     subject: 'Mathematics',
     exam: 'WAEC SSCE',
     year: '2023',
@@ -637,7 +637,7 @@ export const JAMB_QUESTIONS: JambQuestion[] = [
 
   // Math 6 - Arithmetic Progression (AP)
   {
-    id: 'jamb_math_06',
+    id: 'jamb_math_13',
     subject: 'Mathematics',
     exam: 'JAMB UTME',
     year: '2024',
@@ -689,7 +689,7 @@ export const JAMB_QUESTIONS: JambQuestion[] = [
 
   // Physics 7 - Projectile Motion (Maximum Height)
   {
-    id: 'jamb_phy_07',
+    id: 'jamb_phy_13',
     subject: 'Physics',
     exam: 'JAMB UTME',
     year: '2024',

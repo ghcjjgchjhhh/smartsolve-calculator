@@ -1679,7 +1679,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
 
               return (
                 <button
-                  key={q.id || idx}
+                  key={`jump-${q.id || idx}-${idx}`}
                   type="button"
                   onClick={() => handleNavigateQuestion(idx)}
                   className={`h-8 sm:h-9 rounded-xl text-xs flex items-center justify-center transition-all cursor-pointer active:scale-95 ${style}`}
@@ -2254,7 +2254,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
 
                   return (
                     <div
-                      key={q.id}
+                      key={`modal-q-${q.id || idx}-${idx}`}
                       onClick={() => {
                         setCurrentIndex(originalIndex);
                         setShowResultsModal(false);
