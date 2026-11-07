@@ -141,38 +141,45 @@ Rules for your solution:
 async function generateWithModelFallback(
   ai: GoogleGenAI,
   contents: any[],
-  timeoutMs: number = 20000,
-  temperature: number = 0.7,
+  timeoutMs: number = 45000,
+  temperature?: number,
   useThinking: boolean = false,
   responseMimeType?: string,
   systemInstruction?: string
 ) {
-  // Candidate models: prioritize ultra-low latency gemini-3.1-flash-lite, fallback to gemini-3.8-flash, gemini-flash-latest
-  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+  // Candidate models: prioritize gemini-3.8-flash, fallback to gemini-3.1-flash-lite, gemini-flash-latest
+  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {
     const model = candidateModels[i];
     try {
-      const config: any = {
-        temperature,
-      };
+      const config: any = {};
       if (responseMimeType) {
         config.responseMimeType = responseMimeType;
       }
       if (systemInstruction) {
         config.systemInstruction = systemInstruction;
       }
-      if (useThinking) {
+
+      // Configure thinking per model strictly according to @google/genai requirements:
+      // - gemini-3.8-flash: use thinkingLevel 'LOW' or 'MEDIUM' (never set thinkingBudget)
+      // - gemini-3.1-flash-lite: use thinkingLevel 'MINIMAL'
+      if (model === 'gemini-3.8-flash') {
         config.thinkingConfig = {
-          thinkingBudget: 1024,
+          thinkingLevel: useThinking ? 'MEDIUM' : 'LOW',
         };
-      } else {
-        // Zero thinking budget eliminates 3-8s hidden reasoning delays for ultra-fast chat
+      } else if (model === 'gemini-3.1-flash-lite') {
         config.thinkingConfig = {
-          thinkingBudget: 0,
+          thinkingLevel: 'MINIMAL',
         };
       }
+
+      // Deprecated temperature parameter is omitted on gemini-3.8-flash, only set on legacy models if provided
+      if (model === 'gemini-flash-latest' && typeof temperature === 'number') {
+        config.temperature = temperature;
+      }
+
       const generatePromise = ai.models.generateContent({
         model,
         contents,
@@ -180,10 +187,16 @@ async function generateWithModelFallback(
       });
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`Timeout: Model ${model} took longer than ${Math.round(timeoutMs / 1000)} seconds`)), timeoutMs)
+        setTimeout(
+          () =>
+            reject(
+              new Error(`Timeout: Model ${model} took longer than ${Math.round(timeoutMs / 1000)} seconds`)
+            ),
+          timeoutMs
+        )
       );
 
-      const response = await Promise.race([generatePromise, timeoutPromise]) as any;
+      const response = (await Promise.race([generatePromise, timeoutPromise])) as any;
       return response;
     } catch (err: any) {
       lastError = err;
@@ -486,7 +499,14 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
     contents.push({ text: promptText });
 
-    const response = await generateWithModelFallback(activeAi, contents);
+    const response = await generateWithModelFallback(
+      activeAi,
+      contents,
+      45000,
+      undefined,
+      false,
+      'application/json'
+    );
 
     const resultJson = response.text?.trim() || '{}';
     let cleanJson = resultJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();

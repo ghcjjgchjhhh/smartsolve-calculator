@@ -457,21 +457,25 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
     contents.push({ text: promptText });
 
-    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
     let lastError: any = null;
 
     for (let i = 0; i < candidateModels.length; i++) {
       const model = candidateModels[i];
       try {
+        const config: any = {
+          responseMimeType: 'application/json',
+        };
+        if (model === 'gemini-3.8-flash') {
+          config.thinkingConfig = { thinkingLevel: 'LOW' };
+        } else if (model === 'gemini-3.1-flash-lite') {
+          config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+        }
+
         const response = await ai.models.generateContent({
           model,
           contents,
-          config: {
-            responseMimeType: 'application/json',
-            thinkingConfig: {
-              thinkingLevel: 'LOW' as any,
-            },
-          },
+          config,
         });
 
         const resultText = response.text?.trim() || '{}';
