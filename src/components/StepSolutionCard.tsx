@@ -39,30 +39,41 @@ Answer: ${solution.finalAnswer}
   const formatBoxedAnswer = () => {
     let ans = solution.finalAnswer.trim();
 
+    // Clean up any trailing broken LaTeX syntax like \tex, \text, \t, or trailing backslash
+    ans = ans.replace(/\\(?:text|tex|te|t)?\s*$/i, '').trim();
+
     // Remove trailing dot
     if (ans.endsWith('.')) {
       ans = ans.slice(0, -1).trim();
     }
 
-    // Ignore 'None', 'none', 'N/A' units
+    // If answer already contains \boxed{...}, fix unclosed braces and do NOT append units outside
+    if (ans.includes('\\boxed')) {
+      const openCount = (ans.match(/\{/g) || []).length;
+      const closeCount = (ans.match(/\}/g) || []).length;
+      if (openCount > closeCount) {
+        ans = ans + '}'.repeat(openCount - closeCount);
+      }
+      return ans;
+    }
+
+    // Only append unit for single numeric answers where unit is not already present
     if (
       solution.unit &&
       solution.unit.toLowerCase() !== 'none' &&
       solution.unit.toLowerCase() !== 'n/a' &&
-      !ans.includes(solution.unit)
+      !ans.includes(solution.unit) &&
+      !ans.includes(',') &&
+      !ans.includes(';')
     ) {
       ans = `${ans}\\text{ ${solution.unit}}`;
     }
 
-    // If not already wrapped in \boxed{...}
-    if (!ans.includes('\\boxed')) {
-      // Check if it's purely text (e.g. "No real value of x" or "No real solution")
-      if (/^[a-zA-Z\s]+$/.test(ans)) {
-        return `\\boxed{\\text{${ans}}}`;
-      }
-      return `\\boxed{${ans}}`;
+    // Check if it's purely text (e.g. "No real value of x" or "No real solution")
+    if (/^[a-zA-Z\s]+$/.test(ans)) {
+      return `\\boxed{\\text{${ans}}}`;
     }
-    return ans;
+    return `\\boxed{${ans}}`;
   };
 
   // Parse each step into clean text label, display equation, or explanation matching Screenshot 1

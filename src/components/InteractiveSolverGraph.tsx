@@ -81,10 +81,45 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
     (curve: AiGraphCurve, xVal: number): number => {
       // 1. Piecewise segments
       if (curve.type === 'piecewise' && curve.segments && curve.segments.length > 0) {
+        // Clamp below lowest t0
+        if (xVal <= curve.segments[0].t0) {
+          const seg0 = curve.segments[0];
+          try {
+            const expr = seg0.fn
+              .replace(/\bsin\b/g, 'Math.sin')
+              .replace(/\bcos\b/g, 'Math.cos')
+              .replace(/\btan\b/g, 'Math.tan')
+              .replace(/\bsqrt\b/g, 'Math.sqrt')
+              .replace(/\babs\b/g, 'Math.abs')
+              .replace(/\^/g, '**');
+            const fn = new Function('t', 'x', `return (${expr});`);
+            return fn(seg0.t0, seg0.t0);
+          } catch {
+            return 0;
+          }
+        }
+
+        // Clamp above highest t1
+        const lastSeg = curve.segments[curve.segments.length - 1];
+        if (xVal >= lastSeg.t1) {
+          try {
+            const expr = lastSeg.fn
+              .replace(/\bsin\b/g, 'Math.sin')
+              .replace(/\bcos\b/g, 'Math.cos')
+              .replace(/\btan\b/g, 'Math.tan')
+              .replace(/\bsqrt\b/g, 'Math.sqrt')
+              .replace(/\babs\b/g, 'Math.abs')
+              .replace(/\^/g, '**');
+            const fn = new Function('t', 'x', `return (${expr});`);
+            return fn(lastSeg.t1, lastSeg.t1);
+          } catch {
+            return 0;
+          }
+        }
+
         for (const seg of curve.segments) {
-          if (xVal >= seg.t0 && xVal <= seg.t1) {
+          if (xVal >= seg.t0 - 1e-5 && xVal <= seg.t1 + 1e-5) {
             try {
-              // Sanitize math string: replace common math functions
               const expr = seg.fn
                 .replace(/\bsin\b/g, 'Math.sin')
                 .replace(/\bcos\b/g, 'Math.cos')

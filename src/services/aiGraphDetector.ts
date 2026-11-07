@@ -53,6 +53,188 @@ export function detectAndEnhanceGraphs(
     combinedText.includes('v-t graph') ||
     combinedText.includes('accelerat') && combinedText.includes('velocity') && (combinedText.includes('graph') || combinedText.includes('motion') || combinedText.includes('car') || combinedText.includes('train'))
   ) {
+    // A. Multi-stage journey (e.g. Accelerates to 30 m/s in 10s, constant for 20s, decelerates to rest in 10s)
+    const isMultiStage =
+      (combinedText.includes('constant') || combinedText.includes('cruis') || combinedText.includes('uniform velocity') || combinedText.includes('slowing down') || combinedText.includes('deceler')) &&
+      (combinedText.includes('rest') || combinedText.includes('stop') || combinedText.includes('deceler') || combinedText.includes('retard') || combinedText.includes('trapez'));
+
+    if (isMultiStage) {
+      // Extract vMax (e.g. 30 m/s)
+      const vMatch =
+        combinedText.match(/(?:velocity of|speed of|velocity to|speed to|to a velocity of|to a speed of|to)\s*(\d+(?:\.\d+)?)\s*(?:m\/s|ms-1|km\/h)/i) ||
+        combinedText.match(/(\d+(?:\.\d+)?)\s*(?:m\/s|ms-1)/i);
+      const vMax = vMatch ? parseFloat(vMatch[1]) : getGiven('v', 30);
+
+      // Extract time intervals:
+      const timeMatches = [...combinedText.matchAll(/(\d+(?:\.\d+)?)\s*(?:seconds|second|sec|s\b)/gi)].map((m) =>
+        parseFloat(m[1])
+      );
+      let t1 = 10;
+      let t2 = 20;
+      let t3 = 10;
+      if (timeMatches.length >= 3) {
+        t1 = timeMatches[0];
+        t2 = timeMatches[1];
+        t3 = timeMatches[2];
+      } else if (timeMatches.length === 2) {
+        t1 = timeMatches[0];
+        t2 = timeMatches[1];
+        t3 = 10;
+      }
+
+      const totalTime = t1 + t2 + t3;
+      const accel = vMax / (t1 || 1);
+      const decel = vMax / (t3 || 1);
+      const s1 = 0.5 * t1 * vMax;
+      const s2 = t2 * vMax;
+      const s3 = 0.5 * t3 * vMax;
+      const totalDistance = s1 + s2 + s3;
+      const vAvg = totalDistance / (totalTime || 1);
+
+      graphs.push({
+        id: 'graph_vt_trapezoid',
+        title: 'Trapezoidal Velocity-Time Graph (v-t)',
+        category: 'physics',
+        graphType: 'velocity_time',
+        xAxis: {
+          label: 'Time',
+          unit: 's',
+          min: 0,
+          max: Math.ceil(totalTime * 1.15),
+          step: Math.max(Math.floor(totalTime / 8), 5),
+        },
+        yAxis: {
+          label: 'Velocity',
+          unit: 'm/s',
+          min: 0,
+          max: Math.ceil(vMax * 1.25),
+          step: Math.max(Math.floor(vMax / 5), 5),
+        },
+        curves: [
+          {
+            id: 'v_trapezoid',
+            label: 'Velocity v(t)',
+            color: '#22C55E',
+            equationText: `a=${accel.toFixed(1)}m/s², v=${vMax}m/s, decel=${decel.toFixed(1)}m/s²`,
+            type: 'piecewise',
+            segments: [
+              {
+                t0: 0,
+                t1: t1,
+                fn: `${accel} * t`,
+                label: `Acceleration: a = ${accel.toFixed(1)} m/s²`,
+              },
+              {
+                t0: t1,
+                t1: t1 + t2,
+                fn: `${vMax}`,
+                label: `Constant Speed: v = ${vMax} m/s`,
+              },
+              {
+                t0: t1 + t2,
+                t1: totalTime,
+                fn: `${vMax} - ${decel} * (t - ${t1 + t2})`,
+                label: `Deceleration: d = ${decel.toFixed(1)} m/s²`,
+              },
+            ],
+            shadedArea: {
+              fromX: 0,
+              toX: totalTime,
+              label: `Area = Total Distance s = ${totalDistance.toFixed(0)} m`,
+              color: '#22C55E',
+            },
+          },
+        ],
+        keyPoints: [
+          { x: 0, y: 0, label: 'Start from Rest (0s, 0m/s)', type: 'intercept' },
+          { x: t1, y: vMax, label: `Top of Acceleration (${t1}s, ${vMax}m/s) [a = ${accel}m/s²]`, type: 'critical' },
+          { x: t1 + t2, y: vMax, label: `Start Deceleration (${t1 + t2}s, ${vMax}m/s)`, type: 'critical' },
+          { x: totalTime, y: 0, label: `Brought to Rest (${totalTime}s, 0m/s) [Decel = ${decel}m/s²]`, type: 'root' },
+        ],
+        featuresExplanation: {
+          gradientMeaning: `Stage 1 slope = Acceleration a = ${accel.toFixed(2)} m/s². Stage 3 slope = Deceleration = ${decel.toFixed(2)} m/s² (slope = -${decel.toFixed(2)} m/s²).`,
+          areaMeaning: `Area of Trapezium = 1/2 * (parallel sides) * height = 1/2 * (${t2} + ${totalTime}) * ${vMax} = ${totalDistance.toFixed(1)} m (Total Distance).`,
+          interceptsMeaning: `Starts from rest at origin (0, 0), returns to zero velocity at t = ${totalTime} s.`,
+          physicalInterpretation: `Average velocity = Total Distance / Total Time = ${totalDistance.toFixed(1)} m / ${totalTime} s = ${vAvg.toFixed(2)} m/s.`,
+        },
+        simulation: {
+          hasSimulation: true,
+          type: 'motion_1d',
+          duration: totalTime,
+          objectLabel: 'Car',
+          parameters: { vMax, t1, t2, t3, totalTime, totalDistance, accel, decel, vAvg },
+        },
+      });
+
+      // Companion Displacement-Time Graph (s-t)
+      graphs.push({
+        id: 'graph_st_trapezoid',
+        title: 'Displacement-Time Graph (s-t)',
+        category: 'physics',
+        graphType: 'displacement_time',
+        xAxis: {
+          label: 'Time',
+          unit: 's',
+          min: 0,
+          max: Math.ceil(totalTime * 1.15),
+          step: Math.max(Math.floor(totalTime / 8), 5),
+        },
+        yAxis: {
+          label: 'Displacement',
+          unit: 'm',
+          min: 0,
+          max: Math.ceil(totalDistance * 1.2),
+          step: Math.max(Math.floor(totalDistance / 6), 50),
+        },
+        curves: [
+          {
+            id: 's_trapezoid',
+            label: 'Displacement s(t)',
+            color: '#38BDF8',
+            type: 'piecewise',
+            segments: [
+              {
+                t0: 0,
+                t1: t1,
+                fn: `0.5 * ${accel} * t * t`,
+                label: `Parabolic acceleration: 0 to ${s1} m`,
+              },
+              {
+                t0: t1,
+                t1: t1 + t2,
+                fn: `${s1} + ${vMax} * (t - ${t1})`,
+                label: `Linear cruise: ${s1} to ${s1 + s2} m`,
+              },
+              {
+                t0: t1 + t2,
+                t1: totalTime,
+                fn: `${s1 + s2} + ${vMax} * (t - ${t1 + t2}) - 0.5 * ${decel} * (t - ${t1 + t2}) * (t - ${t1 + t2})`,
+                label: `Deceleration curve: ${s1 + s2} to ${totalDistance} m`,
+              },
+            ],
+          },
+        ],
+        keyPoints: [
+          { x: 0, y: 0, label: 'Origin (0m)', type: 'intercept' },
+          { x: t1, y: s1, label: `Stage 1 End (${s1}m)`, type: 'critical' },
+          { x: t1 + t2, y: s1 + s2, label: `Stage 2 End (${s1 + s2}m)`, type: 'critical' },
+          { x: totalTime, y: totalDistance, label: `Total Distance (${totalDistance}m)`, type: 'max' },
+        ],
+        featuresExplanation: {
+          gradientMeaning: 'Instantaneous slope ds/dt represents velocity at that exact second.',
+          physicalInterpretation: `Reaches total displacement of ${totalDistance} m after ${totalTime} seconds.`,
+        },
+        simulation: {
+          hasSimulation: true,
+          type: 'motion_1d',
+          duration: totalTime,
+        },
+      });
+
+      return graphs;
+    }
+
+    // B. Standard single-stage linear acceleration
     const u = getGiven('u', getGiven('v0', 0));
     const a = getGiven('a', 2.5);
     const tMax = getGiven('t', 10);
