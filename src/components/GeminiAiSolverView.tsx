@@ -33,6 +33,8 @@ import {
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { useAppLanguage } from '../contexts/LanguageContext';
+import { InteractiveSolverGraph } from './InteractiveSolverGraph';
+import { detectAndEnhanceGraphs } from '../services/aiGraphDetector';
 
 interface GeminiAiSolverViewProps {
   initialPrompt?: string;
@@ -93,6 +95,26 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
   const solutionRef = useRef<HTMLDivElement>(null);
 
   const realProblemSamples = [
+    {
+      subject: 'Physics',
+      label: 'Motion Graph: Velocity-Time & Displacement',
+      text: 'A car accelerates uniformly from rest at 2.5 m/s² for 8 seconds, travels at constant velocity for 12 seconds, and decelerates to rest in 4 seconds. Draw the complete velocity-time graph, calculate the total displacement, and simulate the motion.',
+    },
+    {
+      subject: 'Physics',
+      label: '2D Trajectory: Projectile Motion Lab',
+      text: 'A cannon fires a projectile with initial speed u = 30 m/s at an angle θ = 45° to the horizontal on level ground (g = 9.8 m/s²). Plot the trajectory y(x), compute max height and range, and simulate the flight.',
+    },
+    {
+      subject: 'Mathematics',
+      label: 'Quadratic Graph: Roots, Vertex & Parabola',
+      text: 'Analyze and plot the quadratic function y = -2x² + 8x - 3. Determine the vertex coordinates, axis of symmetry, discriminant, real roots, and y-intercept with step-by-step working.',
+    },
+    {
+      subject: 'Physics',
+      label: 'Oscillations: Simple Harmonic Motion x(t)',
+      text: 'A 0.4 kg mass on a spring oscillates with amplitude A = 0.25 m and period T = 2.0 s. Plot the displacement-time x(t) and velocity-time v(t) graphs, identify peak potential energy points, and simulate the oscillator.',
+    },
     {
       subject: 'Mathematics',
       label: 'Calculus: Quotient Rule Derivative',
@@ -348,6 +370,13 @@ For Chemistry calculations, strictly show:
 6. Final answer boxed in LaTeX (\\boxed{...})
 7. Short conceptual explanation
 
+GRAPH DRAWING & ANIMATED SIMULATION ENGINE:
+If the question involves any Physics motion (velocity-time, displacement-time, acceleration-time, projectile trajectory, SHM oscillator, wave, etc.) or Mathematics curves (quadratic, cubic, rational, exponential, trigonometric, calculus derivatives/integrals, conics, etc.):
+1. Formulate exact equations for all graph curves in "graphs".
+2. State gradient (dy/dx) and area under curve meanings in "featuresExplanation".
+3. Configure the virtual lab simulation ('motion_1d', 'projectile_2d', 'shm_oscillator', 'wave_propagation', 'curve_tracing').
+4. If missing essential parameters, set "missingInformation".
+
 Problem to solve: "${targetPrompt || 'Solve the question shown in the image.'}"
 
 STYLING & NOTATION RULES:
@@ -385,7 +414,44 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   ],
   "alternativeMethod": "Alternative solving method, shortcut, or dimensional cross-check.",
   "commonMistakes": "Frequent student traps, unit conversion pitfalls, or invalid assumptions to avoid on exams.",
-  "tips": "Pro tip or exam advice for solving this problem"
+  "tips": "Pro tip or exam advice for solving this problem",
+  "graphs": [
+    {
+      "id": "g1",
+      "title": "Velocity-Time Graph (v-t)",
+      "category": "physics",
+      "graphType": "velocity_time",
+      "xAxis": { "label": "Time", "unit": "s", "min": 0, "max": 10, "step": 2 },
+      "yAxis": { "label": "Velocity", "unit": "m/s", "min": 0, "max": 25, "step": 5 },
+      "curves": [
+        {
+          "id": "c1",
+          "label": "Velocity v(t)",
+          "color": "#22C55E",
+          "equationText": "v(t) = 2.5t",
+          "fnExpression": "2.5 * t",
+          "shadedArea": { "fromX": 0, "toX": 10, "label": "Displacement = 125 m", "color": "#22C55E" }
+        }
+      ],
+      "keyPoints": [
+        { "x": 0, "y": 0, "label": "Initial (0,0)", "type": "intercept" },
+        { "x": 10, "y": 25, "label": "Final (10, 25)", "type": "critical" }
+      ],
+      "featuresExplanation": {
+        "gradientMeaning": "The slope of this v-t graph represents acceleration: a = dv/dt = 2.5 m/s².",
+        "areaMeaning": "The area under this v-t graph represents total displacement: s = ∫ v dt = 125 m.",
+        "physicalInterpretation": "Object accelerates uniformly at 2.5 m/s² covering 125 m."
+      },
+      "simulation": {
+        "hasSimulation": true,
+        "type": "motion_1d",
+        "duration": 10,
+        "objectLabel": "Vehicle"
+      }
+    }
+  ],
+  "graphExplanation": "Summary explanation of graph behavior and significance",
+  "missingInformation": ""
 }
 `.trim();
 
@@ -451,6 +517,10 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           const sol = await solveDirectWithGemini(userApiKey, targetPrompt);
           clearTimeout(stageTimer1);
           clearTimeout(stageTimer2);
+          const enhanced = detectAndEnhanceGraphs(sol, targetPrompt);
+          if (enhanced && enhanced.length > 0) {
+            sol.graphs = enhanced;
+          }
           setSolution(sol);
           saveToHistory(sol);
           setTimeout(() => {
@@ -515,8 +585,14 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         throw new Error(data?.error || 'Unable to solve this problem right now. Please try again shortly.');
       }
 
-      setSolution(data.solution);
-      saveToHistory(data.solution);
+      const sol = data.solution;
+      const enhanced = detectAndEnhanceGraphs(sol, targetPrompt);
+      if (enhanced && enhanced.length > 0) {
+        sol.graphs = enhanced;
+      }
+
+      setSolution(sol);
+      saveToHistory(sol);
 
       setTimeout(() => {
         solutionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -871,6 +947,15 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           </div>
 
           <StepSolutionCard solution={solution} />
+
+          {/* Automated Interactive Graph Drawing & Motion Simulation Lab */}
+          {((solution.graphs && solution.graphs.length > 0) || solution.missingInformation) && (
+            <InteractiveSolverGraph
+              graphs={solution.graphs || []}
+              graphExplanation={solution.graphExplanation}
+              missingInformation={solution.missingInformation}
+            />
+          )}
 
           {/* Deep Conceptual & Derivation Breakdown */}
           <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">

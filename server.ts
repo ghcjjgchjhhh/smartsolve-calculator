@@ -395,6 +395,17 @@ For Chemistry calculations, strictly show:
 6. Final answer boxed in LaTeX (\\boxed{...})
 7. Short conceptual explanation
 
+GRAPH DRAWING & ANIMATED SIMULATION ENGINE (CRITICAL):
+Whenever the question inherently relates to, describes, or asks for a graph, motion, trajectory, function, or curve (or if an uploaded image contains a graph or asks to find distance from v-t graph, gradient, root, vertex, area, etc.):
+1. Automatically detect that a graph is required.
+2. Formulate 100% accurate, real mathematical/physical equations for the graph lines and piecewise motion.
+3. Physics motion graphs supported: Distance-Time, Displacement-Time, Velocity-Time, Speed-Time, Acceleration-Time, Projectile Motion, SHM, Wave Motion, Force-Time, Momentum-Time, Pressure-Volume (P-V), Temperature-Time, Current-Voltage (I-V), etc.
+4. Mathematics graphs supported: Linear, Quadratic, Cubic, Polynomial, Rational, Exponential, Logarithmic, Trigonometric, Calculus derivatives/integrals, Inequalities, Simultaneous, Coordinate Circles, Conics (Parabola, Hyperbola, Ellipse), etc.
+5. In "featuresExplanation", clearly state what the gradient/slope (dy/dx) and area under the curve (∫ y dx) represent physically or mathematically.
+6. In "simulation", define the animated laboratory configuration ('motion_1d', 'projectile_2d', 'shm_oscillator', 'wave_propagation', 'curve_tracing') so SmartSolve can animate the actual vehicle, particle, or trajectory in real time!
+7. If multiple graphs are appropriate (e.g. both Velocity-Time and Displacement-Time), provide all of them in the "graphs" array.
+8. If a graph is needed but essential data is missing, populate "missingInformation" with a polite prompt.
+
 Problem: "${prompt || 'Solve the question shown in the image.'}"
 
 STYLING & NOTATION RULES:
@@ -432,7 +443,44 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   ],
   "alternativeMethod": "Alternative method, verification check, or shortcut to solve or double-check this problem",
   "commonMistakes": "Most frequent student pitfalls, unit conversion traps, or sign errors to avoid",
-  "tips": "Pro tip or exam advice for solving this problem"
+  "tips": "Pro tip or exam advice for solving this problem",
+  "graphs": [
+    {
+      "id": "g1",
+      "title": "Velocity-Time Graph (v-t)",
+      "category": "physics",
+      "graphType": "velocity_time",
+      "xAxis": { "label": "Time", "unit": "s", "min": 0, "max": 10, "step": 2 },
+      "yAxis": { "label": "Velocity", "unit": "m/s", "min": 0, "max": 25, "step": 5 },
+      "curves": [
+        {
+          "id": "c1",
+          "label": "Velocity v(t)",
+          "color": "#22C55E",
+          "equationText": "v(t) = 2.5t",
+          "fnExpression": "2.5 * t",
+          "shadedArea": { "fromX": 0, "toX": 10, "label": "Displacement = 125 m", "color": "#22C55E" }
+        }
+      ],
+      "keyPoints": [
+        { "x": 0, "y": 0, "label": "Initial (0,0)", "type": "intercept" },
+        { "x": 10, "y": 25, "label": "Final (10, 25)", "type": "critical" }
+      ],
+      "featuresExplanation": {
+        "gradientMeaning": "The slope of this v-t graph represents acceleration: a = dv/dt = 2.5 m/s².",
+        "areaMeaning": "The area under this v-t graph represents total displacement: s = ∫ v dt = 125 m.",
+        "physicalInterpretation": "Object accelerates uniformly at 2.5 m/s² covering 125 m."
+      },
+      "simulation": {
+        "hasSimulation": true,
+        "type": "motion_1d",
+        "duration": 10,
+        "objectLabel": "Vehicle"
+      }
+    }
+  ],
+  "graphExplanation": "Summary explanation of graph behavior and significance",
+  "missingInformation": ""
 }
 `.trim();
 

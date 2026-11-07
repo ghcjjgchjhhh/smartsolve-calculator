@@ -28,6 +28,126 @@ export interface StepSolution {
   tips?: string;
   notes?: string;
   timestamp?: number;
+  /**
+   * Interactive Graph Drawing & Animated Simulation Data
+   * Automatically populated whenever the question involves graph kinematics,
+   * trajectories, functions, calculus, oscillations, waves, circuits, etc.
+   */
+  graphs?: AiGraphData[];
+  graphExplanation?: string;
+  missingInformation?: string;
+}
+
+export interface AiGraphCurve {
+  id: string;
+  label: string;
+  color: string;
+  equationText?: string;
+  type?: 'function' | 'piecewise' | 'points' | 'parametric';
+  /** JavaScript-evaluable expression with 'x' or 't', e.g. "4*t - 0.5*9.8*t*t" or "Math.sin(2*x)" */
+  fnExpression?: string;
+  /** For piecewise curves (e.g. constant accel then constant velocity then braking) */
+  segments?: Array<{
+    t0: number;
+    t1: number;
+    fn: string;
+    label?: string;
+  }>;
+  /** Explicit coordinate points */
+  points?: Array<{ x: number; y: number; label?: string }>;
+  dashed?: boolean;
+  shadedArea?: {
+    fromX: number;
+    toX: number;
+    label?: string;
+    color?: string;
+  };
+}
+
+export interface AiGraphKeyPoint {
+  x: number;
+  y: number;
+  label: string;
+  type?: 'intercept' | 'vertex' | 'root' | 'inflection' | 'max' | 'min' | 'critical';
+  details?: string;
+}
+
+export interface AiGraphSimulation {
+  hasSimulation: boolean;
+  type:
+    | 'motion_1d'
+    | 'projectile_2d'
+    | 'shm_oscillator'
+    | 'wave_propagation'
+    | 'pv_piston'
+    | 'curve_tracing'
+    | 'circuit_iv';
+  duration: number; // e.g. 8 seconds
+  objectLabel?: string; // e.g. "Vehicle", "Particle", "Projectile", "Pendulum Bob", "Gas Piston"
+  parameters?: Record<string, any>;
+  realTimeValueFormat?: {
+    tLabel?: string;
+    xLabel?: string;
+    yLabel?: string;
+    extraTelemetry?: string;
+  };
+}
+
+export interface AiGraphData {
+  id: string;
+  title: string;
+  category: 'physics' | 'mathematics' | 'general';
+  graphType:
+    | 'velocity_time'
+    | 'distance_time'
+    | 'displacement_time'
+    | 'acceleration_time'
+    | 'speed_time'
+    | 'projectile_motion'
+    | 'shm'
+    | 'wave_motion'
+    | 'force_time'
+    | 'momentum_time'
+    | 'pv_diagram'
+    | 'temperature_time'
+    | 'iv_characteristic'
+    | 'linear'
+    | 'quadratic'
+    | 'cubic'
+    | 'polynomial'
+    | 'rational'
+    | 'exponential'
+    | 'logarithmic'
+    | 'trigonometric'
+    | 'calculus'
+    | 'inequality'
+    | 'simultaneous'
+    | 'coordinate_geometry'
+    | 'conic'
+    | 'custom';
+  xAxis: {
+    label: string;
+    unit?: string;
+    min: number;
+    max: number;
+    step?: number;
+  };
+  yAxis: {
+    label: string;
+    unit?: string;
+    min: number;
+    max: number;
+    step?: number;
+  };
+  curves: AiGraphCurve[];
+  keyPoints?: AiGraphKeyPoint[];
+  featuresExplanation?: {
+    gradientMeaning?: string;
+    areaMeaning?: string;
+    interceptsMeaning?: string;
+    physicalInterpretation?: string;
+  };
+  simulation?: AiGraphSimulation;
 }
 
 export interface ChatAttachment {
