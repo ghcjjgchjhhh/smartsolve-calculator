@@ -156,7 +156,7 @@ export const Header: React.FC<Props> = ({
             </div>
 
             {/* Actions Bar */}
-            <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
               {/* Direct AI Chat Button (desktop/tablet) */}
               <button
                 onClick={() => setActiveTab('ai_chat')}
@@ -193,18 +193,18 @@ export const Header: React.FC<Props> = ({
               {!isInstalled && (
                 <button
                   onClick={handleInstallClick}
-                  className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] text-xs font-bold shadow-md shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer"
+                  className="flex items-center space-x-1.5 p-2 sm:px-3 sm:py-2 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] text-xs font-bold shadow-md shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer shrink-0"
                   title="Install SmartSolve as a phone or desktop app"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">{t('install', 'Install')}</span>
+                  <span className="hidden sm:inline">{t('install', 'Install')}</span>
                 </button>
               )}
 
               {/* Quick Search Button */}
               <button
                 onClick={onOpenSearch}
-                className={`flex items-center space-x-1.5 p-2 sm:px-3 sm:py-2 rounded-xl transition-colors text-xs font-semibold border cursor-pointer ${
+                className={`flex items-center space-x-1.5 p-2 sm:px-3 sm:py-2 rounded-xl transition-colors text-xs font-semibold border cursor-pointer shrink-0 ${
                   isDark
                     ? 'bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] border-white/5'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border-slate-200'
@@ -219,14 +219,14 @@ export const Header: React.FC<Props> = ({
               <button
                 onClick={onOpenHistory}
                 title="Calculation & Chat History"
-                className={`flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all border cursor-pointer shadow-xs active:scale-95 ${
+                className={`flex items-center space-x-1.5 p-2 sm:px-3 sm:py-2 rounded-xl transition-all border cursor-pointer shadow-xs active:scale-95 shrink-0 ${
                   isDark
                     ? 'bg-[#18181B] hover:bg-[#27272A] text-white border-[#27272A]'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-200'
                 }`}
               >
                 <History className="w-4 h-4 text-[#22C55E]" />
-                <span className="text-xs font-bold hidden xs:inline">{t('history', 'History')}</span>
+                <span className="text-xs font-bold hidden sm:inline">{t('history', 'History')}</span>
                 {historyCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-[#22C55E] text-white text-[10px] font-black">
                     {historyCount > 99 ? '99+' : historyCount}
@@ -238,7 +238,7 @@ export const Header: React.FC<Props> = ({
               <button
                 onClick={() => setIsThemeModalOpen(true)}
                 title={`Appearance: ${themePreference === 'system' ? 'System (' + resolvedTheme + ')' : themePreference}`}
-                className={`flex items-center space-x-1.5 p-2 sm:px-2.5 sm:py-2 rounded-xl transition-colors border cursor-pointer relative group ${
+                className={`flex items-center space-x-1.5 p-2 sm:px-2.5 sm:py-2 rounded-xl transition-colors border cursor-pointer relative group shrink-0 ${
                   isDark
                     ? 'bg-[#18181B] hover:bg-[#27272A] text-white border-[#27272A]'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-200'
@@ -263,7 +263,7 @@ export const Header: React.FC<Props> = ({
               <button
                 onClick={() => setIsLanguageModalOpen(true)}
                 title={`App Language & Writing: ${currentLanguage.name} (${currentLanguage.nativeName})`}
-                className={`flex items-center space-x-1 sm:space-x-1.5 p-1.5 sm:px-2.5 sm:py-2 rounded-xl transition-colors border cursor-pointer active:scale-95 ${
+                className={`flex items-center space-x-1 sm:space-x-1.5 p-2 sm:px-2.5 sm:py-2 rounded-xl transition-colors border cursor-pointer active:scale-95 shrink-0 ${
                   isDark
                     ? 'bg-[#18181B] hover:bg-[#27272A] text-white border-[#27272A]'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-200'

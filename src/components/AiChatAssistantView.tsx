@@ -1436,7 +1436,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
   ];
 
   return (
-    <div className="flex h-[calc(100vh-140px)] min-h-[600px] max-w-6xl mx-auto rounded-3xl overflow-hidden border border-[#27272A] bg-[#0A0A0C] shadow-2xl relative font-sans">
+    <div className="flex h-[calc(100dvh-125px)] sm:h-[calc(100vh-140px)] min-h-[460px] sm:min-h-[580px] max-w-6xl mx-auto rounded-2xl sm:rounded-3xl overflow-hidden border border-[#27272A] bg-[#0A0A0C] shadow-2xl relative font-sans w-full">
       {/* 1. SESSIONS SIDEBAR (DESKTOP) & DRAWER (MOBILE) */}
       <aside
         className={`${
@@ -1581,39 +1581,39 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       {/* 2. MAIN CHAT AREA */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#0A0A0C]">
         {/* Chat Top Bar */}
-        <header className="px-4 py-3 bg-[#111115] border-b border-[#27272A] flex items-center justify-between gap-2">
-          <div className="flex items-center space-x-3 min-w-0">
+        <header className="px-3 sm:px-4 py-2.5 sm:py-3 bg-[#111115] border-b border-[#27272A] flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 shrink">
             {/* Chat History Button (Clear, prominent, with counter) */}
             <button
               type="button"
               onClick={() => setIsSessionsDrawerOpen((prev) => !prev)}
-              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#1C1C22] hover:bg-[#27272A] text-white border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer shadow-sm group shrink-0"
+              className="flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#1C1C22] hover:bg-[#27272A] text-white border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer shadow-sm group shrink-0"
               title="Open Chat History"
             >
               <History className="w-4 h-4 text-white group-hover:rotate-[-20deg] transition-transform" />
-              <span className="text-xs font-bold text-white">History</span>
+              <span className="text-xs font-bold text-white hidden xs:inline">History</span>
               <span className="px-1.5 py-0.2 rounded-full bg-[#22C55E]/20 text-white text-[10px] font-mono font-bold">
                 {sessions.length}
               </span>
             </button>
 
             <div className="min-w-0">
-              <div className="flex items-center space-x-2">
-                <h1 className="text-sm font-bold text-white truncate">
+              <div className="flex items-center space-x-1.5 sm:space-x-2">
+                <h1 className="text-xs sm:text-sm font-bold text-white truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
                   {activeSession?.title || 'SmartSolve Assistant'}
                 </h1>
-                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#22C55E]/15 text-white border border-[#22C55E]/30">
+                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#22C55E]/15 text-white border border-[#22C55E]/30 shrink-0">
                   Multimodal
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400 truncate hidden xs:block">
+              <p className="text-[10px] sm:text-[11px] text-zinc-400 truncate hidden md:block">
                 Type, snap photo 📷, record voice note 🎙️, or upload files
               </p>
             </div>
           </div>
 
           {/* Chat Header Actions */}
-          <div className="flex items-center space-x-1.5 sm:space-x-2">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {/* Auto Voice Toggle */}
             <button
               type="button"
@@ -1621,27 +1621,26 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                 const updated = { ...voiceSettings, autoSpeak: !voiceSettings.autoSpeak };
                 handleSaveVoiceSettings(updated);
               }}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border flex items-center space-x-1.5 transition-all cursor-pointer ${
+              className={`p-1.5 xs:px-2.5 xs:py-1.5 rounded-xl text-xs font-semibold border flex items-center space-x-1 transition-all cursor-pointer shrink-0 ${
                 voiceSettings.autoSpeak
                   ? 'bg-[#22C55E]/20 text-white border-[#22C55E]/40 font-bold'
                   : 'bg-[#18181B] text-zinc-400 hover:text-white border-[#27272A]'
               }`}
               title="Automatically read aloud AI replies"
             >
-              <Headphones className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Auto Voice:</span>
-              <span className="font-bold">{voiceSettings.autoSpeak ? 'ON' : 'OFF'}</span>
+              <Headphones className="w-3.5 h-3.5 text-inherit" />
+              <span className="text-[10px] xs:text-xs font-bold">{voiceSettings.autoSpeak ? 'ON' : 'OFF'}</span>
             </button>
 
             {/* Active Language Selector Pill */}
             <button
               type="button"
               onClick={() => setIsLanguageModalOpen(true)}
-              className="px-2.5 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-zinc-200 hover:text-white border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer flex items-center space-x-1.5 text-xs font-semibold shadow-xs"
+              className="p-1.5 xs:px-2.5 xs:py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-zinc-200 hover:text-white border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer flex items-center space-x-1 text-xs font-semibold shadow-xs shrink-0"
               title={`Active Language: ${currentLanguage.nativeName} (${currentLanguage.name}). Tap to change language.`}
             >
               <span className="text-sm leading-none">{currentLanguage.flag}</span>
-              <span className="font-bold text-white hidden xs:inline">{currentLanguage.nativeName}</span>
+              <span className="font-bold text-white hidden sm:inline">{currentLanguage.nativeName}</span>
               <ChevronDown className="w-3 h-3 text-[#22C55E]" />
             </button>
 
@@ -1649,21 +1648,19 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
             <button
               type="button"
               onClick={() => setIsVoiceModalOpen(true)}
-              className="px-2.5 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-zinc-200 hover:text-white border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer flex items-center space-x-1.5 text-xs font-semibold shadow-xs"
+              className="p-1.5 xs:px-2.5 xs:py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-zinc-200 hover:text-white border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer flex items-center space-x-1 text-xs font-semibold shadow-xs shrink-0"
               title={`Active Voice Persona: ${currentPersona.name} (${currentPersona.tagline}). Tap to customize voice.`}
             >
               <span className="text-sm">{currentPersona.emoji}</span>
-              <span className="font-bold text-white">{currentPersona.name}</span>
-              <span className="text-zinc-500 hidden md:inline">•</span>
-              <span className="text-zinc-400 text-[11px] hidden md:inline font-normal">{currentPersona.tagline}</span>
-              <Sliders className="w-3 h-3 text-[#22C55E] ml-0.5" />
+              <span className="font-bold text-white hidden xs:inline">{currentPersona.name}</span>
+              <Sliders className="w-3 h-3 text-[#22C55E]" />
             </button>
 
             {/* New Chat Button */}
             <button
               type="button"
               onClick={handleCreateNewSession}
-              className="px-3 py-1.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center space-x-1 transition-all cursor-pointer"
+              className="p-1.5 xs:px-2.5 xs:py-1.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center space-x-1 transition-all cursor-pointer shrink-0"
               title="Start a fresh conversation"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -2195,9 +2192,9 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
             </div>
           ) : (
             /* Standard Multimodal Input Controls */
-            <div className="flex items-end space-x-2">
+            <div className="flex items-end space-x-1.5 sm:space-x-2">
               {/* Media Action Buttons */}
-              <div className="flex items-center space-x-1 pb-1">
+              <div className="flex items-center space-x-1 pb-1 shrink-0">
                 {/* Gallery Image Upload */}
                 <button
                   type="button"
@@ -2262,7 +2259,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
               </div>
 
               {/* Send or Stop Button */}
-              <div className="pb-1">
+              <div className="pb-1 shrink-0">
                 {isGenerating ? (
                   <button
                     type="button"

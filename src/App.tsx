@@ -337,7 +337,7 @@ function MainApp() {
 
   return (
     <div
-      className={`min-h-screen w-full flex flex-col font-sans transition-colors duration-200 ${
+      className={`min-h-screen w-full max-w-full overflow-x-hidden flex flex-col font-sans transition-colors duration-200 ${
         isDark ? 'bg-[#000000] text-[#FFFFFF]' : 'bg-[#F8FAFC] text-[#0F172A]'
       }`}
     >
@@ -359,7 +359,7 @@ function MainApp() {
 
       {/* Main Tab Navigation Ribbon */}
       <div
-        className={`border-b sticky top-16 sm:top-18 z-30 shadow-xs transition-colors ${
+        className={`border-b sticky top-15 sm:top-18 z-30 shadow-xs transition-colors ${
           isDark ? 'bg-[#0A0A0A] border-[#27272A]' : 'bg-white border-slate-200'
         }`}
       >

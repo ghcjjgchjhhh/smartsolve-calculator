@@ -115,8 +115,10 @@ export interface JambQuestion {
   };
   correctAnswer: 'A' | 'B' | 'C' | 'D';
   formula: string;
+  whyFormula?: string;
   substitution?: string;
   steps: string[];
+  finalAnswer?: string;
   explanation: string;
   examTip?: string;
 }

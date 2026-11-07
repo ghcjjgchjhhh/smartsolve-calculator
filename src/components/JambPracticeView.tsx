@@ -195,7 +195,7 @@ const CBT_STORAGE_KEY = 'smartsolve_cbt_session_v3';
 
 interface CbtPersistedSession {
   activeMode?: 'ai_exam' | 'bank';
-  examType?: 'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice';
+  examType?: 'JAMB (UTME)' | 'WAEC' | 'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice' | string;
   courseDuration?: number;
   alwaysShowDerivations?: boolean;
   aiSubject?: 'Mathematics' | 'Physics' | 'Chemistry' | 'Biology' | 'English' | 'Literature' | 'Economics' | string;
@@ -241,9 +241,14 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
   );
 
   // Exam Configuration Settings (Flow: Exam -> Subject -> Level/Class -> Topic -> Difficulty -> Number of Questions)
-  const [examType, setExamType] = useState<'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice'>(
-    () => initialSession?.examType || 'JAMB/UTME'
-  );
+  const [examType, setExamType] = useState<'JAMB (UTME)' | 'WAEC' | 'JUPEB' | 'University Practice'>(() => {
+    const saved = initialSession?.examType;
+    if (saved === 'JAMB/UTME' || saved === 'JAMB (UTME)') return 'JAMB (UTME)';
+    if (saved === 'WAEC/WASSCE' || saved === 'WAEC') return 'WAEC';
+    if (saved === 'JUPEB') return 'JUPEB';
+    if (saved === 'University Practice') return 'University Practice';
+    return 'JAMB (UTME)';
+  });
   const [courseDuration, setCourseDuration] = useState<number>(
     () => initialSession?.courseDuration || 4
   );
@@ -262,15 +267,25 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
   const [levelClass, setLevelClass] = useState<string>(
     () => initialSession?.levelClass || 'UTME Candidate'
   );
-  const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Very Hard'>(
-    () => initialSession?.difficulty || 'Medium'
-  );
+  const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>(() => {
+    const d = initialSession?.difficulty;
+    if (d === 'Easy' || d === 'Hard') return d;
+    return 'Medium';
+  });
   const [aiTopic, setAiTopic] = useState<string>(
     () => initialSession?.aiTopic || 'Calculus (Differentiation & Integration)'
   );
   const [aiCount, setAiCount] = useState<number>(
     () => (typeof initialSession?.aiCount === 'number' ? initialSession.aiCount : 10)
   );
+  const [isCustomCount, setIsCustomCount] = useState<boolean>(() => {
+    const c = initialSession?.aiCount;
+    return typeof c === 'number' && ![5, 10, 20, 30, 40, 50].includes(c);
+  });
+  const [customCountInput, setCustomCountInput] = useState<string>(() => {
+    const c = initialSession?.aiCount;
+    return typeof c === 'number' && ![5, 10, 20, 30, 40, 50].includes(c) ? String(c) : '';
+  });
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [aiQuestions, setAiQuestions] = useState<JambQuestion[]>(
@@ -285,9 +300,19 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
     () => (initialSession?.subjectFilter as any) || 'All'
   );
 
-  // Helper for available levels per examination target (supports course duration: 100L - 600L)
+  // Helper for available levels per examination target (supports official syllabus standards)
   const getLevelsForExam = (exam: string, duration: number = 4): string[] => {
     switch (exam) {
+      case 'JUPEB':
+        return [
+          '100 Level (001)',
+          '200 Level (002)',
+          '300 Level (003)',
+          '400 Level (004)',
+        ];
+      case 'WAEC':
+      case 'WAEC/WASSCE':
+        return ['SS1 (Senior Secondary 1)', 'SS2 (Senior Secondary 2)', 'SS3 (Senior Secondary 3)'];
       case 'University Practice':
         if (duration === 6) {
           return ['100L (100 Level)', '200L (200 Level)', '300L (300 Level)', '400L (400 Level)', '500L (500 Level)', '600L (600 Level)'];
@@ -296,17 +321,14 @@ export const JambPracticeView: React.FC<JambPracticeViewProps> = ({ onOpenInGemi
           return ['100L (100 Level)', '200L (200 Level)', '300L (300 Level)', '400L (400 Level)', '500L (500 Level)'];
         }
         return ['100L (100 Level)', '200L (200 Level)', '300L (300 Level)', '400L (400 Level)'];
-      case 'WAEC/WASSCE':
-        return ['SS1 (Senior Secondary 1)', 'SS2 (Senior Secondary 2)', 'SS3 (Senior Secondary 3)'];
-      case 'JUPEB':
-        return ['JUPEB Foundation Year (100L Direct Entry)', 'JUPEB Advanced Level (A-Level)'];
+      case 'JAMB (UTME)':
       case 'JAMB/UTME':
       default:
         return ['UTME Candidate', 'Pre-Degree / Post-UTME Preparatory'];
     }
   };
 
-  const handleExamChange = (newExam: 'JAMB/UTME' | 'WAEC/WASSCE' | 'JUPEB' | 'University Practice') => {
+  const handleExamChange = (newExam: 'JAMB (UTME)' | 'WAEC' | 'JUPEB' | 'University Practice') => {
     setExamType(newExam);
     const levels = getLevelsForExam(newExam, courseDuration);
     setLevelClass(levels[0]);
@@ -1206,16 +1228,16 @@ Respond with ONLY a valid JSON object matching this exact structure:
             <label className="text-xs font-bold text-[#A1A1AA] flex items-center justify-between">
               <span className="flex items-center space-x-1.5">
                 <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">1</span>
-                <span>Select Examination Target</span>
+                <span>Examination Type</span>
               </span>
-              <span className="text-[11px] text-white font-medium">JAMB · WAEC · JUPEB · University</span>
+              <span className="text-[11px] text-[#22C55E] font-medium">JAMB (UTME) · WAEC · JUPEB</span>
             </label>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
               {[
-                { id: 'JAMB/UTME', label: 'JAMB / UTME', desc: 'UTME Entrance Exam', icon: GraduationCap },
-                { id: 'WAEC/WASSCE', label: 'WAEC / WASSCE', desc: 'Senior School Certificate', icon: BookOpen },
-                { id: 'JUPEB', label: 'JUPEB', desc: 'A-Level Foundation Year', icon: Layers },
-                { id: 'University Practice', label: 'University Practice', desc: '100L – 600L Undergrad', icon: Target },
+                { id: 'JAMB (UTME)', label: 'JAMB (UTME)', desc: 'UTME Syllabus & Standards', icon: GraduationCap },
+                { id: 'WAEC', label: 'WAEC', desc: 'WASSCE Curriculum & Standards', icon: BookOpen },
+                { id: 'JUPEB', label: 'JUPEB', desc: 'A-Level & Foundation Standards', icon: Layers },
+                { id: 'University Practice', label: 'University Practice', desc: 'Undergraduate Standards', icon: Target },
               ].map((item) => {
                 const Icon = item.icon;
                 const isSelected = examType === item.id;
@@ -1243,18 +1265,18 @@ Respond with ONLY a valid JSON object matching this exact structure:
             </div>
           </div>
 
-          {/* 2. Course Duration & Level / Class Selection */}
+          {/* 2. Academic Level / Class Selection */}
           <div className="space-y-2.5 p-4 rounded-2xl bg-[#000000] border border-[#27272A]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
                 <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">2</span>
                 <span>
-                  {examType === 'University Practice'
-                    ? 'Select Course Duration & Academic Level (100L – 600L)'
-                    : examType === 'WAEC/WASSCE'
-                    ? 'Select Class Level (SS1, SS2, SS3)'
-                    : examType === 'JUPEB'
-                    ? 'Select JUPEB Program Level'
+                  {examType === 'JUPEB'
+                    ? 'JUPEB Academic Level (Scales Academic Depth & Rigor)'
+                    : examType === 'WAEC'
+                    ? 'WAEC Senior Secondary Level'
+                    : examType === 'University Practice'
+                    ? 'Course Duration & University Level'
                     : 'Candidate Status / Level'}
                 </span>
               </label>
@@ -1262,11 +1284,11 @@ Respond with ONLY a valid JSON object matching this exact structure:
               {/* Course Duration Selector for University Practice */}
               {examType === 'University Practice' && (
                 <div className="flex items-center space-x-1.5 bg-[#18181B] p-1 rounded-xl border border-[#27272A]">
-                  <span className="text-[10px] text-[#A1A1AA] uppercase font-bold px-1.5">Course Length:</span>
+                  <span className="text-[10px] text-[#A1A1AA] uppercase font-bold px-1.5">Length:</span>
                   {[
-                    { years: 4, label: '4-Year Degree' },
-                    { years: 5, label: '5-Year (Engr/Law/Pharm)' },
-                    { years: 6, label: '6-Year (MBBS)' },
+                    { years: 4, label: '4-Year' },
+                    { years: 5, label: '5-Year' },
+                    { years: 6, label: '6-Year' },
                   ].map((dur) => (
                     <button
                       key={dur.years}
@@ -1307,7 +1329,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
             </div>
           </div>
 
-          {/* Stepped Selection Grid: Subject & Difficulty & Count */}
+          {/* Stepped Selection Grid: Subject, Difficulty & Question Count */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* 3. Subject Selector */}
             <div className="space-y-1.5">
@@ -1336,7 +1358,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 <option value="CRS">CRS (Christian Religious Studies)</option>
                 <option value="IRS">IRS (Islamic Religious Studies)</option>
                 <option value="Civic Education">Civic Education</option>
-                <option value="CUSTOM">✍️ Other Subject (Type Custom Subject Below)...</option>
+                <option value="CUSTOM">✍️ Other Subject (Type Any Custom Subject Below)...</option>
               </select>
               {isCustomSubject && (
                 <div className="pt-1.5">
@@ -1357,18 +1379,20 @@ Respond with ONLY a valid JSON object matching this exact structure:
               )}
             </div>
 
-            {/* 4. Difficulty Selector (Easy, Medium, Hard, Very Hard) */}
+            {/* 4. Difficulty Selector (Easy, Medium, Hard) */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
-                <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">4</span>
-                <span>Difficulty (Tap to Pick)</span>
+              <label className="text-xs font-bold text-[#A1A1AA] flex items-center justify-between">
+                <span className="flex items-center space-x-1.5">
+                  <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">4</span>
+                  <span>Difficulty Level</span>
+                </span>
+                <span className="text-[10px] text-white">Tap to select</span>
               </label>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  { id: 'Easy', label: 'Easy', color: 'text-emerald-400' },
-                  { id: 'Medium', label: 'Medium', color: 'text-sky-400' },
-                  { id: 'Hard', label: 'Hard', color: 'text-amber-400' },
-                  { id: 'Very Hard', label: 'Very Hard', color: 'text-rose-400' },
+                  { id: 'Easy', label: 'Easy', desc: 'Basic principles & applications' },
+                  { id: 'Medium', label: 'Medium', desc: 'Standard exam calculations' },
+                  { id: 'Hard', label: 'Hard', desc: 'Deep reasoning & complex work' },
                 ].map((diff) => {
                   const isSelected = difficulty === diff.id;
                   return (
@@ -1376,7 +1400,8 @@ Respond with ONLY a valid JSON object matching this exact structure:
                       key={diff.id}
                       type="button"
                       onClick={() => setDifficulty(diff.id as any)}
-                      className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border active:scale-95 text-center ${
+                      title={diff.desc}
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer border active:scale-95 text-center ${
                         isSelected
                           ? 'bg-[#22C55E] text-black border-[#22C55E] shadow-sm font-black'
                           : 'bg-[#000000] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/50'
@@ -1387,39 +1412,88 @@ Respond with ONLY a valid JSON object matching this exact structure:
                   );
                 })}
               </div>
+              <p className="text-[11px] text-[#A1A1AA] pt-0.5">
+                {difficulty === 'Easy' && 'Easy: Basic understanding and simple applications.'}
+                {difficulty === 'Medium' && 'Medium: Standard examination questions requiring proper calculations.'}
+                {difficulty === 'Hard' && 'Hard: Advanced questions requiring deeper reasoning and complex calculations.'}
+              </p>
             </div>
 
-            {/* 5. Question Count Selector (10, 20, 40) */}
+            {/* 5. Number of Questions Selector (5, 10, 20, 30, 40, 50, Custom) */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
-                <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">5</span>
-                <span>Question Count</span>
+              <label className="text-xs font-bold text-[#A1A1AA] flex items-center justify-between">
+                <span className="flex items-center space-x-1.5">
+                  <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">5</span>
+                  <span>Number of Questions</span>
+                </span>
+                <span className="text-[10px] text-white font-bold">{aiCount} Qs Selected</span>
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[10, 20, 40].map((count) => (
-                  <button
-                    key={count}
-                    type="button"
-                    onClick={() => setAiCount(count)}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border active:scale-95 text-center ${
-                      aiCount === count
-                        ? 'bg-[#22C55E] text-black border-[#22C55E] shadow-sm font-black'
-                        : 'bg-[#000000] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/50'
-                    }`}
-                  >
-                    {count === 40 ? '40 (Mock)' : `${count} Qs`}
-                  </button>
-                ))}
+              <div className="grid grid-cols-4 gap-1.5">
+                {[5, 10, 20, 30, 40, 50].map((count) => {
+                  const isSelected = !isCustomCount && aiCount === count;
+                  return (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => {
+                        setIsCustomCount(false);
+                        setAiCount(count);
+                      }}
+                      className={`py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border active:scale-95 text-center ${
+                        isSelected
+                          ? 'bg-[#22C55E] text-black border-[#22C55E] shadow-sm font-black'
+                          : 'bg-[#000000] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/50'
+                      }`}
+                    >
+                      {count}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomCount(true);
+                    if (!customCountInput) setCustomCountInput(String(aiCount));
+                  }}
+                  className={`col-span-2 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border active:scale-95 text-center ${
+                    isCustomCount
+                      ? 'bg-[#22C55E] text-black border-[#22C55E] shadow-sm font-black'
+                      : 'bg-[#000000] text-[#A1A1AA] border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/50'
+                  }`}
+                >
+                  Custom
+                </button>
               </div>
+              {isCustomCount && (
+                <div className="flex items-center space-x-2 pt-1">
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={customCountInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomCountInput(val);
+                      const num = parseInt(val, 10);
+                      if (!isNaN(num) && num > 0) {
+                        setAiCount(Math.min(num, 50));
+                      }
+                    }}
+                    placeholder="Enter number (1-50)"
+                    className="w-full p-2 rounded-xl bg-[#000000] border border-[#22C55E]/60 text-xs font-bold text-[#FFFFFF] placeholder:text-[#A1A1AA]/50 focus:border-[#22C55E] focus:outline-none"
+                  />
+                  <span className="text-[11px] text-[#A1A1AA] whitespace-nowrap">Qs (max 50)</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* 6. Topic / Formula Input */}
+          {/* 6. Custom Topic & Area / Subtopic Free-Form Input */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-[#A1A1AA] flex items-center space-x-1.5">
                 <span className="w-4 h-4 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center text-[10px]">6</span>
-                <span>Topic or Governing Formula (Type any custom topic and tap Set Topic or Enter)</span>
+                <span>Custom Topic, Subtopic or Specific Area (Enter Any Topic Manually)</span>
               </label>
               {aiTopic && (
                 <button
@@ -1442,7 +1516,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                     handleGenerateAiExam(undefined, aiTopic, effectiveSubject);
                   }
                 }}
-                placeholder="e.g. Price Elasticity of Demand, Literary Devices & Figures of Speech, Projectiles, Calculus..."
+                placeholder="Enter any academic topic or subtopic (e.g. Projectiles, Calculus, Photosynthesis, Organic Chemistry, Elasticity)..."
                 className="flex-1 p-3 rounded-xl bg-[#000000] border border-[#27272A] text-sm text-[#FFFFFF] font-medium placeholder:text-[#A1A1AA]/50 focus:border-[#22C55E] focus:outline-none transition-all"
               />
               <button
@@ -1456,13 +1530,16 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 <span>Set Topic</span>
               </button>
             </div>
+            <p className="text-[11px] text-[#A1A1AA]">
+              The AI will understand the topic entered and generate relevant, examination-standard questions specifically about it. You are never restricted to predefined topics.
+            </p>
           </div>
 
-          {/* Quick Topic Chips for Selected Subject */}
+          {/* Quick Topic Chips for Selected Subject (Optional Suggestions) */}
           <div className="space-y-1 pt-1">
             <div className="flex items-center justify-between text-[11px] text-[#A1A1AA]">
-              <span className="font-bold text-[#FFFFFF]">Recommended Syllabus Topics:</span>
-              <span className="text-white font-medium">Tap any topic to set fresh questions instantly</span>
+              <span className="font-bold text-[#FFFFFF]">Suggested Syllabus Topics (Optional):</span>
+              <span className="text-white font-medium">Tap any topic to load into the topic field</span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {(topicPresets[effectiveSubject] || topicPresets[aiSubject] || topicPresets['Literature'] || []).map((preset) => (
@@ -1471,14 +1548,13 @@ Respond with ONLY a valid JSON object matching this exact structure:
                   type="button"
                   onClick={() => {
                     setAiTopic(preset);
-                    handleGenerateAiExam(undefined, preset, effectiveSubject);
                   }}
                   className={`px-2.5 py-1 rounded-lg text-xs transition-all cursor-pointer active:scale-95 ${
                     aiTopic === preset
                       ? 'bg-[#22C55E]/20 text-white border border-[#22C55E]/40 font-bold'
                       : 'bg-[#000000] text-[#A1A1AA] border border-[#27272A] hover:text-[#FFFFFF] hover:border-[#22C55E]/40'
                   }`}
-                  title={`Tap to generate fresh questions on: ${preset}`}
+                  title={`Tap to select: ${preset}`}
                 >
                   {preset}
                 </button>
@@ -1496,7 +1572,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 type="button"
                 onClick={() => handleLoadInstantBank(undefined, aiTopic, effectiveSubject)}
                 className="w-full sm:w-auto px-5 py-3 rounded-xl bg-[#18181B] hover:bg-[#27272A] active:scale-95 text-[#22C55E] border border-[#22C55E]/40 font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-md"
-                title="Launch full 40 questions immediately in 0.2s using the official Nigerian syllabus bank"
+                title="Practice instantly from the Nigerian syllabus question bank"
               >
                 <Zap className="w-4 h-4 text-[#22C55E]" />
                 <span>⚡ Instant {aiCount}-Question Mock (0.2s)</span>
@@ -1510,12 +1586,12 @@ Respond with ONLY a valid JSON object matching this exact structure:
                 {isGenerating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Setting {aiCount} Questions with AI...</span>
+                    <span>Generating {aiCount} Questions with AI...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>Generate {aiCount} with AI</span>
+                    <span>Generate {aiCount} Questions with AI</span>
                   </>
                 )}
               </button>
@@ -1852,56 +1928,67 @@ Respond with ONLY a valid JSON object matching this exact structure:
             })}
           </div>
 
-          {/* Action Row: Derivations, AI Solver & Navigation */}
+          {/* Action Row: Derivations, Ask AI Solver & Navigation */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#27272A]">
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              {/* Show / Hide Derivation Button */}
               <button
                 type="button"
                 onClick={handleToggleSolution}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm active:scale-95 ${
                   isRevealed
-                    ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40'
-                    : 'bg-[#18181B] hover:bg-[#27272A] text-[#FFFFFF] border border-white/5'
+                    ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40 font-black'
+                    : 'bg-[#18181B] hover:bg-[#27272A] text-[#FFFFFF] border border-[#27272A]'
                 }`}
-                title="Only shows derivation when you click here"
+                title={isRevealed ? 'Hide AI Solution & Derivation' : 'Show AI Solution & Derivation'}
               >
                 <Lightbulb className={`w-3.5 h-3.5 ${isRevealed ? 'text-[#22C55E]' : 'text-amber-400'}`} />
-                <span>{isRevealed ? 'Hide Derivation' : '💡 Show Derivation'}</span>
+                <span>{isRevealed ? 'Hide Derivation' : 'Show Derivation'}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={handleToggleSolution}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm ${
-                  isRevealed
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                    : 'bg-[#18181B] hover:bg-[#27272A] text-amber-400 border border-amber-500/20'
-                }`}
-                title="Stuck or confused on this question? Click to reveal full working steps"
-              >
-                <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-                <span>{isRevealed ? 'Hide Working' : '🤔 Confused? Show Working'}</span>
-              </button>
-
+              {/* Ask AI Solver Button */}
               {onOpenInGemini && (
                 <button
                   type="button"
                   onClick={() => {
-                    // Reveal the derivation for this question when clicking AI Solver
-                    setShowSolution((prev) => ({ ...prev, [currentQ.id]: true }));
-                    const fullQ = `[Examination: ${examType} | Level: ${levelClass} | Difficulty: ${currentQ.difficulty || difficulty}]\nSubject: ${currentQ.subject} — Topic: ${currentQ.topic || 'General'}\n\nQuestion:\n${currentQ.question}\n\nOptions:\nA. ${currentQ.options.A}\nB. ${currentQ.options.B}\nC. ${currentQ.options.C}\nD. ${currentQ.options.D}\n\nTask: Solve this question with complete step-by-step mathematical derivation, governing laws/formulas in LaTeX, value substitution, clear step calculations, final boxed answer, and exam tips.`;
+                    // Open AI Solver with comprehensive tutor prompt
+                    const fullQ = `Please act as an intelligent personal tutor and solve this academic question independently:
+
+EXAMINATION: ${examType}
+ACADEMIC LEVEL: ${currentQ.level || levelClass}
+SUBJECT: ${currentQ.subject}
+TOPIC: ${currentQ.topic || aiTopic}
+DIFFICULTY: ${currentQ.difficulty || difficulty}
+
+QUESTION:
+${currentQ.question}
+
+OPTIONS:
+A. ${currentQ.options.A}
+B. ${currentQ.options.B}
+C. ${currentQ.options.C}
+D. ${currentQ.options.D}
+
+TUTOR INSTRUCTIONS:
+1. Understand the exact question and solve it independently.
+2. State the verified correct answer clearly.
+3. Show all governing formulas and scientific principles in standard LaTeX.
+4. Explain why each step is performed and substitute values clearly.
+5. Explain difficult concepts in simple student-friendly language.
+6. Provide alternative solving methods, shortcuts, and exam tips.
+7. Be ready for follow-up questions or requests for simpler explanations.`;
                     onOpenInGemini(fullQ, currentQ.subject);
                   }}
                   className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600/25 via-[#22C55E]/20 to-teal-500/25 hover:from-emerald-600/35 hover:to-teal-500/35 text-[#22C55E] border border-[#22C55E]/40 text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm active:scale-95"
-                  title="Click to solve with AI and reveal verified step-by-step derivation"
+                  title="Attach this exact question to SmartSolve AI Solver for interactive tutoring and step-by-step assistance"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-[#22C55E] animate-pulse" />
-                  <span>✨ AI Solver</span>
+                  <span>Ask AI Solver</span>
                 </button>
               )}
             </div>
 
-            {/* Navigation & Submit */}
+            {/* Navigation & Submit Controls */}
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
               {examSubmitted && (
                 <button
@@ -1911,7 +1998,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                   title="Return to the Submit Review Room"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Back to Submit Review Room</span>
+                  <span>Review Room</span>
                 </button>
               )}
 
@@ -1936,7 +2023,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
                       type="button"
                       onClick={handleFinalizeExam}
                       className="px-3 py-2 rounded-xl text-xs font-bold bg-[#EF4444]/20 hover:bg-[#EF4444]/30 text-[#EF4444] border border-[#EF4444]/40 flex items-center space-x-1 cursor-pointer"
-                      title="Submit exam and review results"
+                      title="Submit examination and calculate results"
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>Submit</span>
@@ -1950,121 +2037,162 @@ Respond with ONLY a valid JSON object matching this exact structure:
                     className="px-5 py-2.5 rounded-xl text-xs font-black bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] flex items-center space-x-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer"
                   >
                     <Check className="w-4 h-4 stroke-[3]" />
-                    <span>Submit & View Result</span>
+                    <span>Submit Examination</span>
                   </button>
                 )
               )}
             </div>
           </div>
 
-          {/* Step-by-Step Rigorous Derivation Panel (ONLY on-demand when clicked) */}
+          {/* AI Solution & Derivation Independent Section */}
           {isRevealed && (
-            <div className="p-5 sm:p-6 rounded-2xl bg-[#000000] border border-[#27272A] space-y-4 animate-fadeIn text-[#FFFFFF] shadow-inner">
+            <div className="p-5 sm:p-6 rounded-2xl bg-[#000000] border border-[#22C55E]/40 space-y-4 animate-fadeIn text-[#FFFFFF] shadow-inner">
+              {/* Header */}
               <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#27272A]">
+                <div className="flex items-center space-x-2">
+                  <BookOpen className="w-4 h-4 text-[#22C55E]" />
+                  <h4 className="text-sm font-black text-[#FFFFFF] uppercase tracking-wider">AI Solution & Derivation</h4>
+                </div>
+
                 <div className="flex items-center space-x-2">
                   <span className="px-3 py-1 rounded-lg bg-[#22C55E]/15 border border-[#22C55E]/30 text-xs font-black text-[#22C55E] flex items-center space-x-1.5">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Correct Answer: Option {currentQ.correctAnswer}</span>
                   </span>
-                  {currentQ.difficulty && (
-                    <span className="text-[11px] font-semibold text-amber-400 px-2 py-0.5 rounded-md bg-[#18181B] border border-amber-500/20">
-                      {currentQ.difficulty}
-                    </span>
-                  )}
-                </div>
-
-                {onOpenInGemini && (
                   <button
                     type="button"
-                    onClick={() => {
-                      const fullQ = `[Deep AI Derivation Request]\nQuestion: ${currentQ.question}\nOptions:\nA: ${currentQ.options.A}\nB: ${currentQ.options.B}\nC: ${currentQ.options.C}\nD: ${currentQ.options.D}\nCorrect Answer: Option ${currentQ.correctAnswer}\n\nPlease explain alternative derivation methods and in-depth conceptual breakdown.`;
-                      onOpenInGemini(fullQ, currentQ.subject);
-                    }}
-                    className="text-xs text-white hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                    onClick={handleToggleSolution}
+                    className="px-2.5 py-1 rounded-lg bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold border border-[#27272A] cursor-pointer"
+                    title="Hide Derivation"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-white" />
-                    <span>AI Deep Explanation</span>
+                    Hide Derivation
                   </button>
-                )}
+                </div>
               </div>
 
-              {/* 1. Given Values */}
-              {currentQ.givenValues && (
-                <div className="py-1">
-                  <span className="text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider block mb-1">
-                    1. Given Data:
-                  </span>
-                  <div className="text-sm font-mono text-[#FFFFFF] bg-[#0A0A0A] p-2.5 rounded-xl border border-[#27272A]">
-                    {currentQ.givenValues}
-                  </div>
+              {/* 1. Correct Answer Display */}
+              <div className="p-3 rounded-xl bg-[#0A0A0A] border border-[#27272A] flex items-start space-x-3">
+                <span className="w-7 h-7 rounded-lg bg-[#22C55E] text-black font-black text-xs flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                  {currentQ.correctAnswer}
+                </span>
+                <div className="text-sm sm:text-base text-[#FFFFFF] font-medium flex-1 formula-scroll-container pt-0.5">
+                  <MathRenderer content={currentQ.options[currentQ.correctAnswer]} />
                 </div>
-              )}
+              </div>
 
-              {/* 2. Formula Required */}
+              {/* 2. Formula Used (where applicable) & Why That Formula is Used */}
               {currentQ.formula && (
-                <div className="py-1">
-                  <span className="text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider block mb-1">
-                    2. Governing Law & Formula:
+                <div className="p-3.5 rounded-xl bg-[#0A0A0A] border border-[#27272A] space-y-2">
+                  <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider block">
+                    Governing Law & Formula:
                   </span>
                   <div className="text-base text-[#FFFFFF] py-1 text-center formula-scroll-container">
                     <MathRenderer content={currentQ.formula} displayMode={true} />
                   </div>
+                  {currentQ.whyFormula && (
+                    <div className="pt-2 border-t border-[#27272A]/70 text-xs text-[#A1A1AA] leading-relaxed">
+                      <span className="font-bold text-[#FFFFFF]">Why This Formula is Used: </span>
+                      {currentQ.whyFormula}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* 3. Value Substitution */}
-              {currentQ.substitution && (
-                <div className="py-1">
-                  <span className="text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider block mb-1">
-                    3. Value Substitution:
+              {/* 3. Problem Parameters & Given Values */}
+              {(currentQ.givenValues || currentQ.whatIsRequired) && (
+                <div className="space-y-1.5">
+                  <span className="text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider block">
+                    Given Values & Target:
                   </span>
-                  <div className="text-sm sm:text-base text-[#FFFFFF] py-1 text-center formula-scroll-container">
+                  <div className="text-xs sm:text-sm font-mono text-[#FFFFFF] bg-[#0A0A0A] p-2.5 rounded-xl border border-[#27272A] space-y-1">
+                    {currentQ.givenValues && <div>Given: {currentQ.givenValues}</div>}
+                    {currentQ.whatIsRequired && <div>Required: {currentQ.whatIsRequired}</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Value Substitution */}
+              {currentQ.substitution && (
+                <div className="space-y-1">
+                  <span className="text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider block">
+                    Value Substitution:
+                  </span>
+                  <div className="text-sm sm:text-base text-[#FFFFFF] py-1 text-center formula-scroll-container bg-[#0A0A0A] p-2.5 rounded-xl border border-[#27272A]">
                     <MathRenderer content={currentQ.substitution} displayMode={true} />
                   </div>
                 </div>
               )}
 
-              {/* 4. Calculation Steps */}
+              {/* 5. Step-by-Step Calculations & Detailed Scientific Reasoning */}
               {currentQ.steps && currentQ.steps.length > 0 && (
-                <div className="space-y-1.5 pt-2 border-t border-[#27272A]">
-                  <span className="text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider block mb-1">
-                    4. Mathematical Working:
+                <div className="space-y-1.5">
+                  <span className="text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider block">
+                    Step-by-Step Calculations & Scientific Reasoning:
                   </span>
-                  {currentQ.steps.map((st, i) => (
-                    <div key={i} className="text-sm text-[#FFFFFF] py-0.5 formula-scroll-container">
-                      <MathRenderer content={st} />
-                    </div>
-                  ))}
+                  <div className="space-y-1.5 bg-[#0A0A0A] p-3 rounded-xl border border-[#27272A]">
+                    {currentQ.steps.map((st, i) => (
+                      <div key={i} className="text-sm text-[#FFFFFF] py-0.5 formula-scroll-container flex items-start space-x-2">
+                        <span className="text-xs font-bold text-[#22C55E] mt-0.5 shrink-0">{i + 1}.</span>
+                        <div className="flex-1 min-w-0">
+                          <MathRenderer content={st} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* 5. Boxed Final Answer */}
-              <div className="pt-3 pb-1 text-center formula-scroll-container">
+              {/* 6. Clear Final Answer */}
+              <div className="pt-2 pb-1 text-center formula-scroll-container">
                 <div className="inline-block py-1">
                   <MathRenderer
-                    content={`\\boxed{\\text{Option } ${currentQ.correctAnswer}: ${currentQ.options[currentQ.correctAnswer]}}`}
+                    content={`\\boxed{\\text{Final Answer: Option } ${currentQ.correctAnswer}: ${currentQ.options[currentQ.correctAnswer]}}`}
                     displayMode={true}
                   />
                 </div>
               </div>
 
-              {/* 6. Educational Explanation & Exam Tips */}
+              {/* 7. Student-Friendly Explanation & Exam Trap / Tip */}
               {(currentQ.explanation || currentQ.examTip) && (
-                <div className="pt-3 border-t border-[#27272A] space-y-2 text-xs text-[#A1A1AA]">
+                <div className="p-3.5 rounded-xl bg-[#0A0A0A] border border-[#27272A] space-y-2 text-xs text-[#A1A1AA]">
                   {currentQ.explanation && (
                     <p className="leading-relaxed">
-                      <span className="font-bold text-[#FFFFFF]">Why This Answer is Correct: </span>
+                      <span className="font-bold text-[#FFFFFF]">Explanation (Student-Friendly): </span>
                       {currentQ.explanation}
                     </p>
                   )}
                   {currentQ.examTip && (
-                    <p className="leading-relaxed">
-                      <span className="font-bold text-white">Exam Trap & Tip: </span>
+                    <p className="leading-relaxed pt-1.5 border-t border-[#27272A]/70">
+                      <span className="font-bold text-amber-400">Exam Trap & Strategy Tip: </span>
                       {currentQ.examTip}
                     </p>
                   )}
                 </div>
               )}
+
+              {/* Bottom Quick Controls in Derivation Card */}
+              <div className="flex items-center justify-between pt-2 border-t border-[#27272A]">
+                <button
+                  type="button"
+                  onClick={handleToggleSolution}
+                  className="px-3 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-xs font-bold text-[#FFFFFF] border border-[#27272A] cursor-pointer"
+                >
+                  Hide Derivation
+                </button>
+                {onOpenInGemini && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const solverPrompt = `Please act as an intelligent personal tutor and explain this question in simpler terms or show alternative solving methods:\n\nQuestion: ${currentQ.question}\nCorrect Answer: Option ${currentQ.correctAnswer} (${currentQ.options[currentQ.correctAnswer]})\n\nPlease provide alternative solving shortcuts and a simpler explanation.`;
+                      onOpenInGemini(solverPrompt, currentQ.subject);
+                    }}
+                    className="text-xs text-[#22C55E] hover:underline flex items-center space-x-1 cursor-pointer font-bold"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-[#22C55E]" />
+                    <span>Ask AI Solver for Alternative Methods</span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

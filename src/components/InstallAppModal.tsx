@@ -97,7 +97,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4 pr-10">
             <div className="w-14 h-14 rounded-2xl bg-[#18181B] border border-[#22C55E]/40 shadow-xl p-1.5 flex-shrink-0 flex items-center justify-center text-[#22C55E]">
               <img
                 src="/icon.svg"

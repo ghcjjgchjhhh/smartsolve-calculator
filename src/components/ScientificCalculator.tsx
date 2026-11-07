@@ -511,7 +511,7 @@ export const ScientificCalculator: React.FC<Props> = ({
             TOOLBAR BUTTONS STRIP (Directly below the LCD screen)
             8 high-contrast circular/pill buttons perfectly fitted for mobile
             ========================================================= */}
-        <div className="flex items-center justify-between gap-0.5 xs:gap-1 sm:gap-1.5 mb-2.5 sm:mb-3 px-0.5">
+        <div className="grid grid-cols-8 gap-0.5 xs:gap-1 sm:gap-1.5 mb-2.5 sm:mb-3 px-0.5 items-center justify-items-center w-full">
           {/* 1. Menu Icon */}
           <button
             type="button"
@@ -652,7 +652,7 @@ export const ScientificCalculator: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => handleDpad('up')}
-                className="absolute top-0.5 sm:top-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                className="absolute top-1 left-1/2 -translate-x-1/2 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
                 title="Previous calculation history (Up)"
               >
                 <ChevronUp className="w-4 h-4 xs:w-4.5 xs:h-4.5 sm:w-5 sm:h-5" />
@@ -662,7 +662,7 @@ export const ScientificCalculator: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => handleDpad('down')}
-                className="absolute bottom-0.5 sm:bottom-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                className="absolute bottom-1 left-1/2 -translate-x-1/2 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
                 title="Next calculation history (Down)"
               >
                 <ChevronDown className="w-4 h-4 xs:w-4.5 xs:h-4.5 sm:w-5 sm:h-5" />
@@ -672,7 +672,7 @@ export const ScientificCalculator: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => handleDpad('left')}
-                className="absolute left-0.5 sm:left-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                className="absolute left-1 top-1/2 -translate-y-1/2 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
                 title="Move cursor left / Backspace"
               >
                 <ChevronLeft className="w-4 h-4 xs:w-4.5 xs:h-4.5 sm:w-5 sm:h-5" />
@@ -682,7 +682,7 @@ export const ScientificCalculator: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => handleDpad('right')}
-                className="absolute right-0.5 sm:right-1 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-300 hover:text-white active:scale-90 p-1 cursor-pointer transition-transform"
                 title="Move cursor right / Insert Ans"
               >
                 <ChevronRight className="w-4 h-4 xs:w-4.5 xs:h-4.5 sm:w-5 sm:h-5" />
