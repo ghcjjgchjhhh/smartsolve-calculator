@@ -9,6 +9,11 @@ import { JambPracticeView } from './components/JambPracticeView';
 import { SmartInputView } from './components/SmartInputView';
 import { GeminiAiSolverView } from './components/GeminiAiSolverView';
 import { AiChatAssistantView } from './components/AiChatAssistantView';
+import { FunctionGrapherView } from './components/FunctionGrapherView';
+import { PeriodicTableView } from './components/PeriodicTableView';
+import { PhysicsSimulatorView } from './components/PhysicsSimulatorView';
+import { FlashcardsView } from './components/FlashcardsView';
+import { CustomFormulaNotebookView } from './components/CustomFormulaNotebookView';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { SearchModal } from './components/SearchModal';
 import { InstallAppModal } from './components/InstallAppModal';
@@ -28,6 +33,11 @@ import {
   Sparkles,
   ArrowLeft,
   MessageSquare,
+  TrendingUp,
+  FlaskConical,
+  Activity,
+  Layers,
+  BookOpen,
 } from 'lucide-react';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { LanguageProvider, useAppLanguage } from './contexts/LanguageContext';
@@ -38,11 +48,27 @@ function MainApp() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
-      if (tabParam && ['scientific', 'ai_chat', 'ai_solver', 'math', 'physics', 'equation', 'converter', 'jamb', 'smart_input'].includes(tabParam)) {
+      const validTabs = [
+        'scientific',
+        'ai_chat',
+        'ai_solver',
+        'grapher',
+        'periodic_table',
+        'physics_sim',
+        'flashcards',
+        'notebook',
+        'math',
+        'physics',
+        'equation',
+        'converter',
+        'jamb',
+        'smart_input',
+      ];
+      if (tabParam && validTabs.includes(tabParam)) {
         return tabParam;
       }
       const savedTab = localStorage.getItem('smartsolve_active_tab');
-      if (savedTab && ['scientific', 'ai_chat', 'ai_solver', 'math', 'physics', 'equation', 'converter', 'jamb', 'smart_input'].includes(savedTab)) {
+      if (savedTab && validTabs.includes(savedTab)) {
         return savedTab;
       }
     } catch {
@@ -322,6 +348,11 @@ function MainApp() {
     { id: 'scientific', name: t('scientific', 'Scientific'), icon: Calculator, badge: 'FX' },
     { id: 'ai_chat', name: t('ai_chat', 'AI Chat'), icon: MessageSquare, badge: 'Multimodal' },
     { id: 'ai_solver', name: t('ai_solver', 'AI Solver'), icon: Sparkles, badge: 'Step Solver' },
+    { id: 'grapher', name: t('grapher', '2D Grapher'), icon: TrendingUp, badge: 'Canvas' },
+    { id: 'periodic_table', name: t('periodic_table', 'Periodic Table'), icon: FlaskConical, badge: 'Chemistry' },
+    { id: 'physics_sim', name: t('physics_sim', 'Physics Lab'), icon: Activity, badge: 'Simulations' },
+    { id: 'flashcards', name: t('flashcards', 'Flashcards'), icon: Layers, badge: 'Memory' },
+    { id: 'notebook', name: t('notebook', 'My Formulas'), icon: BookOpen, badge: 'Notebook' },
     { id: 'math', name: t('math_hub', 'Mathematics'), icon: FunctionSquare, badge: '19 Topics' },
     { id: 'physics', name: t('physics_hub', 'Physics'), icon: Atom, badge: '44 Formulas' },
     { id: 'equation', name: t('equations', 'Equations'), icon: Cpu, badge: 'Auto' },
@@ -485,6 +516,21 @@ function MainApp() {
             initialSubject={aiSolverInitialSubject}
             onClearInitialPrompt={() => setAiSolverInitialPrompt('')}
           />
+        </div>
+        <div className={activeTab === 'grapher' ? 'block' : 'hidden'}>
+          <FunctionGrapherView />
+        </div>
+        <div className={activeTab === 'periodic_table' ? 'block' : 'hidden'}>
+          <PeriodicTableView />
+        </div>
+        <div className={activeTab === 'physics_sim' ? 'block' : 'hidden'}>
+          <PhysicsSimulatorView />
+        </div>
+        <div className={activeTab === 'flashcards' ? 'block' : 'hidden'}>
+          <FlashcardsView />
+        </div>
+        <div className={activeTab === 'notebook' ? 'block' : 'hidden'}>
+          <CustomFormulaNotebookView />
         </div>
         <div className={activeTab === 'math' ? 'block' : 'hidden'}>
           <MathHub />

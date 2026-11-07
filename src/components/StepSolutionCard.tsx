@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StepSolution } from '../types';
 import { saveToHistory } from '../services/historyStorage';
-import { Check, Copy, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Check, Copy, Bookmark, BookmarkCheck, Printer } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 
 interface Props {
@@ -12,6 +12,10 @@ interface Props {
 export const StepSolutionCard: React.FC<Props> = ({ solution }) => {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const copySolutionText = () => {
     const text = `
@@ -132,7 +136,15 @@ Answer: ${solution.finalAnswer}
           </span>
         </div>
 
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-1 print:hidden">
+          <button
+            onClick={handlePrint}
+            title="Print or Save PDF Worksheet"
+            className="p-1.5 hover:bg-[#18181B] rounded-lg text-[#A1A1AA] hover:text-[#FFFFFF] transition-colors cursor-pointer flex items-center space-x-1"
+          >
+            <Printer className="w-4 h-4" />
+            <span className="text-[10px] hidden sm:inline font-semibold">Print / PDF</span>
+          </button>
           <button
             onClick={copySolutionText}
             title="Copy full solution"

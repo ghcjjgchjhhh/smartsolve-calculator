@@ -13,6 +13,11 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
   const [query, setQuery] = useState('');
 
   const mathEntries = [
+    { name: '2D Function Grapher', sub: 'Interactive canvas plotting, roots, derivatives, trigonometric & polynomial curves', tab: 'grapher' },
+    { name: 'Periodic Table & Stoichiometry', sub: 'Interactive elements table, molar mass calculation, % composition, mole-to-mass', tab: 'periodic_table' },
+    { name: 'Physics Lab Simulators', sub: 'Real-time projectile motion, pendulum mechanics, kinetic & potential energy graphs', tab: 'physics_sim' },
+    { name: 'Formula Flashcards & CBT Trainer', sub: '3D interactive formula flashcards, exam tips, mastery tracking for Math & Physics', tab: 'flashcards' },
+    { name: 'My Formulas (Custom Notebook)', sub: 'Create custom formulas, live parameter sliders, variable solvers & offline persistence', tab: 'notebook' },
     { name: 'AI Chat Assistant (ChatGPT Multimodal)', sub: 'Ask everyday questions, coding, STEM, record voice notes & snap photo homework', tab: 'ai_chat' },
     { name: 'AI Real-World Solver', sub: 'Solves complex physics, math & chemistry questions with step-by-step reasoning', tab: 'ai_solver' },
     { name: 'JAMB / WAEC / JUPEB CBT Practice', sub: 'Timed CBT simulator with instant score calculation, Chemistry, Physics & Mathematics', tab: 'jamb' },
