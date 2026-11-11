@@ -36,6 +36,11 @@ export interface StepSolution {
   graphs?: AiGraphData[];
   graphExplanation?: string;
   missingInformation?: string;
+  /**
+   * Scientific & Mathematical Diagram (Circle geometry, Triangles, Forces, Inclined planes, Optics, Circuits, etc.)
+   */
+  diagram?: ScientificDiagramData;
+  diagrams?: ScientificDiagramData[];
 }
 
 export interface AiGraphCurve {
@@ -256,3 +261,198 @@ export interface UnitCategory {
     description?: string;
   }[];
 }
+
+/**
+ * Scientific Diagram Types for Mathematics & Physics Visual Problem Solving
+ */
+export type ScientificDiagramType =
+  | 'circle_geometry'
+  | 'inclined_plane'
+  | 'free_body_diagram'
+  | 'optics_ray'
+  | 'bearing_trig'
+  | 'triangle_trig'
+  | 'circuit'
+  | 'wave'
+  | 'moments_lever'
+  | 'vectors'
+  | 'projectile_trajectory'
+  | 'kinematics_graph';
+
+export interface ScientificDiagramData {
+  id: string;
+  type: ScientificDiagramType;
+  title: string;
+  topic: string;
+  caption?: string;
+  givenParameters?: Record<string, string | number>;
+  data: {
+    // Circle geometry
+    circle?: {
+      centerLabel?: string;
+      radius?: number;
+      tangents?: Array<{
+        from: string;
+        pointOfContact: string;
+        to?: string;
+        label?: string;
+        length?: string | number;
+      }>;
+      secants?: Array<{
+        from: string;
+        through: string[];
+        label?: string;
+      }>;
+      chords?: Array<{
+        from: string;
+        to: string;
+        label?: string;
+        length?: string | number;
+      }>;
+      points?: Array<{
+        id: string;
+        angleDeg: number; // angle in degrees along circumference
+        label: string;
+        isCenter?: boolean;
+      }>;
+      angles?: Array<{
+        vertex: string;
+        arm1: string;
+        arm2: string;
+        degrees?: number;
+        label?: string;
+      }>;
+      theoremsApplied?: string[];
+      notes?: string;
+    };
+
+    // Forces on an inclined plane
+    inclinedPlane?: {
+      angleDeg: number;
+      massKg?: number;
+      weightN?: number;
+      normalForceN?: number;
+      mgSinN?: number;
+      mgCosN?: number;
+      frictionN?: number;
+      appliedForceN?: number;
+      tensionN?: number;
+      accelerationMs2?: number;
+      coefficientOfFriction?: number;
+      motionDirection?: 'up' | 'down' | 'stationary' | 'impending_down' | 'impending_up';
+      showComponents?: boolean;
+    };
+
+    // Free body diagram (horizontal/vertical)
+    freeBody?: {
+      bodyLabel?: string;
+      massKg?: number;
+      forces: Array<{
+        name: string;
+        value?: string | number;
+        unit?: string;
+        directionDeg: number; // 0=right, 90=up, 180=left, 270=down
+        color?: string;
+      }>;
+    };
+
+    // Optics ray diagram
+    optics?: {
+      opticType:
+        | 'concave_mirror'
+        | 'convex_mirror'
+        | 'convex_lens'
+        | 'concave_lens'
+        | 'refraction_prism'
+        | 'plane_mirror';
+      focalLengthCm: number;
+      objectDistanceCm: number;
+      objectHeightCm: number;
+      imageDistanceCm?: number;
+      imageHeightCm?: number;
+      imageNature?: 'Real & Inverted' | 'Virtual & Upright' | 'At Infinity';
+      magnification?: number;
+      showRays?: boolean;
+    };
+
+    // Bearings & Navigation
+    bearing?: {
+      originLabel: string;
+      destinationLabel: string;
+      bearingDeg: number; // 3-figure bearing from North, 0 to 360
+      distanceKm?: number;
+      elevationOrDepressionDeg?: number;
+      elevationType?: 'elevation' | 'depression';
+      referencePoints?: Array<{ label: string; x: number; y: number }>;
+    };
+
+    // Trigonometry / Triangles
+    triangle?: {
+      vertices: [string, string, string];
+      sides?: {
+        ab?: string | number;
+        bc?: string | number;
+        ca?: string | number;
+      };
+      angles?: {
+        a?: number;
+        b?: number;
+        c?: number;
+      };
+      isRightAngled?: boolean;
+      rightAngleVertex?: string;
+      heightLine?: boolean;
+      heightValue?: string | number;
+      opposite?: string | number;
+      adjacent?: string | number;
+      hypotenuse?: string | number;
+    };
+
+    // Moments & Levers
+    lever?: {
+      lengthM: number;
+      pivotPosM: number;
+      leftLoads: Array<{ forceN: number; distanceM: number; label?: string }>;
+      rightLoads: Array<{ forceN: number; distanceM: number; label?: string }>;
+      fulcrumReactionN?: number;
+      isEquilibrium?: boolean;
+    };
+
+    // Electric Circuit
+    circuit?: {
+      voltageV?: number;
+      currentA?: number;
+      totalResistanceOhm?: number;
+      circuitType: 'series' | 'parallel' | 'series_parallel' | 'simple';
+      components: Array<{
+        id: string;
+        type: 'cell' | 'resistor' | 'ammeter' | 'voltmeter' | 'switch' | 'bulb';
+        value?: string;
+        label: string;
+        position: 'top' | 'right' | 'bottom' | 'left' | 'parallel_branch';
+      }>;
+    };
+
+    // Transverse / Longitudinal Wave
+    wave?: {
+      waveType: 'transverse' | 'longitudinal';
+      amplitude: number;
+      wavelength: number;
+      frequencyHz?: number;
+      velocityMs?: number;
+      crestLabel?: string;
+      troughLabel?: string;
+      wavelengthLabel?: string;
+      amplitudeLabel?: string;
+    };
+
+    // Vector Addition & Parallelogram
+    vectors?: {
+      vectorA: { name: string; magnitude: number; angleDeg: number };
+      vectorB: { name: string; magnitude: number; angleDeg: number };
+      resultant?: { name: string; magnitude: number; angleDeg: number };
+      angleBetweenDeg?: number;
+    };
+  };
+}
+

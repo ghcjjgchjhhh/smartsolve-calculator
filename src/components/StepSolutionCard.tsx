@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { StepSolution } from '../types';
 import { saveToHistory } from '../services/historyStorage';
 import { Check, Copy, Bookmark, BookmarkCheck, Printer, Volume2, VolumeX, Pause, Play, Sparkles } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
+import { ScientificDiagramRenderer } from './ScientificDiagramRenderer';
+import { detectAndGenerateDiagram } from '../services/aiDiagramDetector';
 
 interface Props {
   solution: StepSolution;
@@ -16,6 +18,10 @@ export const StepSolutionCard: React.FC<Props> = ({ solution, onGenerateSimilar 
   const [speechState, setSpeechState] = useState<'idle' | 'playing' | 'paused'>('idle');
   const [speechProgress, setSpeechProgress] = useState<string>('');
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  const activeDiagram = useMemo(() => {
+    return solution.diagram || detectAndGenerateDiagram(solution);
+  }, [solution]);
 
   // Clean speech synthesis on unmount
   useEffect(() => {
@@ -387,6 +393,17 @@ Answer: ${solution.finalAnswer}
                 <span className="font-semibold text-white">{solution.whatIsRequired}</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Automated Mathematical Diagram / Physics Visual Illustration */}
+        {activeDiagram && (
+          <div className="py-2 animate-fadeIn">
+            <div className="text-[11px] font-bold text-[#22C55E] uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-[#22C55E]" />
+              <span>Accurate Geometric & Physical Diagram</span>
+            </div>
+            <ScientificDiagramRenderer diagram={activeDiagram} />
           </div>
         )}
 

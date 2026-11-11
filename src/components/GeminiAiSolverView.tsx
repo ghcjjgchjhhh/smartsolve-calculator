@@ -37,6 +37,7 @@ import { GoogleGenAI } from '@google/genai';
 import { useAppLanguage } from '../contexts/LanguageContext';
 import { InteractiveSolverGraph } from './InteractiveSolverGraph';
 import { detectAndEnhanceGraphs } from '../services/aiGraphDetector';
+import { detectAndGenerateDiagram } from '../services/aiDiagramDetector';
 import { useVoiceInput } from '../hooks/useVoiceInput';
 
 interface GeminiAiSolverViewProps {
@@ -591,6 +592,10 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           if (enhanced && enhanced.length > 0) {
             sol.graphs = enhanced;
           }
+          const diag = detectAndGenerateDiagram(sol, targetPrompt);
+          if (diag) {
+            sol.diagram = diag;
+          }
           setSolution(sol);
           saveToHistory(sol);
           setTimeout(() => {
@@ -659,6 +664,10 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
       const enhanced = detectAndEnhanceGraphs(sol, targetPrompt);
       if (enhanced && enhanced.length > 0) {
         sol.graphs = enhanced;
+      }
+      const diag = detectAndGenerateDiagram(sol, targetPrompt);
+      if (diag) {
+        sol.diagram = diag;
       }
 
       setSolution(sol);

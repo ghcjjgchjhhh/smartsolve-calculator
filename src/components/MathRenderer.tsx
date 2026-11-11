@@ -255,11 +255,31 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
       const htmlParts = parts.map((part) => {
         if (part.startsWith('$$') && part.endsWith('$$')) {
           const math = part.slice(2, -2).trim();
-          return renderMathSafe(math, true);
+          return `<div class="my-2 max-w-full overflow-x-auto scrollbar-thin">${renderMathSafe(math, true)}</div>`;
         }
         if (part.startsWith('$') && part.endsWith('$')) {
           const math = part.slice(1, -1).trim();
-          return renderMathSafe(math, false);
+
+          // Check if user or AI accidentally wrapped an entire English sentence or clause inside $...$
+          const hasEnglishWords = /\b(solving|position|velocity|components|initial|final|coordinates|vertical|horizontal|after|substituting|therefore|where|when|at|time|value|yield|reaction|pressure|volume|mass)\b/i.test(math);
+          if (hasEnglishWords && math.includes(' ')) {
+            // Check for "Label: equation" pattern
+            const colonMatch = math.match(/^([^:=]+):\s*([^:]+)$/);
+            if (colonMatch) {
+              const label = colonMatch[1].trim();
+              const eq = colonMatch[2].trim();
+              return `<span class="text-white font-semibold">${escapeHtml(label)}: </span><span class="inline-block max-w-full overflow-x-auto align-middle">${renderMathSafe(eq, false)}</span>`;
+            }
+            // Check for "Words equation = value"
+            const wordEqMatch = math.match(/^([A-Za-z\s]{3,})\s*([a-zA-Z0-9_^{}()\\]+\s*=\s*[\s\S]+)$/);
+            if (wordEqMatch) {
+              const label = wordEqMatch[1].trim();
+              const eq = wordEqMatch[2].trim();
+              return `<span class="text-slate-200">${escapeHtml(label)} </span><span class="inline-block max-w-full overflow-x-auto align-middle">${renderMathSafe(eq, false)}</span>`;
+            }
+          }
+
+          return `<span class="inline-block max-w-full overflow-x-auto align-middle">${renderMathSafe(math, false)}</span>`;
         }
         // Handle markdown bold, italic, and clean line-breaks in plain text segments
         let formattedText = escapeHtml(part);

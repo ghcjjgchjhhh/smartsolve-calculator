@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
+import { detectAndGenerateDiagram } from './src/services/aiDiagramDetector';
 
 dotenv.config();
 
@@ -546,6 +547,13 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           g.simulation.objectLabel = entity;
         }
       });
+    }
+
+    if (!parsedSolution.diagram) {
+      const diag = detectAndGenerateDiagram(parsedSolution, prompt);
+      if (diag) {
+        parsedSolution.diagram = diag;
+      }
     }
 
     return res.json({
