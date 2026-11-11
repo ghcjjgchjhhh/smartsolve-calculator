@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient using #0F1115 -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#151820"/>
+      <stop offset="100%" stop-color="#0F1115"/>
+    </linearGradient>
+
+    <!-- Chassis Gradient -->
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#181B22"/>
+      <stop offset="100%" stop-color="#12151B"/>
+    </linearGradient>
+
+    <!-- Operator Blue Gradient #3B82F6 -->
+    <linearGradient id="opGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+
+    <!-- Equals Green Gradient #22C55E -->
+    <linearGradient id="eqGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4ADE80"/>
+      <stop offset="100%" stop-color="#22C55E"/>
+    </linearGradient>
+
+    <!-- Clear Red Gradient #EF4444 -->
+    <linearGradient id="clearGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F87171"/>
+      <stop offset="100%" stop-color="#EF4444"/>
+    </linearGradient>
+
+    <filter id="shadowFilter" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#000000" flood-opacity="0.85"/>
+    </filter>
+
+    <filter id="glowBlue" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#3B82F6" flood-opacity="0.4"/>
+    </filter>
+
+    <filter id="glowGreen" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#22C55E" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Base App Background (#0F1115) -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad)"/>
+  <rect width="508" height="508" x="2" y="2" rx="114" fill="none" stroke="#252A34" stroke-width="3"/>
+
+  <!-- Subtle Ambient Glow Rings -->
+  <g transform="translate(256, 256)" opacity="0.3">
+    <ellipse rx="195" ry="75" fill="none" stroke="#3B82F6" stroke-width="3" transform="rotate(35)"/>
+    <ellipse rx="195" ry="75" fill="none" stroke="#22C55E" stroke-width="3" transform="rotate(-35)"/>
+  </g>
+
+  <!-- Central Calculator Body -->
+  <g transform="translate(116, 88)" filter="url(#shadowFilter)">
+    <!-- Chassis Body -->
+    <rect width="280" height="336" rx="42" fill="url(#bodyGrad)" stroke="#252A34" stroke-width="2.5"/>
+
+    <!-- Display (#181B22) -->
+    <rect x="22" y="22" width="236" height="74" rx="18" fill="#181B22" stroke="#252A34" stroke-width="1.5"/>
+    <text x="36" y="44" font-family="-apple-system, sans-serif" font-size="11" font-weight="800" fill="#A1A1AA">FX · DEG</text>
+    <text x="240" y="70" font-family="'JetBrains Mono', monospace" font-size="28" font-weight="bold" fill="#FFFFFF" text-anchor="end" letter-spacing="1">SmartSolve</text>
+
+    <!-- Keypad Grid -->
+    <!-- Row 1: AC (Red), %, ÷ (Blue) -->
+    <rect x="22" y="112" width="66" height="48" rx="14" fill="url(#clearGrad)"/>
+    <text x="55" y="143" font-family="-apple-system, sans-serif" font-size="16" font-weight="900" fill="#FFFFFF" text-anchor="middle">AC</text>
+
+    <rect x="107" y="112" width="66" height="48" rx="14" fill="#252A34" stroke="#3B82F6" stroke-width="1" stroke-opacity="0.3"/>
+    <text x="140" y="143" font-family="-apple-system, sans-serif" font-size="18" font-weight="bold" fill="#FFFFFF" text-anchor="middle">%</text>
+
+    <rect x="192" y="112" width="66" height="48" rx="14" fill="url(#opGrad)" filter="url(#glowBlue)"/>
+    <text x="225" y="145" font-family="-apple-system, sans-serif" font-size="22" font-weight="bold" fill="#FFFFFF" text-anchor="middle">÷</text>
+
+    <!-- Row 2: 7 (Slate), 8 (Slate), × (Blue) -->
+    <rect x="22" y="172" width="66" height="48" rx="14" fill="#252A34"/>
+    <text x="55" y="203" font-family="-apple-system, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">7</text>
+
+    <rect x="107" y="172" width="66" height="48" rx="14" fill="#252A34"/>
+    <text x="140" y="203" font-family="-apple-system, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">8</text>
+
+    <rect x="192" y="172" width="66" height="48" rx="14" fill="url(#opGrad)" filter="url(#glowBlue)"/>
+    <text x="225" y="205" font-family="-apple-system, sans-serif" font-size="22" font-weight="bold" fill="#FFFFFF" text-anchor="middle">×</text>
+
+    <!-- Row 3: 4 (Slate), 5 (Slate), − (Blue) -->
+    <rect x="22" y="232" width="66" height="48" rx="14" fill="#252A34"/>
+    <text x="55" y="263" font-family="-apple-system, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">4</text>
+
+    <rect x="107" y="232" width="66" height="48" rx="14" fill="#252A34"/>
+    <text x="140" y="263" font-family="-apple-system, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">5</text>
+
+    <rect x="192" y="232" width="66" height="48" rx="14" fill="url(#opGrad)" filter="url(#glowBlue)"/>
+    <text x="225" y="265" font-family="-apple-system, sans-serif" font-size="24" font-weight="bold" fill="#FFFFFF" text-anchor="middle">−</text>
+
+    <!-- Row 4: Equals Button (#22C55E Vibrant Emerald Green spanning across) -->
+    <g filter="url(#glowGreen)">
+      <rect x="22" y="292" width="236" height="34" rx="14" fill="url(#eqGrad)"/>
+      <text x="140" y="316" font-family="-apple-system, sans-serif" font-size="26" font-weight="900" fill="#FFFFFF" text-anchor="middle">=</text>
+    </g>
+  </g>
+</svg>

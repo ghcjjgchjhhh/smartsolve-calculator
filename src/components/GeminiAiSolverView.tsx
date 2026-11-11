@@ -1,0 +1,1414 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { StepSolution } from '../types';
+import { StepSolutionCard } from './StepSolutionCard';
+import { MathRenderer } from './MathRenderer';
+import { saveToHistory } from '../services/historyStorage';
+import {
+  Sparkles,
+  Image as ImageIcon,
+  Camera,
+  X,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Maximize2,
+  Trash2,
+  UploadCloud,
+  FileCheck,
+  RotateCcw,
+  HelpCircle,
+  Lightbulb,
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Award,
+  Info,
+  CornerDownLeft,
+  ArrowRight,
+  Calculator,
+  Copy,
+  Check,
+  RefreshCw,
+  Mic,
+  MicOff,
+} from 'lucide-react';
+import { GoogleGenAI } from '@google/genai';
+import { useAppLanguage } from '../contexts/LanguageContext';
+import { InteractiveSolverGraph } from './InteractiveSolverGraph';
+import { detectAndEnhanceGraphs } from '../services/aiGraphDetector';
+import { useVoiceInput } from '../hooks/useVoiceInput';
+
+interface GeminiAiSolverViewProps {
+  initialPrompt?: string;
+  initialSubject?: string;
+  onClearInitialPrompt?: () => void;
+}
+
+function cleanFormulaForDisplay(formula?: string): string {
+  if (!formula) return 'F = ma';
+  let str = formula.trim();
+  if (str.startsWith('$$') && str.endsWith('$$') && str.length >= 4) {
+    str = str.slice(2, -2).trim();
+  } else if (str.startsWith('$') && str.endsWith('$') && str.length >= 2) {
+    str = str.slice(1, -1).trim();
+  }
+  return str;
+}
+
+function formatSubstitutionForDisplay(raw?: string): string {
+  if (!raw) return '';
+  let str = raw.trim();
+
+  // Strip wrapping $$ or $ if present
+  if (str.startsWith('$$') && str.endsWith('$$') && str.length >= 4) {
+    str = str.slice(2, -2).trim();
+  } else if (str.startsWith('$') && str.endsWith('$') && str.length >= 2) {
+    str = str.slice(1, -1).trim();
+  }
+
+  // If already properly formatted with inline $ ... $, keep as is
+  if (/\$[^$\n]+\$/.test(str)) {
+    return str;
+  }
+
+  // Check if string contains explanatory English text or words
+  const hasExplanatoryWords = /\b(solving|position|velocity|initial|final|coordinates|vertical|horizontal|substituting|therefore|where|when|at|time|value|yield|reaction|pressure|volume|mass)\b/i.test(
+    str
+  );
+
+  if (!hasExplanatoryWords) {
+    return `$${str}$`;
+  }
+
+  // Split into clauses by periods, semicolons, or newlines
+  const clauses = str
+    .split(/(?<=\.)\s+|\n+/)
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+  const formatted = clauses.map((clause) => {
+    // If clause has label before colon: "Solving for initial position: v_p = 2.5 * 8"
+    const colonMatch = clause.match(/^([^:=]+):\s*([^:]+)$/);
+    if (colonMatch) {
+      const label = colonMatch[1].trim();
+      const eq = colonMatch[2].trim();
+      return `**${label}:** $${eq}$`;
+    }
+    // If clause has an equation assignment: "Initial coordinates y_0 = 40"
+    const eqMatch = clause.match(/^(.*?)([a-zA-Z0-9_^{}]+\s*=\s*[\s\S]+)$/);
+    if (eqMatch && eqMatch[1].trim().length > 0) {
+      return `${eqMatch[1].trim()} $${eqMatch[2].trim()}$`;
+    }
+    return clause;
+  });
+
+  return formatted.join('\n\n');
+}
+
+export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
+  initialPrompt,
+  initialSubject,
+  onClearInitialPrompt,
+}) => {
+  const { currentLanguage, t } = useAppLanguage();
+  const [prompt, setPrompt] = useState<string>(initialPrompt || '');
+  const [selectedSubject, setSelectedSubject] = useState<string>(initialSubject || 'All');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageMimeType, setImageMimeType] = useState<string>('image/jpeg');
+  const [imageMeta, setImageMeta] = useState<{ name?: string; size?: string; dimensions?: string } | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState<boolean>(false);
+  const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadingStage, setLoadingStage] = useState<string>('');
+  const [solution, setSolution] = useState<StepSolution | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [expandedExplanation, setExpandedExplanation] = useState<{
+    concept: boolean;
+    derivation: boolean;
+    alternative: boolean;
+    mistakes: boolean;
+  }>({
+    concept: true,
+    derivation: true,
+    alternative: true,
+    mistakes: true,
+  });
+
+  // Silently check environment or local cache without showing any UI or prompts to the user
+  const [userApiKey] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const urlKey = new URLSearchParams(window.location.search).get('key');
+      if (urlKey) {
+        try {
+          localStorage.setItem('gemini_user_api_key', urlKey);
+        } catch {}
+        return urlKey;
+      }
+      return (import.meta as any).env?.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_user_api_key') || '';
+    }
+    return '';
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const solutionRef = useRef<HTMLDivElement>(null);
+
+  const { isListening, toggleListening } = useVoiceInput((transcript) => {
+    setPrompt((prev) => (prev ? `${prev} ${transcript}` : transcript));
+  });
+
+  const realProblemSamples = [
+    {
+      subject: 'Physics',
+      label: 'Motion Graph: Velocity-Time & Displacement',
+      text: 'A car accelerates uniformly from rest at 2.5 m/s² for 8 seconds, travels at constant velocity for 12 seconds, and decelerates to rest in 4 seconds. Draw the complete velocity-time graph, calculate the total displacement, and simulate the motion.',
+    },
+    {
+      subject: 'Physics',
+      label: '2D Trajectory: Projectile Motion Lab',
+      text: 'A cannon fires a projectile with initial speed u = 30 m/s at an angle θ = 45° to the horizontal on level ground (g = 9.8 m/s²). Plot the trajectory y(x), compute max height and range, and simulate the flight.',
+    },
+    {
+      subject: 'Mathematics',
+      label: 'Quadratic Graph: Roots, Vertex & Parabola',
+      text: 'Analyze and plot the quadratic function y = -2x² + 8x - 3. Determine the vertex coordinates, axis of symmetry, discriminant, real roots, and y-intercept with step-by-step working.',
+    },
+    {
+      subject: 'Physics',
+      label: 'Oscillations: Simple Harmonic Motion x(t)',
+      text: 'A 0.4 kg mass on a spring oscillates with amplitude A = 0.25 m and period T = 2.0 s. Plot the displacement-time x(t) and velocity-time v(t) graphs, identify peak potential energy points, and simulate the oscillator.',
+    },
+    {
+      subject: 'Mathematics',
+      label: 'Calculus: Quotient Rule Derivative',
+      text: "Find the derivative of f(x) = (3x² - 4x + 1) / (2x + 3) with step-by-step working and evaluate f'(1).",
+    },
+    {
+      subject: 'Mathematics',
+      label: 'Calculus: Definite Polynomial Integral',
+      text: 'Evaluate the definite integral ∫ from 0 to 2 of (4x³ - 3x² + 2x - 5) dx showing antiderivative and limits substitution.',
+    },
+    {
+      subject: 'Mathematics',
+      label: 'Algebra: Quadratic by Formula & Factoring',
+      text: 'Solve 3x² - 7x - 6 = 0 using both the quadratic formula and factorization. State discriminant and both roots.',
+    },
+    {
+      subject: 'Mathematics',
+      label: 'Linear Algebra: 3-Variable System',
+      text: 'Solve the system of equations: 2x + 3y - z = 5, 4x - y + 2z = 9, and -x + 2y + 3z = 8 with step-by-step elimination.',
+    },
+    {
+      subject: 'Mathematics',
+      label: 'Trigonometry: Trig Equation in [0, 2π]',
+      text: 'Find all solutions to 2sin²(x) - 3sin(x) + 1 = 0 in the interval [0, 2π] in radians and degrees.',
+    },
+    {
+      subject: 'Mathematics',
+      label: 'Coordinate Geometry: Circle & Tangent',
+      text: 'Find the equation of the tangent line to the circle x² + y² = 25 at the point (3, -4) with complete working.',
+    },
+    {
+      subject: 'Physics',
+      label: 'Free Fall & Kinetic Energy',
+      text: 'A stone of mass 0.5 kg is dropped from a cliff 80m high. Calculate its kinetic energy just before hitting the ground (take g = 9.8 m/s²).',
+    },
+    {
+      subject: 'Physics',
+      label: 'Conservation of Momentum (Inelastic)',
+      text: 'A truck of mass 3000 kg moving at 15 m/s collides and locks together with a stationary car of 1000 kg. Find the common final velocity and kinetic energy lost.',
+    },
+    {
+      subject: 'Physics',
+      label: 'Photoelectric Effect & Work Function',
+      text: 'Light of wavelength 400 nm falls on a metal having work function 2.2 eV. Calculate the maximum kinetic energy and stopping potential of emitted photoelectrons.',
+    },
+    {
+      subject: 'Physics',
+      label: '35° Projectile Trajectory & Range',
+      text: 'A football is kicked at 24 m/s at an angle of 35° above the horizontal. Calculate the time to reach maximum height, maximum altitude, and total flight time (g = 9.8 m/s²).',
+    },
+    {
+      subject: 'Physics',
+      label: 'Step-Down Transformer',
+      text: 'A step-down transformer has 1200 primary turns and 60 secondary turns. Connected to a 240V supply, the secondary draws 5A. Assuming 100% efficiency, find secondary voltage and primary current.',
+    },
+    {
+      subject: 'Physics',
+      label: 'Sound Wave Wavelength & Period',
+      text: 'A tuning fork produces a sound wave with frequency 440 Hz in air where the speed of sound is 344 m/s. Calculate the wavelength and period of vibration.',
+    },
+    {
+      subject: 'Chemistry',
+      label: 'Mole Concept: Mass & Avogadro Number',
+      text: 'Calculate the number of molecules and moles present in 11.2 liters of oxygen gas (O₂) at STP (Molar volume = 22.4 L/mol, Avogadro constant = 6.022 × 10²³ molecules/mol).',
+    },
+    {
+      subject: 'Chemistry',
+      label: 'Stoichiometry & Electrolysis (Faraday)',
+      text: 'Calculate the mass of copper deposited when a current of 2.5 A is passed through a solution of CuSO4 for 40 minutes (Faraday constant = 96500 C/mol, Cu = 63.5 g/mol).',
+    },
+    {
+      subject: 'Chemistry',
+      label: 'Atomic Structure & Electron Configuration',
+      text: 'Write the complete ground-state electron configuration of Fe²⁺ (Z = 26) using orbital notation. State the number of unpaired d-electrons and magnetic properties.',
+    },
+    {
+      subject: 'Chemistry',
+      label: 'Gas Laws: Ideal Gas & Molar Mass',
+      text: 'A sample of an unknown gas occupies 450 cm³ at 27°C and 780 mmHg. If the mass of the gas is 0.58 g, calculate its molar mass (R = 0.0821 L·atm/(mol·K)).',
+    },
+    {
+      subject: 'Chemistry',
+      label: 'Acids, Bases & pH of Strong Base',
+      text: 'Calculate the pH of a 0.025 M solution of calcium hydroxide, Ca(OH)2, assuming complete dissociation at 25°C (Kw = 1.0 × 10⁻¹⁴).',
+    },
+    {
+      subject: 'Chemistry',
+      label: 'Thermochemistry & Combustion Enthalpy',
+      text: 'Calculate the standard enthalpy change of combustion of methane: CH4(g) + 2O2(g) -> CO2(g) + 2H2O(l), given standard enthalpies of formation: ΔHf(CH4) = -74.8 kJ/mol, ΔHf(CO2) = -393.5 kJ/mol, ΔHf(H2O(l)) = -285.8 kJ/mol.',
+    },
+    {
+      subject: 'Chemistry',
+      label: 'Chemical Equilibrium & Equilibrium Constant (Kc)',
+      text: 'For the equilibrium N2(g) + 3H2(g) ⇌ 2NH3(g) in a 2.0 L vessel at 450°C, the equilibrium mixture contains 0.40 mol N2, 1.20 mol H2, and 0.24 mol NH3. Calculate the equilibrium constant Kc.',
+    },
+    {
+      subject: 'Chemistry',
+      label: 'Organic Chemistry: Esterification Mechanism',
+      text: 'Write the balanced chemical equation with structural formulas for the acid-catalyzed esterification of ethanoic acid (acetic acid) with ethanol. Name the ester formed and describe its characteristic odor.',
+    },
+    {
+      subject: 'Chemistry',
+      label: 'Electrochemistry: Standard Cell Potential (E°cell)',
+      text: 'Calculate the standard cell potential E°cell and determine spontaneity for a Daniel cell: Zn(s) | Zn²⁺(aq) || Cu²⁺(aq) | Cu(s), given standard reduction potentials E°(Zn²⁺/Zn) = -0.76 V and E°(Cu²⁺/Cu) = +0.34 V.',
+    },
+    {
+      subject: 'Chemistry',
+      label: 'Qualitative Analysis & Cation Confirmatory Tests',
+      text: 'Describe the confirmatory test for Fe²⁺ versus Fe³⁺ in aqueous solution using sodium hydroxide (NaOH) and potassium hexacyanoferrate(II) solution. State all observation colors and precipitate formulas.',
+    },
+  ];
+
+  const processImageFile = async (file: File) => {
+    if (!file || !file.type.startsWith('image/')) {
+      setError('Please select a valid image file (JPEG, PNG, HEIC, or WebP).');
+      return;
+    }
+
+    setIsProcessingImage(true);
+    setError(null);
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxDimension = 1600;
+          let width = img.naturalWidth || img.width;
+          let height = img.naturalHeight || img.height;
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            setImagePreview(dataUrl);
+            setImageMimeType('image/jpeg');
+            setImageMeta({ name: file.name, size: `${Math.round(file.size / 1024)} KB` });
+            setIsProcessingImage(false);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+
+          const approxBytes = Math.round((compressedDataUrl.length - 22) * 0.75);
+          const sizeKb = Math.round(approxBytes / 1024);
+
+          setImagePreview(compressedDataUrl);
+          setImageMimeType('image/jpeg');
+          setImageMeta({
+            name: file.name || 'Question Photo',
+            size: `${sizeKb} KB`,
+            dimensions: `${width}×${height}px`,
+          });
+          setIsProcessingImage(false);
+        } catch {
+          setImagePreview(dataUrl);
+          setImageMimeType('image/jpeg');
+          setImageMeta({ name: file.name, size: `${Math.round(file.size / 1024)} KB` });
+          setIsProcessingImage(false);
+        }
+      };
+      img.onerror = () => {
+        setImagePreview(dataUrl);
+        setImageMimeType(file.type || 'image/jpeg');
+        setImageMeta({ name: file.name, size: `${Math.round(file.size / 1024)} KB` });
+        setIsProcessingImage(false);
+      };
+      img.src = dataUrl;
+    } catch {
+      setIsProcessingImage(false);
+      setError('Could not process the selected image. Please try another photo.');
+    }
+  };
+
+  const handleImageInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
+  };
+
+  const handleClearImage = () => {
+    setImagePreview(null);
+    setImageMeta(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          processImageFile(file);
+          break;
+        }
+      }
+    }
+  };
+
+  const solveDirectWithGemini = async (key: string, targetPrompt: string) => {
+    const ai = new GoogleGenAI({ apiKey: key });
+    const contents: any[] = [];
+    if (imagePreview) {
+      const cleanBase64 = imagePreview.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+      contents.push({
+        inlineData: {
+          mimeType: imageMimeType || 'image/jpeg',
+          data: cleanBase64,
+        },
+      });
+    }
+
+    const promptText = `
+You are SmartSolve AI, an expert examination tutor and university professor for Mathematics, Physics, and Chemistry.
+Solve this ${selectedSubject === 'All' ? 'Mathematics, Physics or Chemistry' : selectedSubject} problem with crystal-clear, textbook-grade step-by-step reasoning matching official WAEC, Cambridge, and textbook marking schemes.
+
+CRITICAL SOLVER BEHAVIOUR & PRESENTATION RULES:
+1. MULTI-PART QUESTION STRUCTURING (MANDATORY):
+   If the question asks for multiple items (e.g. Part 1, 2, 3, 4 or (a), (b), (c), (i), (ii)):
+   - Clearly delineate each sub-problem using an explicit section header in "steps", e.g. "Part 1: The Acceleration of the Car", "Part 2: The Total Distance Travelled", etc.
+   - For EACH sub-problem, provide:
+     a) Governing formula or graphical property in LaTeX display mode ($$...$$).
+     b) Direct numerical substitution showing actual numbers with SI units plugged in ($$...$$).
+     c) Intermediate arithmetic reduction steps (never jump directly to answer).
+     d) Intermediate result with proper units.
+2. VERIFIED ARITHMETIC & DIMENSIONAL CONSISTENCY:
+   - Double check all calculations: addition, subtraction, fractions, square roots, and powers.
+   - Standard SI units must accompany every numerical value (e.g. m/s, m/s^2, N, J, kg, mol/dm^3).
+3. GRAPH-BASED PROBLEMS (MOTION, WAVES, CALCULUS, OR OPTICS):
+   - Explicitly relate the working to the graph features (e.g. "From the velocity-time graph, acceleration is the gradient of line OA:", "Total distance is the area of trapezium OABC under the v-t graph:", "Deceleration is the negative slope of line BC:").
+4. MULTIPLE-CHOICE QUESTIONS:
+   - If multiple-choice options (A, B, C, D) are given in the problem, explicitly identify the correct letter and state why that option is correct.
+5. FINAL ANSWER BOXING (STRICT LATEX):
+   - The "finalAnswer" field MUST be formatted with \\boxed{...}.
+   - All text words and units inside math mode must be properly wrapped in \\text{...} (e.g. \\text{deceleration} = 3\\text{ m/s}^2, v_{\\text{avg}} = 22.5\\text{ m/s}).
+   - For multi-part answers, combine all answers cleanly separated by ",\\quad ":
+     e.g. "\\boxed{a = 3\\text{ m/s}^2,\\quad s = 900\\text{ m},\\quad \\text{deceleration} = 3\\text{ m/s}^2,\\quad v_{\\text{avg}} = 22.5\\text{ m/s}}"
+   - Ensure all braces are closed and never produce trailing or truncated macros like \\tex.
+
+GRAPH DRAWING & ANIMATED SIMULATION ENGINE:
+If the question involves any Physics motion (velocity-time, displacement-time, acceleration-time, projectile trajectory, SHM oscillator, wave, etc.) or Mathematics curves (quadratic, cubic, rational, exponential, trigonometric, calculus derivatives/integrals, conics, etc.):
+1. Formulate exact equations for all graph curves in "graphs".
+2. State gradient (dy/dx) and area under curve meanings in "featuresExplanation".
+3. Configure the virtual lab simulation ('motion_1d', 'projectile_2d', 'shm_oscillator', 'wave_propagation', 'curve_tracing').
+4. If missing essential parameters, set "missingInformation".
+
+Problem to solve: "${targetPrompt || 'Solve the question shown in the image.'}"
+
+You MUST respond with a valid JSON object with EXACTLY this structure:
+{
+  "title": "Descriptive title of the problem",
+  "category": "${selectedSubject === 'All' ? 'Science' : selectedSubject}",
+  "subCategory": "Topic name (e.g. Mole Concept, Kinematics, Calculus, Electrochemistry)",
+  "problemStatement": "Clear restatement of question in LaTeX",
+  "formula": "Governing formula or chemical law in LaTeX",
+  "rearrangedFormula": "Formula rearranged for target unknown in LaTeX",
+  "whatIsRequired": "What is required with symbol and unit",
+  "givenValues": [
+    { "name": "Quantity name", "symbol": "m", "value": "2.5", "unit": "kg" }
+  ],
+  "substitution": "Formula with numbers and SI units plugged in LaTeX",
+  "steps": [
+    "Step 1 or label (e.g. Given quantities:)",
+    "$$equation$$",
+    "Explanation text with $inline math$",
+    "$$next equation$$"
+  ],
+  "finalAnswer": "\\boxed{Final answer in LaTeX}",
+  "unit": "SI unit",
+  "explanation": "Clear explanation of why this physical, mathematical, or chemical law applies",
+  "intuitiveConcept": "Crystal-clear conceptual analogy explaining what is actually happening physically or mathematically in plain English without confusing jargon.",
+  "detailedDerivation": [
+    "Derivation point 1: First fundamental law or axiom establishing the relation.",
+    "Derivation point 2: Rigorous algebraic substitution step and cancellation logic.",
+    "Derivation point 3: Dimensional consistency verification and why this exact formula holds."
+  ],
+  "alternativeMethod": "Alternative solving method, shortcut, or dimensional cross-check.",
+  "commonMistakes": "Frequent student traps, unit conversion pitfalls, or invalid assumptions to avoid on exams.",
+  "tips": "Pro tip or exam advice for solving this problem",
+  "graphs": [
+    {
+      "id": "g1",
+      "title": "Velocity-Time Graph (v-t)",
+      "category": "physics",
+      "graphType": "velocity_time",
+      "xAxis": { "label": "Time", "unit": "s", "min": 0, "max": 10, "step": 2 },
+      "yAxis": { "label": "Velocity", "unit": "m/s", "min": 0, "max": 25, "step": 5 },
+      "curves": [
+        {
+          "id": "c1",
+          "label": "Velocity v(t)",
+          "color": "#22C55E",
+          "equationText": "v(t) = 2.5t",
+          "fnExpression": "2.5 * t",
+          "shadedArea": { "fromX": 0, "toX": 10, "label": "Displacement = 125 m", "color": "#22C55E" }
+        }
+      ],
+      "keyPoints": [
+        { "x": 0, "y": 0, "label": "Initial (0,0)", "type": "intercept" },
+        { "x": 10, "y": 25, "label": "Final (10, 25)", "type": "critical" }
+      ],
+      "featuresExplanation": {
+        "gradientMeaning": "The slope of this v-t graph represents acceleration: a = dv/dt = 2.5 m/s².",
+        "areaMeaning": "The area under this v-t graph represents total displacement: s = ∫ v dt = 125 m.",
+        "physicalInterpretation": "Object accelerates uniformly at 2.5 m/s² covering 125 m."
+      },
+      "simulation": {
+        "hasSimulation": true,
+        "type": "motion_1d",
+        "duration": 10,
+        "objectLabel": "Plane"
+      }
+    }
+  ],
+  "graphExplanation": "Summary explanation of graph behavior and significance",
+  "missingInformation": ""
+}
+`.trim();
+
+    contents.push({ text: promptText });
+
+    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+    let lastError: any = null;
+
+    for (let i = 0; i < candidateModels.length; i++) {
+      const model = candidateModels[i];
+      try {
+        const config: any = {
+          responseMimeType: 'application/json',
+        };
+        if (model === 'gemini-3.8-flash') {
+          config.thinkingConfig = { thinkingLevel: 'LOW' };
+        } else if (model === 'gemini-3.1-flash-lite') {
+          config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+        }
+
+        const response = await ai.models.generateContent({
+          model,
+          contents,
+          config,
+        });
+
+        const resultText = response.text?.trim() || '{}';
+        let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+        const match = cleanJson.match(/\{[\s\S]*\}/);
+        if (match) cleanJson = match[0];
+
+        return JSON.parse(cleanJson);
+      } catch (err: any) {
+        lastError = err;
+        if (i < candidateModels.length - 1) {
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError;
+  };
+
+  const handleSolve = async (overridePrompt?: string) => {
+    const targetPrompt = overridePrompt !== undefined ? overridePrompt : prompt;
+    if (!targetPrompt.trim() && !imagePreview) {
+      setError('Please enter a question or upload an image of the problem.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setLoadingStage('Connecting to AI reasoning engine...');
+
+    const stageTimer1 = setTimeout(() => {
+      setLoadingStage('Extracting physical laws, given quantities and units...');
+    }, 700);
+
+    const stageTimer2 = setTimeout(() => {
+      setLoadingStage('Executing verified mathematical substitution & algebraic derivation...');
+    }, 1500);
+
+    try {
+      // 1. Direct browser solve if user entered API key
+      if (userApiKey) {
+        try {
+          const sol = await solveDirectWithGemini(userApiKey, targetPrompt);
+          clearTimeout(stageTimer1);
+          clearTimeout(stageTimer2);
+          const enhanced = detectAndEnhanceGraphs(sol, targetPrompt);
+          if (enhanced && enhanced.length > 0) {
+            sol.graphs = enhanced;
+          }
+          setSolution(sol);
+          saveToHistory(sol);
+          setTimeout(() => {
+            solutionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 100);
+          return;
+        } catch (clientErr: any) {
+          console.warn('Direct browser solve error, falling back to server API:', clientErr);
+        }
+      }
+
+      // 2. Fall back to serverless API
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (userApiKey) {
+        headers['x-gemini-key'] = userApiKey;
+      }
+
+      let response = await fetch('/api/solve', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          prompt: targetPrompt,
+          imageData: imagePreview,
+          mimeType: imageMimeType,
+          subject: selectedSubject === 'All' ? undefined : selectedSubject,
+          preferredLanguage: currentLanguage.name,
+          language: currentLanguage.name,
+        }),
+      });
+
+      if (response.status === 404) {
+        response = await fetch('/api/ai/solve', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            prompt: targetPrompt,
+            imageData: imagePreview,
+            mimeType: imageMimeType,
+            subject: selectedSubject === 'All' ? undefined : selectedSubject,
+            preferredLanguage: currentLanguage.name,
+            language: currentLanguage.name,
+          }),
+        });
+      }
+
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
+
+      const responseText = await response.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error(
+          'AI calculation engine is currently busy or temporarily unavailable. Please try again in a few moments.'
+        );
+      }
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Unable to solve this problem right now. Please try again shortly.');
+      }
+
+      const sol = data.solution;
+      const enhanced = detectAndEnhanceGraphs(sol, targetPrompt);
+      if (enhanced && enhanced.length > 0) {
+        sol.graphs = enhanced;
+      }
+
+      setSolution(sol);
+      saveToHistory(sol);
+
+      setTimeout(() => {
+        solutionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+    } catch (err: any) {
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
+      let msg = err.message || 'An error occurred while solving the problem with AI.';
+      if (typeof msg === 'string') {
+        if (msg.includes('503') || msg.includes('high demand') || msg.includes('UNAVAILABLE') || msg.includes('Resource has been exhausted')) {
+          msg = 'The AI reasoning model is currently experiencing high demand. Please tap Retry in a few seconds.';
+        } else if (msg.includes('Unexpected end of JSON') || msg.includes('Unexpected token')) {
+          msg = 'The AI service returned an incomplete response. Please tap Retry to recalculate.';
+        } else if (msg.startsWith('{') && msg.includes('"message"')) {
+          try {
+            const parsed = JSON.parse(msg);
+            msg = parsed.error?.message || parsed.message || msg;
+          } catch {
+            // retain cleaned msg
+          }
+        }
+      }
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+      setLoadingStage('');
+    }
+  };
+
+  const handleAskAboutStep = (stepNumber: number, stepText: string) => {
+    const newPrompt = `Please explain step ${stepNumber} in full detail with intermediate derivations: "${stepText}".`;
+    setPrompt(newPrompt);
+    handleSolve(newPrompt);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const toggleExplanation = (section: 'concept' | 'derivation' | 'alternative' | 'mistakes') => {
+    setExpandedExplanation((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const handleGenerateSimilar = (sol: StepSolution) => {
+    const baseDesc = sol.problemStatement || sol.finalAnswer;
+    const topic = sol.subCategory || sol.category || 'this topic';
+    const newPrompt = `Generate a similar practice problem testing the same principles as: "${baseDesc}". Create new numerical values, show the complete step-by-step mathematical working, and include the animated graph simulation if applicable.`;
+    setPrompt(newPrompt);
+    handleSolve(newPrompt);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  React.useEffect(() => {
+    const handleCustomGenerateSimilar = (e: any) => {
+      if (e.detail) {
+        handleGenerateSimilar(e.detail);
+      }
+    };
+    window.addEventListener('smartsolve:generate-similar', handleCustomGenerateSimilar);
+    return () => {
+      window.removeEventListener('smartsolve:generate-similar', handleCustomGenerateSimilar);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (initialPrompt && initialPrompt.trim()) {
+      setPrompt(initialPrompt);
+      if (initialSubject) setSelectedSubject(initialSubject);
+      handleSolve(initialPrompt);
+      onClearInitialPrompt?.();
+    }
+  }, [initialPrompt]);
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
+      {/* Hero Header Card */}
+          <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center space-x-2">
+              <span
+                className="px-2.5 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E] font-bold text-xs uppercase tracking-wider border border-[#22C55E]/30"
+              >
+                AI Solver Engine
+              </span>
+              <span className="text-xs text-[#A1A1AA]">· 100% Real Problem Solving</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#FFFFFF] mt-1 flex items-center space-x-2">
+              <Sparkles className="w-5 h-5 text-[#22C55E]" />
+              <span>Real Mathematics, Physics & Chemistry AI Solver</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-[#A1A1AA] mt-1">
+              Ask any real-world math, physics, or chemistry question (JAMB/UTME, WAEC, JUPEB, University, Calculus), or upload a photo of your textbook question.
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1.5 bg-[#000000] px-3.5 py-1.5 rounded-xl border border-[#27272A] text-xs text-[#22C55E] font-bold shrink-0">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#22C55E]" />
+              <span>Verified Steps</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Subject Filter Bar */}
+        <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
+          {['All', 'Physics', 'Mathematics', 'Chemistry', 'JAMB / WAEC', 'JUPEB', 'Calculus'].map((subj) => (
+            <button
+              key={subj}
+              onClick={() => setSelectedSubject(subj)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                selectedSubject === subj
+                  ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-sm'
+                  : 'bg-[#000000] text-[#A1A1AA] hover:text-[#FFFFFF] border border-[#27272A]'
+              }`}
+            >
+              {subj}
+            </button>
+          ))}
+        </div>
+
+        {/* Input Textarea & Image Attachment */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDraggingOver(true);
+          }}
+          onDragLeave={() => setIsDraggingOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDraggingOver(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) processImageFile(file);
+          }}
+          className={`space-y-3 pt-1 p-2 rounded-3xl transition-all ${
+            isDraggingOver ? 'bg-[#22C55E]/10 ring-2 ring-[#22C55E] ring-dashed' : ''
+          }`}
+        >
+          <div className="relative">
+            <textarea
+              rows={4}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onPaste={handlePaste}
+              placeholder={
+                imagePreview
+                  ? "Question photo attached! (Optional: add extra notes or tap 'Solve with AI' directly to extract and solve)"
+                  : "Type any math, physics, or chemistry question here, or paste screenshot (Ctrl+V) / snap a photo..."
+              }
+              className="w-full p-4 rounded-2xl bg-[#000000] border border-[#27272A] text-[#FFFFFF] placeholder:text-[#A1A1AA]/60 text-sm sm:text-base font-medium focus:border-[#22C55E] focus:outline-none transition-colors resize-y leading-relaxed"
+            />
+          </div>
+
+          {/* Image processing loader */}
+          {isProcessingImage && (
+            <div className="flex items-center space-x-2.5 p-3 rounded-2xl bg-[#000000] border border-[#22C55E]/30 text-xs text-[#22C55E] animate-pulse">
+              <Loader2 className="w-4 h-4 animate-spin text-[#22C55E]" />
+              <span>Optimizing and preparing problem photo for AI Vision...</span>
+            </div>
+          )}
+
+          {/* Enhanced Image preview if user uploaded a problem photo */}
+          {imagePreview && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#000000] border border-[#22C55E]/40 w-full animate-fadeIn shadow-lg">
+              <div className="flex items-center space-x-3.5 min-w-0">
+                <div
+                  onClick={() => setIsImageModalOpen(true)}
+                  className="relative group cursor-pointer shrink-0 rounded-xl overflow-hidden border border-[#27272A] hover:border-[#22C55E] transition-all"
+                  title="Click to expand full image"
+                >
+                  <img
+                    src={imagePreview}
+                    alt="Uploaded question"
+                    className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl group-hover:scale-105 transition-transform"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <Maximize2 className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-[#FFFFFF] truncate max-w-[180px] sm:max-w-xs block">
+                      {imageMeta?.name || 'Attached Problem Photo'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E] text-[10px] font-black border border-[#22C55E]/30 shrink-0 uppercase tracking-wider">
+                      AI Vision Ready
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-[11px] text-[#A1A1AA]">
+                    {imageMeta?.size && <span>{imageMeta.size}</span>}
+                    {imageMeta?.dimensions && <span>· {imageMeta.dimensions}</span>}
+                    <span className="text-[#22C55E]">· Crisp Resolution</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsImageModalOpen(true)}
+                    className="text-[11px] text-[#38BDF8] hover:underline flex items-center space-x-1 cursor-pointer font-medium pt-0.5"
+                  >
+                    <Maximize2 className="w-3 h-3" />
+                    <span>Inspect Full Image</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 self-end sm:self-center shrink-0">
+                <button
+                  type="button"
+                  onClick={handleClearImage}
+                  className="px-3 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#EF4444]/20 hover:text-[#EF4444] text-[#A1A1AA] text-xs font-semibold border border-white/5 transition-colors cursor-pointer flex items-center space-x-1"
+                  title="Remove this photo"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Action Row */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              {/* Camera Direct Input (environment/rear camera on mobile) */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleImageInput}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#FFFFFF] text-xs font-bold border border-white/5 transition-all cursor-pointer active:scale-95 shadow-sm"
+                title="Open camera to snap a photo of your textbook question directly"
+              >
+                <Camera className="w-4 h-4 text-[#22C55E]" />
+                <span>Camera</span>
+              </button>
+
+              {/* Gallery / File Picker Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageInput}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold border border-white/5 transition-all cursor-pointer active:scale-95"
+                title="Select a photo or screenshot from your device gallery"
+              >
+                <ImageIcon className="w-4 h-4 text-emerald-400" />
+                <span>Upload Photo</span>
+              </button>
+
+              {/* Voice Dictation (Speech-to-Text) Button */}
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer active:scale-95 shadow-sm ${
+                  isListening
+                    ? 'bg-rose-500/20 text-rose-400 border-rose-500 animate-pulse'
+                    : 'bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] border-white/5'
+                }`}
+                title="Dictate your physics, chemistry, or math question with your voice"
+              >
+                {isListening ? (
+                  <>
+                    <MicOff className="w-4 h-4 text-rose-400" />
+                    <span>Listening... (Tap to Stop)</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-4 h-4 text-sky-400" />
+                    <span>Voice Input</span>
+                  </>
+                )}
+              </button>
+
+              {prompt && (
+                <button
+                  type="button"
+                  onClick={() => setPrompt('')}
+                  className="px-2.5 py-2 rounded-xl bg-[#000000] hover:bg-[#18181B] text-[#A1A1AA] hover:text-[#FFFFFF] text-xs font-semibold transition-colors cursor-pointer border border-[#27272A]"
+                >
+                  Clear Text
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => handleSolve()}
+              disabled={isLoading || (!prompt.trim() && !imagePreview)}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] active:scale-95 disabled:opacity-50 text-[#FFFFFF] font-black text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Solving Problem...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>Solve with AI</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Fullscreen Photo Lightbox Modal */}
+        {isImageModalOpen && imagePreview && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
+            <div className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => setIsImageModalOpen(false)}
+                className="absolute -top-12 right-0 p-2 rounded-full bg-[#18181B] hover:bg-[#27272A] text-white cursor-pointer transition-colors"
+                title="Close Preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <img
+                src={imagePreview}
+                alt="Full view of problem question"
+                className="max-h-[80vh] w-auto max-w-full object-contain rounded-2xl border border-[#27272A] shadow-2xl"
+              />
+              <div className="mt-3 flex items-center space-x-4 text-xs text-[#A1A1AA]">
+                {imageMeta?.name && <span className="font-bold text-white">{imageMeta.name}</span>}
+                {imageMeta?.dimensions && <span>{imageMeta.dimensions}</span>}
+                {imageMeta?.size && <span>{imageMeta.size}</span>}
+                <button
+                  type="button"
+                  onClick={() => setIsImageModalOpen(false)}
+                  className="px-3 py-1 rounded-lg bg-[#22C55E] text-black font-bold cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading stage ticker */}
+        {isLoading && (
+          <div className="p-4 rounded-2xl bg-[#000000] border border-[#22C55E]/40 flex items-center space-x-3 text-xs text-[#FFFFFF] animate-pulse">
+            <Loader2 className="w-4 h-4 text-[#22C55E] animate-spin flex-shrink-0" />
+            <span>{loadingStage || 'AI is deriving the step-by-step solution...'}</span>
+          </div>
+        )}
+
+        {/* Error notification */}
+        {error && (
+          <div className="p-4 rounded-2xl bg-[#EF4444]/15 border border-[#EF4444]/40 text-[#EF4444] text-xs flex flex-col sm:flex-row items-start justify-between gap-3">
+            <div className="flex items-start space-x-2.5">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block">Calculation Notice</span>
+                <span>{error}</span>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+              <button
+                type="button"
+                onClick={() => handleSolve()}
+                className="px-3.5 py-1.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#FFFFFF] font-bold text-xs cursor-pointer whitespace-nowrap transition-all"
+              >
+                Retry
+              </button>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="px-3.5 py-1.5 rounded-xl bg-[#27272A] hover:bg-[#3F3F46] text-[#FFFFFF] font-bold text-xs cursor-pointer whitespace-nowrap transition-all"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Verified Solution Display Card (Rendered Immediately Below Input) */}
+      {solution && (
+        <div ref={solutionRef} className="pt-2 space-y-4 animate-fadeIn">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider flex items-center space-x-1.5">
+              <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
+              <span>Verified AI Solution</span>
+            </span>
+            <button
+              onClick={() => setSolution(null)}
+              className="text-xs text-[#A1A1AA] hover:text-[#FFFFFF] underline cursor-pointer"
+            >
+              Clear Solution
+            </button>
+          </div>
+
+          <StepSolutionCard solution={solution} onGenerateSimilar={handleGenerateSimilar} />
+
+          {/* Automated Interactive Graph Drawing & Motion Simulation Lab */}
+          {((solution.graphs && solution.graphs.length > 0) || solution.missingInformation) && (
+            <InteractiveSolverGraph
+              graphs={solution.graphs || []}
+              graphExplanation={solution.graphExplanation}
+              missingInformation={solution.missingInformation}
+              problemContext={`${solution.title || ''} ${solution.problemStatement || ''} ${prompt || ''} ${(solution.steps || []).join(' ')} ${(solution.givenValues || []).map((g) => `${g.name} ${g.symbol}`).join(' ')} ${solution.finalAnswer || ''}`}
+            />
+          )}
+
+          {/* Deep Conceptual & Derivation Breakdown */}
+          <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#27272A] gap-2">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 rounded-xl bg-[#22C55E]/15 border border-[#22C55E]/30 text-[#22C55E]">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                    <span>Deep Conceptual & Derivation Breakdown</span>
+                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E]">
+                      Mastery
+                    </span>
+                  </h3>
+                  <p className="text-xs text-[#A1A1AA]">
+                    Intuitive mental model, mathematical rationale, alternate shortcuts & traps to avoid.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const p = `Explain the intuitive concept and physical meaning of "${solution.title || 'this problem'}" with a relatable real-life analogy.`;
+                  setPrompt(p);
+                  handleSolve(p);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-xs font-semibold text-[#22C55E] border border-[#27272A] transition-colors cursor-pointer shrink-0"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Deep Conceptual Dive</span>
+              </button>
+            </div>
+
+            {/* 1. Intuitive Concept & Physical Meaning */}
+            <div className="bg-[#121214] border border-[#27272A] rounded-2xl overflow-hidden transition-all">
+              <button
+                type="button"
+                onClick={() => toggleExplanation('concept')}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-[#18181B]/50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    <Lightbulb className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Intuitive Concept & Physical Meaning</h4>
+                    <p className="text-[11px] text-[#A1A1AA]">What is actually happening in plain English</p>
+                  </div>
+                </div>
+                <div className="text-[#A1A1AA]">
+                  {expandedExplanation.concept ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </button>
+
+              {expandedExplanation.concept && (
+                <div className="p-4 pt-1 border-t border-[#27272A]/50 text-xs sm:text-sm text-[#D4D4D8] leading-relaxed">
+                  <MathRenderer
+                    text={
+                      solution.intuitiveConcept ||
+                      solution.explanation ||
+                      'This problem relies on fundamental physical conservation laws and algebraic relationships between the given quantities. Energy or quantity balance dictates the outcome without external losses.'
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* 2. Step-by-Step Derivation & Mathematical Rationale */}
+            <div className="bg-[#121214] border border-[#27272A] rounded-2xl overflow-hidden transition-all">
+              <button
+                type="button"
+                onClick={() => toggleExplanation('derivation')}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-[#18181B]/50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Mathematical Rationale & Derivation</h4>
+                    <p className="text-[11px] text-[#A1A1AA]">Why each step and formula substitution is valid</p>
+                  </div>
+                </div>
+                <div className="text-[#A1A1AA]">
+                  {expandedExplanation.derivation ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </button>
+
+              {expandedExplanation.derivation && (
+                <div className="p-4 pt-1 border-t border-[#27272A]/50 space-y-3">
+                  {solution.detailedDerivation && solution.detailedDerivation.length > 0 ? (
+                    solution.detailedDerivation.map((point, pIdx) => (
+                      <div key={pIdx} className="flex items-start space-x-2 text-xs sm:text-sm text-[#D4D4D8]">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                          {pIdx + 1}
+                        </span>
+                        <div className="flex-1 min-w-0 break-words">
+                          <MathRenderer text={point} />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="space-y-3.5 text-xs sm:text-sm text-[#D4D4D8]">
+                      <div className="flex items-start space-x-2.5">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                          1
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[#E4E4E7] font-semibold block mb-1">
+                            State fundamental relationship & identify knowns:
+                          </span>
+                          <div className="my-1.5 p-2.5 rounded-xl bg-[#09090B] border border-[#27272A]/70 text-center formula-scroll-container">
+                            <MathRenderer content={cleanFormulaForDisplay(solution.formula || 'F = ma')} displayMode={true} />
+                          </div>
+                          <span className="text-[11px] text-[#A1A1AA]">Identify given parameters vs target unknown.</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-2.5">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                          2
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[#E4E4E7] font-semibold block mb-1">
+                            Rearrange rigorously to isolate target variable:
+                          </span>
+                          <div className="my-1.5 p-2.5 rounded-xl bg-[#09090B] border border-[#27272A]/70 text-center formula-scroll-container">
+                            <MathRenderer
+                              content={cleanFormulaForDisplay(solution.rearrangedFormula || solution.formula || 'a = \\frac{F}{m}')}
+                              displayMode={true}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-2.5">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                          3
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[#E4E4E7] font-semibold block mb-1.5">
+                            Perform verified numerical substitution with SI units attached:
+                          </span>
+                          <div className="p-3 rounded-xl bg-[#09090B] border border-[#27272A]/70 formula-scroll-container break-words">
+                            <MathRenderer content={formatSubstitutionForDisplay(solution.substitution || solution.finalAnswer)} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 3. Alternative Method & Quick Verification */}
+            <div className="bg-[#121214] border border-[#27272A] rounded-2xl overflow-hidden transition-all">
+              <button
+                type="button"
+                onClick={() => toggleExplanation('alternative')}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-[#18181B]/50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Alternative Method & Quick Check</h4>
+                    <p className="text-[11px] text-[#A1A1AA]">Speed shortcut, dimensional check or secondary proof</p>
+                  </div>
+                </div>
+                <div className="text-[#A1A1AA]">
+                  {expandedExplanation.alternative ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </button>
+
+              {expandedExplanation.alternative && (
+                <div className="p-4 pt-1 border-t border-[#27272A]/50 text-xs sm:text-sm text-[#D4D4D8] leading-relaxed">
+                  <MathRenderer
+                    text={
+                      solution.alternativeMethod ||
+                      solution.tips ||
+                      'Always perform a dimensional analysis check to ensure the units on the left-hand side match the right-hand side. In multiple-choice exams, order-of-magnitude estimation can immediately eliminate extreme outliers.'
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* 4. Common Student Traps & Errors to Avoid */}
+            <div className="bg-[#121214] border border-[#27272A] rounded-2xl overflow-hidden transition-all">
+              <button
+                type="button"
+                onClick={() => toggleExplanation('mistakes')}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-[#18181B]/50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-1.5 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                    <AlertCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Common Pitfalls & Exam Traps</h4>
+                    <p className="text-[11px] text-[#A1A1AA]">Frequent mistakes students make on this exact topic</p>
+                  </div>
+                </div>
+                <div className="text-[#A1A1AA]">
+                  {expandedExplanation.mistakes ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </button>
+
+              {expandedExplanation.mistakes && (
+                <div className="p-4 pt-1 border-t border-[#27272A]/50 text-xs sm:text-sm text-[#FCA5A5] leading-relaxed">
+                  <MathRenderer
+                    text={
+                      solution.commonMistakes ||
+                      'Watch out for unit mismatch (e.g. cm instead of m, or minutes instead of seconds), sign errors when rearranging formulas across the equals sign, and forgetting to square terms in kinetic energy or acceleration formulas.'
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Interactive Follow-up Question Chips */}
+            <div className="pt-2 border-t border-[#27272A] space-y-2.5">
+              <div className="flex items-center space-x-2 text-xs text-[#22C55E] font-bold">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Deepen Your Understanding (Click to Re-Solve with Detail):</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const p = `Can you explain the step-by-step logic of "${solution.title || 'this solution'}" more simply, using an intuitive everyday analogy?`;
+                    setPrompt(p);
+                    handleSolve(p);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="p-2.5 rounded-xl bg-[#121214] hover:bg-[#1E1E22] border border-[#27272A] hover:border-[#22C55E]/50 text-left text-xs text-[#E4E4E7] transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span className="line-clamp-1">🤔 Explain this in simpler terms with an analogy</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#A1A1AA] group-hover:text-[#22C55E] ml-2 shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const p = `Is there an alternative or faster method to solve "${solution.title || 'this question'}" for exam speed (e.g. JAMB/WAEC)?`;
+                    setPrompt(p);
+                    handleSolve(p);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="p-2.5 rounded-xl bg-[#121214] hover:bg-[#1E1E22] border border-[#27272A] hover:border-[#22C55E]/50 text-left text-xs text-[#E4E4E7] transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span className="line-clamp-1">⚡ Show faster alternative or shortcut method</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#A1A1AA] group-hover:text-[#22C55E] ml-2 shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const p = `What are the most common traps or negative marking pitfalls examiners set for "${solution.title || 'this topic'}"?`;
+                    setPrompt(p);
+                    handleSolve(p);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="p-2.5 rounded-xl bg-[#121214] hover:bg-[#1E1E22] border border-[#27272A] hover:border-[#22C55E]/50 text-left text-xs text-[#E4E4E7] transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span className="line-clamp-1">⚠️ What common traps do examiners test here?</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#A1A1AA] group-hover:text-[#22C55E] ml-2 shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const p = `Give me a similar practice problem based on "${solution.title || 'this concept'}" with different values to test my understanding.`;
+                    setPrompt(p);
+                    handleSolve(p);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="p-2.5 rounded-xl bg-[#121214] hover:bg-[#1E1E22] border border-[#27272A] hover:border-[#22C55E]/50 text-left text-xs text-[#E4E4E7] transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span className="line-clamp-1">📝 Test me with a similar practice question</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#A1A1AA] group-hover:text-[#22C55E] ml-2 shrink-0" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suggested Real Exam & Math/Physics Problems */}
+      <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#A1A1AA] block">
+            Try Authentic Math & Physics Problems ({selectedSubject}):
+          </span>
+          {selectedSubject !== 'All' && (
+            <button
+              onClick={() => setSelectedSubject('All')}
+              className="text-[11px] text-[#22C55E] hover:underline cursor-pointer"
+            >
+              Show All Subjects
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          {realProblemSamples
+            .filter((item) => {
+              if (selectedSubject === 'All') return true;
+              if (selectedSubject === 'Mathematics') return item.subject === 'Mathematics';
+              if (selectedSubject === 'Physics') return item.subject === 'Physics';
+              if (selectedSubject === 'Calculus') return item.label.toLowerCase().includes('calculus');
+              return true;
+            })
+            .map((item, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setPrompt(item.text);
+                  handleSolve(item.text);
+                }}
+                className="p-3 text-left rounded-2xl bg-[#000000] hover:bg-[#18181B] border border-[#27272A] hover:border-[#22C55E]/60 transition-all cursor-pointer group"
+              >
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-[#22C55E]">{item.subject}</span>
+                  <span className="text-[11px] text-[#A1A1AA] group-hover:text-[#FFFFFF]">Click to Solve →</span>
+                </div>
+                <div className="text-xs font-semibold text-[#FFFFFF]">{item.label}</div>
+                <div className="text-[11px] text-[#A1A1AA] line-clamp-2 mt-0.5">
+                  {item.text}
+                </div>
+              </button>
+            ))}
+        </div>
+      </div>
+    </div>
+  );
+};
