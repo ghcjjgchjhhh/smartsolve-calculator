@@ -324,6 +324,16 @@ export interface ScientificDiagramData {
       }>;
       theoremsApplied?: string[];
       notes?: string;
+      subtype?: 'tangent_secant' | 'chord_distance' | 'cyclic_quad' | 'inscribed_angles';
+      chordDistance?: {
+        radius: number;
+        chordLength: number;
+        perpendicularDistance?: number;
+        chordLabel?: string;
+        midpointLabel?: string;
+        centerLabel?: string;
+        unit?: string;
+      };
     };
 
     // Forces on an inclined plane

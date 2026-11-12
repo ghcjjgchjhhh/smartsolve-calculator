@@ -22,6 +22,16 @@ export const StepSolutionCard: React.FC<Props> = ({ solution, onGenerateSimilar 
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const activeGraphs = useMemo(() => {
+    const text = `${solution.title || ''} ${solution.problemStatement || ''} ${(solution.steps || []).join(' ')}`.toLowerCase();
+    const isPureGeometry =
+      /\b(circle|chord|radius|diameter|tangent\s+to\s+(?:the|a)\s+circle|secant|cyclic|perpendicular\s+distance|centre\s+o|center\s+o|inscribed|subtended|semicircle|triangle|incline|optics|lens|mirror|fulcrum|lever|circuit)\b/i.test(text);
+    const isExplicitGraph =
+      /\b(velocity-time|displacement-time|acceleration-time|v-t\s+graph|s-t\s+graph|a-t\s+graph|plot\s+the\s+graph|draw\s+the\s+graph|sketch\s+the\s+graph|cartesian|x-axis|y-axis|axes|coordinate\s+plane|grid|linear\s+graph|straight\s+line\s+graph)\b/i.test(text);
+
+    if (isPureGeometry && !isExplicitGraph) {
+      return [];
+    }
+
     if (solution.graphs && solution.graphs.length > 0) return solution.graphs;
     return detectAndEnhanceGraphs(solution);
   }, [solution]);

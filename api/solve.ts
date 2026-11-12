@@ -1,8 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 
 async function generateWithModelFallback(ai: GoogleGenAI, contents: any[], timeoutMs: number = 20000) {
-  // Candidate models: Modern @google/genai supported models
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  // Candidate models: prioritize gemini-3.1-flash-lite for instant speed, fallback to gemini-3.8-flash
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {

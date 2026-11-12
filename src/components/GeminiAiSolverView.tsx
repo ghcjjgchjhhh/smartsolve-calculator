@@ -482,42 +482,9 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   "alternativeMethod": "Alternative solving method, shortcut, or dimensional cross-check.",
   "commonMistakes": "Frequent student traps, unit conversion pitfalls, or invalid assumptions to avoid on exams.",
   "tips": "Pro tip or exam advice for solving this problem",
-  "graphs": [
-    {
-      "id": "g1",
-      "title": "Velocity-Time Graph (v-t)",
-      "category": "physics",
-      "graphType": "velocity_time",
-      "xAxis": { "label": "Time", "unit": "s", "min": 0, "max": 10, "step": 2 },
-      "yAxis": { "label": "Velocity", "unit": "m/s", "min": 0, "max": 25, "step": 5 },
-      "curves": [
-        {
-          "id": "c1",
-          "label": "Velocity v(t)",
-          "color": "#22C55E",
-          "equationText": "v(t) = 2.5t",
-          "fnExpression": "2.5 * t",
-          "shadedArea": { "fromX": 0, "toX": 10, "label": "Displacement = 125 m", "color": "#22C55E" }
-        }
-      ],
-      "keyPoints": [
-        { "x": 0, "y": 0, "label": "Initial (0,0)", "type": "intercept" },
-        { "x": 10, "y": 25, "label": "Final (10, 25)", "type": "critical" }
-      ],
-      "featuresExplanation": {
-        "gradientMeaning": "The slope of this v-t graph represents acceleration: a = dv/dt = 2.5 m/s².",
-        "areaMeaning": "The area under this v-t graph represents total displacement: s = ∫ v dt = 125 m.",
-        "physicalInterpretation": "Object accelerates uniformly at 2.5 m/s² covering 125 m."
-      },
-      "simulation": {
-        "hasSimulation": true,
-        "type": "motion_1d",
-        "duration": 10,
-        "objectLabel": "Plane"
-      }
-    }
-  ],
-  "graphExplanation": "Summary explanation of graph behavior and significance",
+  "graphs": [],
+  "diagram": null,
+  "graphExplanation": "",
   "missingInformation": ""
 }
 `.trim();

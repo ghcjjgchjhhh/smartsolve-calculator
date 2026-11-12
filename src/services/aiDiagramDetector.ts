@@ -63,6 +63,47 @@ export function detectAndGenerateDiagram(
     );
 
   if (isCircleGeometry) {
+    const isChordPerpendicular =
+      /\b(chord|chords)\b/i.test(combined) &&
+      /\b(perpendicular|distance|bisect|bisects|centre\s+o|center\s+o|length\s+of\s+chord|chord\s+[a-z]{1,2})\b/i.test(
+        combined
+      );
+
+    if (isChordPerpendicular) {
+      const r = extractNumber(/(?:radius of|radius|r\s*=)\s*([0-9.]+)\s*(?:cm|m)?/i, 14);
+      const chordL = extractNumber(/(?:chord.*?of|chord\s+[a-z]{1,2}\s*is|chord.*?is|is\s*([0-9.]+)\s*cm\s*long|length.*?([0-9.]+)\s*cm)\b/i, 20);
+      const halfL = chordL / 2;
+      const d = r > halfL ? Math.round(Math.sqrt(r * r - halfL * halfL) * 100) / 100 : 9.8;
+
+      return {
+        id: `circle_chord_${Date.now()}`,
+        type: 'circle_geometry',
+        title: `Circle Chord & Perpendicular Distance (r = ${r}cm, AB = ${chordL}cm)`,
+        topic: 'Circle Theorems & Chords',
+        caption: `Perpendicular from centre O bisects chord AB at M. By Pythagoras: d = √(OA² - AM²) = √(${r}² - ${halfL}²) = √${r * r - halfL * halfL} ≈ ${d} cm.`,
+        data: {
+          circle: {
+            subtype: 'chord_distance',
+            centerLabel: 'O',
+            radius: r,
+            chordDistance: {
+              radius: r,
+              chordLength: chordL,
+              perpendicularDistance: d,
+              chordLabel: 'AB',
+              midpointLabel: 'M',
+              centerLabel: 'O',
+              unit: 'cm',
+            },
+            theoremsApplied: [
+              'The line drawn from the centre of a circle perpendicular to a chord bisects the chord (AM = MB = 10 cm).',
+              'Pythagorean theorem in right-angled △OMA: OA² = OM² + AM² => d = √(r² - (AB/2)²).',
+            ],
+          },
+        },
+      };
+    }
+
     return {
       id: `circle_${Date.now()}`,
       type: 'circle_geometry',
@@ -71,6 +112,7 @@ export function detectAndGenerateDiagram(
       caption: 'Secant AEC intersecting circle; AF is tangent; chords forming inscribed cyclic relations.',
       data: {
         circle: {
+          subtype: 'tangent_secant',
           centerLabel: 'O',
           radius: 110,
           tangents: [

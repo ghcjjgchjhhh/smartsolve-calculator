@@ -69,9 +69,176 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
     }
   };
 
-  // 1. Circle Geometry
+  // 1a. Circle Chord & Perpendicular Distance
+  const renderCircleChordDistance = () => {
+    const cData = diagram.data.circle;
+    const cd = cData?.chordDistance;
+    const rVal = cd?.radius || 14;
+    const chordLen = cd?.chordLength || 20;
+    const halfChord = chordLen / 2;
+    // Calculate perpendicular distance d = sqrt(r^2 - halfChord^2)
+    const dVal = cd?.perpendicularDistance || (rVal > halfChord ? Math.sqrt(rVal * rVal - halfChord * halfChord) : 9.8);
+    const dFormatted = dVal.toFixed(2);
+
+    const cx = 300;
+    const cy = 165;
+    const R_px = 125;
+
+    // Scale factor
+    const ratioD = Math.min(Math.max(dVal / rVal, 0.2), 0.85);
+    const ratioHalf = Math.sqrt(Math.max(0.1, 1 - ratioD * ratioD));
+    const d_px = R_px * ratioD;
+    const half_px = R_px * ratioHalf;
+
+    const my = cy + d_px; // Midpoint M Y
+    const mx = cx; // Midpoint M X
+    const ax = cx - half_px; // Point A X
+    const ay = my; // Point A Y
+    const bx = cx + half_px; // Point B X
+    const by = my; // Point B Y
+
+    return (
+      <g>
+        {/* Circle Body */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={R_px}
+          fill="#101827"
+          fillOpacity="0.4"
+          stroke="#38BDF8"
+          strokeWidth="2.5"
+        />
+
+        {/* Shaded Right-Angled Triangle OMA */}
+        <polygon
+          points={`${cx},${cy} ${ax},${ay} ${mx},${my}`}
+          fill="#22C55E"
+          fillOpacity="0.15"
+          stroke="#22C55E"
+          strokeWidth="1.5"
+          strokeDasharray="4 3"
+        />
+
+        {/* Center O */}
+        <circle cx={cx} cy={cy} r="5" fill="#38BDF8" />
+        {showLabels && (
+          <text x={cx} y={cy - 12} fill="#38BDF8" fontSize="14" fontWeight="bold" textAnchor="middle">
+            O (Centre)
+          </text>
+        )}
+
+        {/* Radius OA to endpoint A */}
+        <line x1={cx} y1={cy} x2={ax} y2={ay} stroke="#38BDF8" strokeWidth="2.5" strokeDasharray="5 3" />
+        {showLabels && (
+          <text
+            x={(cx + ax) / 2 - 25}
+            y={(cy + ay) / 2 - 6}
+            fill="#38BDF8"
+            fontSize="12"
+            fontWeight="bold"
+          >
+            r = {rVal} cm
+          </text>
+        )}
+
+        {/* Radius OB to endpoint B */}
+        <line x1={cx} y1={cy} x2={bx} y2={by} stroke="#38BDF8" strokeWidth="2" strokeDasharray="5 3" />
+        {showLabels && (
+          <text
+            x={(cx + bx) / 2 + 10}
+            y={(cy + by) / 2 - 6}
+            fill="#38BDF8"
+            fontSize="12"
+            fontWeight="bold"
+          >
+            r = {rVal} cm
+          </text>
+        )}
+
+        {/* Perpendicular Segment OM (Distance d) */}
+        <line x1={cx} y1={cy} x2={mx} y2={my} stroke="#22C55E" strokeWidth="3" markerEnd="url(#arrow-green)" />
+        {showLabels && (
+          <text
+            x={cx + 12}
+            y={(cy + my) / 2 + 4}
+            fill="#22C55E"
+            fontSize="13"
+            fontWeight="bold"
+          >
+            d = {dFormatted} cm
+          </text>
+        )}
+
+        {/* Right-Angle Square Marker at M */}
+        <path
+          d={`M ${mx} ${my - 14} L ${mx - 14} ${my - 14} L ${mx - 14} ${my}`}
+          fill="none"
+          stroke="#22C55E"
+          strokeWidth="2"
+        />
+
+        {/* Chord AB */}
+        <line x1={ax} y1={ay} x2={bx} y2={by} stroke="#F59E0B" strokeWidth="3.5" />
+
+        {/* Points A, B, M */}
+        <circle cx={ax} cy={ay} r="5" fill="#F59E0B" />
+        <circle cx={bx} cy={by} r="5" fill="#F59E0B" />
+        <circle cx={mx} cy={my} r="4" fill="#22C55E" />
+
+        {showLabels && (
+          <>
+            <text x={ax - 18} y={ay + 5} fill="#F59E0B" fontSize="14" fontWeight="bold">
+              A
+            </text>
+            <text x={bx + 12} y={by + 5} fill="#F59E0B" fontSize="14" fontWeight="bold">
+              B
+            </text>
+            <text x={mx} y={my + 18} fill="#22C55E" fontSize="12" fontWeight="bold" textAnchor="middle">
+              M (Midpoint)
+            </text>
+            {/* Chord segment measurements */}
+            <text x={(ax + mx) / 2} y={my + 18} fill="#F59E0B" fontSize="11" fontWeight="bold" textAnchor="middle">
+              {halfChord} cm
+            </text>
+            <text x={(mx + bx) / 2} y={my + 18} fill="#F59E0B" fontSize="11" fontWeight="bold" textAnchor="middle">
+              {halfChord} cm
+            </text>
+          </>
+        )}
+
+        {/* Theorem & Formula Box at Bottom */}
+        <g transform="translate(40, 305)">
+          <rect width="520" height="62" rx="10" fill="#18181B" stroke="#27272A" />
+          <text x="16" y="24" fill="#22C55E" fontSize="12" fontWeight="bold">
+            Chord Bisector Theorem:
+          </text>
+          <text x="180" y="24" fill="#E2E8F0" fontSize="12">
+            Perpendicular from centre O bisects chord AB (AM = MB = {halfChord} cm)
+          </text>
+          <text x="16" y="48" fill="#F59E0B" fontSize="12" fontWeight="bold">
+            Pythagoras in △OMA:
+          </text>
+          <text x="180" y="48" fill="#38BDF8" fontSize="12" fontFamily="monospace">
+            d = √(OA² - AM²) = √({rVal}² - {halfChord}²) = √({rVal * rVal - halfChord * halfChord}) = {dFormatted} cm
+          </text>
+        </g>
+      </g>
+    );
+  };
+
+  // 1b. Circle Tangent & Secant Geometry
   const renderCircleGeometry = () => {
     const cData = diagram.data.circle;
+    if (
+      cData?.subtype === 'chord_distance' ||
+      cData?.chordDistance ||
+      diagram.topic.toLowerCase().includes('chord') ||
+      diagram.title.toLowerCase().includes('chord')
+    ) {
+      return renderCircleChordDistance();
+    }
+
     const cx = 300;
     const cy = 200;
     const r = cData?.radius || 110;

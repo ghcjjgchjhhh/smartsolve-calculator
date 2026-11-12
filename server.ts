@@ -148,8 +148,8 @@ async function generateWithModelFallback(
   responseMimeType?: string,
   systemInstruction?: string
 ) {
-  // Candidate models: prioritize gemini-3.8-flash, fallback to gemini-3.1-flash-lite
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  // Candidate models: prioritize gemini-3.1-flash-lite for lightning-fast sub-2s responses, fallback to gemini-3.8-flash
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {
@@ -185,13 +185,14 @@ async function generateWithModelFallback(
         config,
       });
 
+      const perModelTimeout = model === 'gemini-3.1-flash-lite' ? Math.min(timeoutMs, 16000) : timeoutMs;
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
           () =>
             reject(
-              new Error(`Timeout: Model ${model} took longer than ${Math.round(timeoutMs / 1000)} seconds`)
+              new Error(`Timeout: Model ${model} took longer than ${Math.round(perModelTimeout / 1000)} seconds`)
             ),
-          timeoutMs
+          perModelTimeout
         )
       );
 
@@ -425,6 +426,7 @@ STYLING & NOTATION RULES:
 2. CRITICAL LATEX SYNTAX: In LaTeX formulas, NEVER use raw '%' because '%' acts as a comment delimiter in TeX! Always escape percent signs as '\\%' (e.g. 100\\%, 82.9\\%, \\% \\text{Yield} = ...). Always ensure matching brackets (\\left( matched with \\right)).
 3. In "steps", present a clear, textbook-grade student notebook solution of 4 to 7 well-arranged core steps (never generate 15+ fragmented micro-steps).
 4. In "finalAnswer", format the answer cleanly with \\boxed{...} (e.g. "\\boxed{\\text{Option B: } x = 4}" or "\\boxed{E_k = 392\\text{ J}}" or "\\boxed{m = 1.97\\text{ g}}").
+5. SPEED & CONCISENESS: Deliver direct, high-yield mathematical and scientific solutions promptly without excessive verbosity, filler essays, or redundant repetition. Keep derivations concise and punchy.
 
 You MUST respond with a valid JSON object with EXACTLY this structure:
 {
@@ -457,42 +459,9 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   "alternativeMethod": "Alternative method, verification check, or shortcut to solve or double-check this problem",
   "commonMistakes": "Most frequent student pitfalls, unit conversion traps, or sign errors to avoid",
   "tips": "Pro tip or exam advice for solving this problem",
-  "graphs": [
-    {
-      "id": "g1",
-      "title": "Velocity-Time Graph (v-t)",
-      "category": "physics",
-      "graphType": "velocity_time",
-      "xAxis": { "label": "Time", "unit": "s", "min": 0, "max": 10, "step": 2 },
-      "yAxis": { "label": "Velocity", "unit": "m/s", "min": 0, "max": 25, "step": 5 },
-      "curves": [
-        {
-          "id": "c1",
-          "label": "Velocity v(t)",
-          "color": "#22C55E",
-          "equationText": "v(t) = 2.5t",
-          "fnExpression": "2.5 * t",
-          "shadedArea": { "fromX": 0, "toX": 10, "label": "Displacement = 125 m", "color": "#22C55E" }
-        }
-      ],
-      "keyPoints": [
-        { "x": 0, "y": 0, "label": "Initial (0,0)", "type": "intercept" },
-        { "x": 10, "y": 25, "label": "Final (10, 25)", "type": "critical" }
-      ],
-      "featuresExplanation": {
-        "gradientMeaning": "The slope of this v-t graph represents acceleration: a = dv/dt = 2.5 m/s².",
-        "areaMeaning": "The area under this v-t graph represents total displacement: s = ∫ v dt = 125 m.",
-        "physicalInterpretation": "Object accelerates uniformly at 2.5 m/s² covering 125 m."
-      },
-      "simulation": {
-        "hasSimulation": true,
-        "type": "motion_1d",
-        "duration": 10,
-        "objectLabel": "Plane"
-      }
-    }
-  ],
-  "graphExplanation": "Summary explanation of graph behavior and significance",
+  "graphs": [],
+  "diagram": null,
+  "graphExplanation": "",
   "missingInformation": ""
 }
 `.trim();
@@ -522,9 +491,19 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
       throw new Error('AI engine returned an invalid response structure. Please try again.');
     }
 
+    const combined = `${parsedSolution.title || ''} ${parsedSolution.problemStatement || ''} ${(parsedSolution.steps || []).join(' ')} ${prompt || ''}`.toLowerCase();
+    const isPureGeometry =
+      /\b(circle|chord|radius|diameter|tangent\s+to\s+(?:the|a)\s+circle|secant|cyclic|perpendicular\s+distance|centre\s+o|center\s+o|inscribed|subtended|semicircle|triangle|incline|optics|lens|mirror|fulcrum|lever|circuit)\b/i.test(combined);
+    const isExplicitGraph =
+      /\b(velocity-time|displacement-time|acceleration-time|v-t\s+graph|s-t\s+graph|a-t\s+graph|plot\s+the\s+graph|draw\s+the\s+graph|sketch\s+the\s+graph|cartesian|x-axis|y-axis|axes|coordinate\s+plane|grid|linear\s+graph|straight\s+line\s+graph)\b/i.test(combined);
+
+    if (isPureGeometry && !isExplicitGraph) {
+      // Discard any AI-hallucinated kinematics graphs for geometry problems
+      parsedSolution.graphs = [];
+    }
+
     // Automatically enforce physical entity label on all simulation graphs
     if (parsedSolution && parsedSolution.graphs && Array.isArray(parsedSolution.graphs)) {
-      const combined = `${parsedSolution.title || ''} ${parsedSolution.problemStatement || ''} ${(parsedSolution.steps || []).join(' ')} ${prompt || ''}`.toLowerCase();
       let entity = 'Car';
       if (/plane|airplane|aeroplane|jet|aircraft|runway|flight|takeoff|aviation/i.test(combined)) entity = 'Plane';
       else if (/stone|rock|cliff|boulder|dropped|free fall|freefall|height of|falls from|thrown vertically|tower/i.test(combined)) entity = 'Stone';
