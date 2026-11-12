@@ -36,13 +36,33 @@ export function detectAndGenerateDiagram(
     return defaultValue;
   };
 
-  // 1. CIRCLE GEOMETRY (Tangents, Secants, Chords, Cyclic Quadrilateral)
-  if (
-    /circle|tangent|secant|chord|circumference|inscribed|cyclic|subtended|radius|diameter|arc\b/i.test(
+  // 0. GRAPH DISAMBIGUATION:
+  // If the question explicitly deals with a GRAPH (kinematics v-t/s-t/a-t graphs,
+  // Cartesian plotting, curves, straight lines, parabolas, or tangent-to-a-curve in calculus),
+  // it MUST be rendered by the Graph Engine (InteractiveSolverGraph / aiGraphDetector),
+  // NEVER substituted with a circle geometry diagram!
+  const isGraph =
+    /\b(graph|plot|plotter|graphing|axes|x-axis|y-axis|cartesian|velocity-time|displacement-time|acceleration-time|speed-time|distance-time|v-t|s-t|a-t|linear\s+graph|straight\s+line\s+graph|curve\s+tracing|sketch\s+the\s+graph|draw\s+the\s+graph|plot\s+the\s+graph|parabola|cubic\s+graph|tangent\s+to\s+the\s+curve|slope\s+of\s+the\s+curve|derivative\s+graph|differentiat|integral\s+graph)\b/i.test(
       combined
-    ) &&
-    !/kinematics|velocity|circuit/i.test(combined)
-  ) {
+    ) ||
+    (/\b(y\s*=|f\(x\)\s*=)/i.test(combined) && /\b(graph|plot|curve|line)\b/i.test(combined));
+
+  if (isGraph) {
+    return null;
+  }
+
+  // 1. CIRCLE GEOMETRY (Tangents, Secants, Chords, Cyclic Quadrilateral, Circle Theorems)
+  // Must genuinely be a circle geometry / theorem question, not a function graph
+  const isCircleGeometry =
+    (/\b(circle|circles)\b/i.test(combined) &&
+      /\b(theorem|chord|chords|secant|secants|tangent\s+to\s+(?:the|a)\s+circle|tangents\s+to|cyclic|inscribed|subtend|subtends|subtended|circumference|angle\s+at\s+(?:the\s+)?center|alternate\s+segment|point\s+of\s+contact|semicircle|semi-circle|tangent-secant)\b/i.test(
+        combined
+      )) ||
+    /\b(circle\s+theorems?|circle\s+geometry|cyclic\s+quadrilateral|tangent\s+af|secant\s+aec)\b/i.test(
+      combined
+    );
+
+  if (isCircleGeometry) {
     return {
       id: `circle_${Date.now()}`,
       type: 'circle_geometry',

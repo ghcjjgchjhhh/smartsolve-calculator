@@ -743,5 +743,173 @@ export function detectAndEnhanceGraphs(
     return graphs;
   }
 
+  // 7. LINEAR / STRAIGHT-LINE GRAPH (y = mx + c or ax + by = c)
+  if (
+    combinedText.includes('linear graph') ||
+    combinedText.includes('straight line') ||
+    combinedText.includes('slope of the line') ||
+    combinedText.includes('gradient of the line') ||
+    combinedText.includes('y = mx') ||
+    combinedText.includes('y-intercept') ||
+    combinedText.includes('x-intercept') ||
+    combinedText.match(/y\s*=\s*[+-]?\s*\d*\.?\d*x\s*[+-]\s*\d+/) ||
+    (combinedText.includes('graph') && (combinedText.includes('linear') || combinedText.includes('line') || combinedText.includes('intercept')))
+  ) {
+    let m = 2;
+    let c = 1;
+    const lineMatch = combinedText.match(/y\s*=\s*([+-]?\s*\d*\.?\d*)\s*x\s*([+-]\s*\d+\.?\d*)?/i);
+    if (lineMatch) {
+      const rawM = (lineMatch[1] || '').replace(/\s/g, '');
+      const rawC = (lineMatch[2] || '').replace(/\s/g, '');
+      m = rawM === '' || rawM === '+' ? 1 : rawM === '-' ? -1 : parseFloat(rawM) || 2;
+      c = rawC ? parseFloat(rawC) : 0;
+    }
+
+    const xInt = m !== 0 ? -c / m : 0;
+    const xRange = Math.max(Math.abs(xInt) + 6, 8);
+
+    graphs.push({
+      id: 'graph_linear',
+      title: `Straight Line Graph: y = ${m}x ${c >= 0 ? '+' : ''}${c}`,
+      category: 'mathematics',
+      graphType: 'linear',
+      xAxis: { label: 'x', min: -xRange, max: xRange, step: 2 },
+      yAxis: {
+        label: 'y',
+        min: Math.min(-xRange * Math.abs(m) + c, -10),
+        max: Math.max(xRange * Math.abs(m) + c, 10),
+        step: 5,
+      },
+      curves: [
+        {
+          id: 'linear_line',
+          label: `y = ${m}x ${c >= 0 ? '+' : ''}${c}`,
+          color: '#22C55E',
+          equationText: `y = ${m}x ${c >= 0 ? '+' : ''}${c}`,
+          fnExpression: `${m} * x + ${c}`,
+        },
+      ],
+      keyPoints: [
+        { x: 0, y: c, label: `Y-Intercept (0, ${c})`, type: 'intercept' },
+        ...(m !== 0 ? [{ x: xInt, y: 0, label: `X-Intercept (${xInt.toFixed(2)}, 0)`, type: 'root' as const }] : []),
+      ],
+      featuresExplanation: {
+        gradientMeaning: `The constant slope (gradient) is m = Δy/Δx = ${m}. Every 1 unit increase in x causes a ${m} unit change in y.`,
+        interceptsMeaning: `Crosses y-axis at (0, ${c}) and x-axis at (${xInt.toFixed(2)}, 0).`,
+        physicalInterpretation: `${m > 0 ? 'Positive upward slope' : m < 0 ? 'Negative downward slope' : 'Horizontal line'} with constant rate of change.`,
+      },
+      simulation: {
+        hasSimulation: true,
+        type: 'curve_tracing',
+        duration: xRange * 2,
+      },
+    });
+    return graphs;
+  }
+
+  // 8. CARTESIAN CIRCLE GRAPH IN COORDINATE GEOMETRY (x² + y² = r²)
+  if (
+    (combinedText.includes('x² + y²') || combinedText.includes('x^2 + y^2') || combinedText.includes('circle equation') || combinedText.includes('equation of a circle')) &&
+    (combinedText.includes('graph') || combinedText.includes('plot') || combinedText.includes('cartesian') || combinedText.includes('coordinate') || combinedText.includes('axis') || combinedText.includes('center'))
+  ) {
+    let r = 5;
+    const rMatch = combinedText.match(/(?:x²\s*\+\s*y²|x\^2\s*\+\s*y\^2)\s*=\s*(\d+)/i);
+    if (rMatch && rMatch[1]) {
+      const rSq = parseFloat(rMatch[1]);
+      if (rSq > 0) r = Math.sqrt(rSq);
+    }
+    const rVal = Math.round(r * 10) / 10;
+    const span = Math.ceil(rVal * 1.3);
+
+    graphs.push({
+      id: 'graph_circle_cartesian',
+      title: `Cartesian Circle Graph: x² + y² = ${(rVal * rVal).toFixed(0)} (Radius r = ${rVal})`,
+      category: 'mathematics',
+      graphType: 'conic',
+      xAxis: { label: 'x', min: -span, max: span, step: 2 },
+      yAxis: { label: 'y', min: -span, max: span, step: 2 },
+      curves: [
+        {
+          id: 'circle_top',
+          label: `Upper Semicircle y = +√(${rVal * rVal} - x²)`,
+          color: '#38BDF8',
+          equationText: `y = +\\sqrt{${(rVal * rVal).toFixed(0)} - x^2}`,
+          fnExpression: `Math.sqrt(Math.max(0, ${rVal * rVal} - x * x))`,
+        },
+        {
+          id: 'circle_bottom',
+          label: `Lower Semicircle y = -√(${rVal * rVal} - x²)`,
+          color: '#38BDF8',
+          dashed: true,
+          equationText: `y = -\\sqrt{${(rVal * rVal).toFixed(0)} - x^2}`,
+          fnExpression: `-Math.sqrt(Math.max(0, ${rVal * rVal} - x * x))`,
+        },
+      ],
+      keyPoints: [
+        { x: 0, y: 0, label: 'Center (0, 0)', type: 'intercept' },
+        { x: rVal, y: 0, label: `Right (${rVal}, 0)`, type: 'intercept' },
+        { x: -rVal, y: 0, label: `Left (-${rVal}, 0)`, type: 'intercept' },
+        { x: 0, y: rVal, label: `Top (0, ${rVal})`, type: 'max' },
+        { x: 0, y: -rVal, label: `Bottom (0, -${rVal})`, type: 'min' },
+      ],
+      featuresExplanation: {
+        gradientMeaning: 'Slope of tangent to the circle at (x, y) is dy/dx = -x/y (perpendicular to radius vector).',
+        areaMeaning: `Enclosed area = πr² = ${(Math.PI * rVal * rVal).toFixed(2)} square units. Circumference = 2πr = ${(2 * Math.PI * rVal).toFixed(2)} units.`,
+        interceptsMeaning: `X-intercepts at (±${rVal}, 0), Y-intercepts at (0, ±${rVal}).`,
+        physicalInterpretation: `Locus of all points equidistant (r = ${rVal}) from the origin (0, 0) on the 2D Cartesian plane.`,
+      },
+      simulation: {
+        hasSimulation: true,
+        type: 'curve_tracing',
+        duration: span * 2,
+      },
+    });
+    return graphs;
+  }
+
+  // 9. GENERAL GRAPH / FUNCTION GRAPHING FALLBACK
+  if (
+    combinedText.includes('draw the graph') ||
+    combinedText.includes('plot the graph') ||
+    combinedText.includes('sketch the graph') ||
+    combinedText.includes('graph of the function') ||
+    combinedText.includes('draw a graph') ||
+    combinedText.includes('plot a graph') ||
+    combinedText.includes('graph of')
+  ) {
+    graphs.push({
+      id: 'graph_general_func',
+      title: 'Function Graph f(x) on Cartesian Coordinate Axes',
+      category: 'mathematics',
+      graphType: 'linear',
+      xAxis: { label: 'x', min: -8, max: 8, step: 2 },
+      yAxis: { label: 'y', min: -10, max: 15, step: 5 },
+      curves: [
+        {
+          id: 'curve_gen',
+          label: 'f(x)',
+          color: '#22C55E',
+          equationText: 'y = f(x)',
+          fnExpression: '2 * x + 1',
+        },
+      ],
+      keyPoints: [
+        { x: 0, y: 1, label: 'Y-Intercept (0, 1)', type: 'intercept' },
+        { x: -0.5, y: 0, label: 'X-Intercept (-0.5, 0)', type: 'root' },
+      ],
+      featuresExplanation: {
+        gradientMeaning: 'Slope of the graph represents the rate of change dy/dx.',
+        areaMeaning: 'Area under the curve represents the definite integral.',
+        physicalInterpretation: 'Plotted points on the Cartesian X-Y grid illustrating function behavior.',
+      },
+      simulation: {
+        hasSimulation: true,
+        type: 'curve_tracing',
+        duration: 16,
+      },
+    });
+    return graphs;
+  }
+
   return graphs;
 }

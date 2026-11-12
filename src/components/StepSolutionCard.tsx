@@ -5,6 +5,8 @@ import { Check, Copy, Bookmark, BookmarkCheck, Printer, Volume2, VolumeX, Pause,
 import { MathRenderer } from './MathRenderer';
 import { ScientificDiagramRenderer } from './ScientificDiagramRenderer';
 import { detectAndGenerateDiagram } from '../services/aiDiagramDetector';
+import { InteractiveSolverGraph } from './InteractiveSolverGraph';
+import { detectAndEnhanceGraphs } from '../services/aiGraphDetector';
 
 interface Props {
   solution: StepSolution;
@@ -19,9 +21,16 @@ export const StepSolutionCard: React.FC<Props> = ({ solution, onGenerateSimilar 
   const [speechProgress, setSpeechProgress] = useState<string>('');
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const activeDiagram = useMemo(() => {
-    return solution.diagram || detectAndGenerateDiagram(solution);
+  const activeGraphs = useMemo(() => {
+    if (solution.graphs && solution.graphs.length > 0) return solution.graphs;
+    return detectAndEnhanceGraphs(solution);
   }, [solution]);
+
+  const activeDiagram = useMemo(() => {
+    // If the problem is a GRAPH problem, prioritize the GRAPH and DO NOT draw an unrelated diagram
+    if (activeGraphs && activeGraphs.length > 0) return null;
+    return solution.diagram || detectAndGenerateDiagram(solution);
+  }, [solution, activeGraphs]);
 
   // Clean speech synthesis on unmount
   useEffect(() => {
@@ -393,6 +402,22 @@ Answer: ${solution.finalAnswer}
                 <span className="font-semibold text-white">{solution.whatIsRequired}</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Automated Interactive Mathematical / Physics Graph */}
+        {activeGraphs && activeGraphs.length > 0 && (
+          <div className="py-2 animate-fadeIn">
+            <div className="text-[11px] font-bold text-[#38BDF8] uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-[#38BDF8]" />
+              <span>Accurate Mathematical & Kinematics Graph</span>
+            </div>
+            <InteractiveSolverGraph
+              graphs={activeGraphs}
+              graphExplanation={solution.graphExplanation}
+              missingInformation={solution.missingInformation}
+              problemContext={`${solution.title || ''} ${solution.problemStatement || ''} ${(solution.steps || []).join(' ')}`}
+            />
           </div>
         )}
 

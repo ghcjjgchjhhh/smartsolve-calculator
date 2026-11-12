@@ -1072,16 +1072,6 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
           <StepSolutionCard solution={solution} onGenerateSimilar={handleGenerateSimilar} />
 
-          {/* Automated Interactive Graph Drawing & Motion Simulation Lab */}
-          {((solution.graphs && solution.graphs.length > 0) || solution.missingInformation) && (
-            <InteractiveSolverGraph
-              graphs={solution.graphs || []}
-              graphExplanation={solution.graphExplanation}
-              missingInformation={solution.missingInformation}
-              problemContext={`${solution.title || ''} ${solution.problemStatement || ''} ${prompt || ''} ${(solution.steps || []).join(' ')} ${(solution.givenValues || []).map((g) => `${g.name} ${g.symbol}`).join(' ')} ${solution.finalAnswer || ''}`}
-            />
-          )}
-
           {/* Deep Conceptual & Derivation Breakdown */}
           <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#27272A] gap-2">
