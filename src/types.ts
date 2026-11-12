@@ -466,3 +466,67 @@ export interface ScientificDiagramData {
   };
 }
 
+export interface LearnTopicFormula {
+  name: string;
+  latex: string;
+  whenToUse: string;
+  derivationSummary?: string;
+  symbols: Array<{
+    symbol: string;
+    meaning: string;
+    siUnit: string;
+    standardValue?: string;
+  }>;
+}
+
+export interface LearnTopicWorkedExample {
+  title: string;
+  problemStatement: string;
+  givenValues: Array<{
+    name: string;
+    symbol: string;
+    value: string;
+    unit?: string;
+  }>;
+  formulaUsed: string;
+  substitution: string;
+  steps: string[];
+  finalAnswer: string;
+  unit?: string;
+  explanation: string;
+}
+
+export interface LearnTopicPracticeQuestion {
+  id: string;
+  question: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Challenging (JUPEB/University)';
+  hint: string;
+  solution: string[];
+  finalAnswer: string;
+}
+
+export interface LearnTopicTable {
+  title: string;
+  headers: string[];
+  rows: string[][];
+}
+
+export interface LearnTopicLesson {
+  topic: string;
+  subject: string;
+  targetExamLevel: string;
+  summary: string;
+  introduction: string;
+  realWorldAnalogy: string;
+  detailedExplanation: string[];
+  formulas: LearnTopicFormula[];
+  tables?: LearnTopicTable[];
+  diagram?: ScientificDiagramData;
+  graphs?: AiGraphData[];
+  workedExamples: LearnTopicWorkedExample[];
+  importantNotes: string[];
+  commonPitfalls: string[];
+  practiceQuestions: LearnTopicPracticeQuestion[];
+  suggestedFollowUps: string[];
+  timestamp?: number;
+}

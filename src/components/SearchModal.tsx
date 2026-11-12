@@ -13,6 +13,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
   const [query, setQuery] = useState('');
 
   const mathEntries = [
+    { name: 'Learn Any Topic (AI Master Tutor)', sub: 'Complete academic masterclasses: introduction, formulas, symbols, SI units, when to use, diagrams, graphs, and practice problems for WAEC, JAMB, JUPEB & University', tab: 'learn_topic' },
     { name: '2D Function Grapher', sub: 'Interactive canvas plotting, roots, derivatives, trigonometric & polynomial curves', tab: 'grapher' },
     { name: '2D Vector & Force Polygon Lab', sub: 'Interactive vector addition, resolution Fx/Fy, resultant R, equilibrant, and inclined plane simulator', tab: 'vectors' },
     { name: 'DC Circuit & Ohm’s Law Simulator', sub: 'Series & parallel resistor circuits, internal resistance (lost volts), live electron dot animation & digital multimeter', tab: 'circuits' },

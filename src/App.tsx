@@ -25,6 +25,7 @@ import { StatisticsLabView } from './components/StatisticsLabView';
 import { MatrixLabView } from './components/MatrixLabView';
 import { ChemistrySolverView } from './components/ChemistrySolverView';
 import { RevisionSheetsView } from './components/RevisionSheetsView';
+import { LearnAnyTopicView } from './components/LearnAnyTopicView';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { SearchModal } from './components/SearchModal';
 import { InstallAppModal } from './components/InstallAppModal';
@@ -70,6 +71,7 @@ function MainApp() {
         'scientific',
         'ai_chat',
         'ai_solver',
+        'learn_topic',
         'grapher',
         'periodic_table',
         'physics_sim',
@@ -374,8 +376,9 @@ function MainApp() {
 
   const navigationTabs = [
     { id: 'scientific', name: t('scientific', 'Scientific'), icon: Calculator, badge: 'FX' },
-    { id: 'ai_chat', name: t('ai_chat', 'AI Chat'), icon: MessageSquare, badge: 'Multimodal' },
+    { id: 'learn_topic', name: 'Learn Any Topic', icon: GraduationCap, badge: 'AI Tutor' },
     { id: 'ai_solver', name: t('ai_solver', 'AI Solver'), icon: Sparkles, badge: 'Step Solver' },
+    { id: 'ai_chat', name: t('ai_chat', 'AI Chat'), icon: MessageSquare, badge: 'Multimodal' },
     { id: 'grapher', name: t('grapher', '2D Grapher'), icon: TrendingUp, badge: 'Canvas' },
     { id: 'periodic_table', name: t('periodic_table', 'Periodic Table'), icon: FlaskConical, badge: 'Chemistry' },
     { id: 'physics_sim', name: t('physics_sim', 'Physics Lab'), icon: Activity, badge: 'Simulations' },
@@ -555,6 +558,9 @@ function MainApp() {
             initialSubject={aiSolverInitialSubject}
             onClearInitialPrompt={() => setAiSolverInitialPrompt('')}
           />
+        </div>
+        <div className={activeTab === 'learn_topic' ? 'block' : 'hidden'}>
+          <LearnAnyTopicView />
         </div>
         <div className={activeTab === 'grapher' ? 'block' : 'hidden'}>
           <FunctionGrapherView />
