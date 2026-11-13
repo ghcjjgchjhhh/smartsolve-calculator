@@ -1,5 +1,4 @@
 import { GoogleGenAI } from '@google/genai';
-import learnHandler from './learn';
 
 async function generateWithModelFallback(
   ai: GoogleGenAI,
@@ -116,12 +115,6 @@ export default async function handler(req: any, res: any) {
         },
       },
     });
-
-    // 0. LEARN ANY TOPIC DELEGATION (extra resilience if /api/learn isn't matched)
-    if (body.action === 'learn_topic' || body.action === 'learn_follow_up') {
-      req.body = body.action === 'learn_follow_up' ? { ...body, action: 'follow_up' } : body;
-      return learnHandler(req, res);
-    }
 
     // 1. GENERATE JAMB / WAEC / JUPEB / UNIVERSITY CUSTOM EXAM QUESTIONS (Parallel Batching for 10, 20, 40)
     if (body.action === 'generate_questions' || body.action === 'generate_exam') {

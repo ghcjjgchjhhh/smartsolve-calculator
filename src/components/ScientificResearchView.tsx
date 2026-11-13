@@ -11,6 +11,7 @@ import {
 import { MathRenderer } from './MathRenderer';
 import { ScientificDiagramRenderer } from './ScientificDiagramRenderer';
 import { ScientificDiagramData } from '../types';
+import { detectAndGenerateDiagram } from '../services/aiDiagramDetector';
 
 interface ResearchBrief {
   title: string;
@@ -54,7 +55,20 @@ export const ScientificResearchView: React.FC = () => {
       if (!resp.ok || !data?.research) {
         throw new Error(data?.error || 'Could not generate research brief.');
       }
-      setBrief(data.research);
+      const research = data.research;
+      if (!research.diagram) {
+        const diag = detectAndGenerateDiagram(
+          {
+            title: research.title || targetQuery,
+            formula: research.keyEquations?.[0]?.latex || '',
+            problemStatement: research.summary || targetQuery,
+            steps: (research.workedExample?.steps || []) as string[],
+          } as any,
+          targetQuery
+        );
+        if (diag) research.diagram = diag;
+      }
+      setBrief(research);
     } catch (err: any) {
       setError(err?.message || 'Error retrieving scientific research synthesis.');
     } finally {
