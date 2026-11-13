@@ -38,6 +38,7 @@ import { useAppLanguage } from '../contexts/LanguageContext';
 import { InteractiveSolverGraph } from './InteractiveSolverGraph';
 import { detectAndEnhanceGraphs } from '../services/aiGraphDetector';
 import { detectAndGenerateDiagram } from '../services/aiDiagramDetector';
+import { parseSmartInput } from '../services/smartInputParser';
 import { useVoiceInput } from '../hooks/useVoiceInput';
 
 interface GeminiAiSolverViewProps {
@@ -313,7 +314,7 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
       const img = new Image();
       img.onload = () => {
         try {
-          const maxDimension = 1600;
+          const maxDimension = 1280;
           let width = img.naturalWidth || img.width;
           let height = img.naturalHeight || img.height;
 
@@ -340,7 +341,13 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
           }
 
           ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+          let compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          if (compressedDataUrl.length > 2_200_000) {
+            compressedDataUrl = canvas.toDataURL('image/jpeg', 0.68);
+          }
+          if (compressedDataUrl.length > 2_200_000) {
+            compressedDataUrl = canvas.toDataURL('image/jpeg', 0.52);
+          }
 
           const approxBytes = Math.round((compressedDataUrl.length - 22) * 0.75);
           const sizeKb = Math.round(approxBytes / 1024);
@@ -574,7 +581,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         }
       }
 
-      // 2. Fall back to serverless API
+      // 2. Resilient serverless API solve with automatic retries across /api/solve and /api/ai/solve
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
@@ -582,49 +589,100 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         headers['x-gemini-key'] = userApiKey;
       }
 
-      let response = await fetch('/api/solve', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          prompt: targetPrompt,
-          imageData: imagePreview,
-          mimeType: imageMimeType,
-          subject: selectedSubject === 'All' ? undefined : selectedSubject,
-          preferredLanguage: currentLanguage.name,
-          language: currentLanguage.name,
-        }),
+      const requestBody = JSON.stringify({
+        prompt: targetPrompt,
+        imageData: imagePreview,
+        mimeType: imageMimeType,
+        subject: selectedSubject === 'All' ? undefined : selectedSubject,
+        preferredLanguage: currentLanguage.name,
+        language: currentLanguage.name,
       });
 
-      if (response.status === 404) {
-        response = await fetch('/api/ai/solve', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            prompt: targetPrompt,
-            imageData: imagePreview,
-            mimeType: imageMimeType,
-            subject: selectedSubject === 'All' ? undefined : selectedSubject,
-            preferredLanguage: currentLanguage.name,
-            language: currentLanguage.name,
-          }),
-        });
+      const endpoints = ['/api/solve', '/api/ai/solve', '/api/solve'];
+      let data: any = null;
+      let lastServerError = 'Unable to solve this problem right now. Please tap Retry in a moment.';
+
+      for (let attempt = 0; attempt < endpoints.length; attempt++) {
+        const endpoint = endpoints[attempt];
+        if (attempt > 0) {
+          setLoadingStage(
+            attempt === 1
+              ? 'Switching to backup calculation route...'
+              : 'Retrying AI reasoning engine...'
+          );
+          await new Promise((r) => setTimeout(r, attempt === 1 ? 650 : 1000));
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 35000);
+        try {
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers,
+            body: requestBody,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          if (response.status === 413) {
+            lastServerError = 'The uploaded image is too large to process cleanly. Please crop or use a smaller photo.';
+            break;
+          }
+
+          const responseText = await response.text();
+          let parsed: any = null;
+          try {
+            parsed = JSON.parse(responseText);
+          } catch {
+            // Non-JSON response (e.g. HTML 502/504 gateway timeout or cold start) -> retry next endpoint
+            lastServerError = `AI calculation engine is temporarily busy (HTTP ${response.status}). Retrying or tap Retry shortly.`;
+            continue;
+          }
+
+          if (response.ok && parsed?.success && parsed?.solution) {
+            data = parsed;
+            break;
+          }
+
+          lastServerError = parsed?.error || `Calculation engine returned status ${response.status}.`;
+          // Retry only on transient 404 / 5xx / timeout errors
+          if (response.status === 400 || response.status === 401 || response.status === 403) {
+            break;
+          }
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutId);
+          lastServerError =
+            fetchErr?.name === 'AbortError'
+              ? 'The calculation took longer than expected. Please tap Retry.'
+              : fetchErr?.message || lastServerError;
+        }
       }
 
       clearTimeout(stageTimer1);
       clearTimeout(stageTimer2);
 
-      const responseText = await response.text();
-      let data: any = null;
-      try {
-        data = JSON.parse(responseText);
-      } catch {
-        throw new Error(
-          'AI calculation engine is currently busy or temporarily unavailable. Please try again in a few moments.'
-        );
+      // 3. Deterministic local solver fallback for pure math/physics text problems if server is busy
+      if (!data?.success && !imagePreview && targetPrompt.trim()) {
+        try {
+          const localSol = parseSmartInput(targetPrompt);
+          if (localSol && localSol.finalAnswer) {
+            data = {
+              success: true,
+              solution: {
+                ...localSol,
+                explanation: localSol.explanation
+                  ? `${localSol.explanation} (Solved instantly by SmartSolve Deterministic Engine.)`
+                  : 'Solved instantly by SmartSolve Deterministic Mathematics & Physics Engine.',
+              },
+            };
+          }
+        } catch {
+          // Not a deterministic single-step math/physics expression; surface clean server error
+        }
       }
 
-      if (!response.ok || !data?.success) {
-        throw new Error(data?.error || 'Unable to solve this problem right now. Please try again shortly.');
+      if (!data?.success || !data?.solution) {
+        throw new Error(lastServerError);
       }
 
       const sol = data.solution;

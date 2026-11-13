@@ -466,10 +466,42 @@ export interface ScientificDiagramData {
   };
 }
 
+export interface FormulaQuestion {
+  id: string;
+  difficulty: 'Easy' | 'Intermediate' | 'Difficult' | 'Examination-Standard';
+  skillType:
+    | 'Direct Substitution'
+    | 'Formula Rearrangement'
+    | 'Formula Identification'
+    | 'Unit Conversion'
+    | 'Real-Life Application'
+    | 'Multi-Step'
+    | string;
+  question: string;
+  options?: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  correctOption?: 'A' | 'B' | 'C' | 'D';
+  hint: string;
+  formulaUsed: string;
+  whyThisFormula: string;
+  steps: string[];
+  finalAnswer: string;
+  expectedNumericValue?: number;
+  unit?: string;
+  evaluableExpression?: string;
+  verifiedDeterministically?: boolean;
+}
+
 export interface LearnTopicFormula {
+  id?: string;
   name: string;
   latex: string;
   whenToUse: string;
+  conditions?: string;
   derivationSummary?: string;
   symbols: Array<{
     symbol: string;
@@ -477,10 +509,17 @@ export interface LearnTopicFormula {
     siUnit: string;
     standardValue?: string;
   }>;
+  workedExamplesByLevel?: {
+    simple?: LearnTopicWorkedExample;
+    intermediate?: LearnTopicWorkedExample;
+    difficult?: LearnTopicWorkedExample;
+  };
+  questions?: FormulaQuestion[];
 }
 
 export interface LearnTopicWorkedExample {
   title: string;
+  level?: 'Simple' | 'Intermediate' | 'Difficult' | string;
   problemStatement: string;
   givenValues: Array<{
     name: string;
@@ -499,10 +538,14 @@ export interface LearnTopicWorkedExample {
 export interface LearnTopicPracticeQuestion {
   id: string;
   question: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Challenging (JUPEB/University)';
+  difficulty: 'Easy' | 'Medium' | 'Intermediate' | 'Hard' | 'Difficult' | 'Challenging (JUPEB/University)' | 'Examination-Standard' | string;
+  formulaUsed?: string;
+  whyThisFormula?: string;
   hint: string;
   solution: string[];
   finalAnswer: string;
+  expectedNumericValue?: number;
+  unit?: string;
 }
 
 export interface LearnTopicTable {
@@ -511,15 +554,82 @@ export interface LearnTopicTable {
   rows: string[][];
 }
 
+export interface NonFormulaPrinciple {
+  title: string;
+  statement: string;
+  whenApplies: string;
+  everydayExample: string;
+  keyRelationship: string;
+}
+
+export interface VisualConceptModel {
+  kind: 'reaction' | 'process_flow' | 'classification' | 'structure' | string;
+  title: string;
+  caption?: string;
+  nodes: Array<{
+    label: string;
+    symbol?: string;
+    detail: string;
+  }>;
+}
+
+export interface ExamModeQuestion {
+  id: string;
+  examBody: 'JAMB' | 'WAEC' | 'JUPEB' | string;
+  questionType: 'Multiple-Choice' | 'Theory' | 'Calculation' | 'Conceptual' | 'Application' | string;
+  difficulty: 'Easy' | 'Intermediate' | 'Difficult' | string;
+  sourceType: 'ai-generated' | 'verified-past';
+  year?: string;
+  question: string;
+  options?: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  correctAnswer?: string;
+  formula?: string;
+  whyFormula?: string;
+  hint: string;
+  steps: string[];
+  finalAnswer: string;
+  unit?: string;
+  markingPoints?: string[];
+}
+
+export interface TopicNavigationLinks {
+  prerequisites: string[];
+  relatedTopics: string[];
+  advancedTopics: string[];
+  keyFormulasToMaster: string[];
+  recommendedNextStep: string;
+}
+
 export interface LearnTopicLesson {
   topic: string;
   subject: string;
   targetExamLevel: string;
   summary: string;
+  simpleDefinition?: string;
   introduction: string;
   realWorldAnalogy: string;
   detailedExplanation: string[];
+  importantConcepts?: string[];
+  characteristicsAndProperties?: string[];
+  typesAndClassifications?: Array<{
+    name: string;
+    description: string;
+    example?: string;
+  }>;
+  everydayExamples?: string[];
+  commonExamQuestions?: Array<{
+    question: string;
+    examStyle: string;
+    keyIdea: string;
+  }>;
   formulas: LearnTopicFormula[];
+  principlesAndRules?: NonFormulaPrinciple[];
+  visualConceptModel?: VisualConceptModel;
   tables?: LearnTopicTable[];
   diagram?: ScientificDiagramData;
   graphs?: AiGraphData[];
@@ -527,6 +637,8 @@ export interface LearnTopicLesson {
   importantNotes: string[];
   commonPitfalls: string[];
   practiceQuestions: LearnTopicPracticeQuestion[];
+  examModeQuestions?: ExamModeQuestion[];
+  topicNavigation?: TopicNavigationLinks;
   suggestedFollowUps: string[];
   timestamp?: number;
 }

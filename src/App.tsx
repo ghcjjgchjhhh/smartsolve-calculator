@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Header } from './components/Header';
 import { ScientificCalculator } from './components/ScientificCalculator';
 import { MathHub } from './components/MathHub';
@@ -57,10 +57,42 @@ import {
   Gauge,
   BarChart2,
   FileText,
+  PenTool,
+  Box,
+  Mic,
+  ScanLine,
+  HelpCircle,
+  Microscope,
+  SlidersHorizontal,
+  Search,
+  Dna,
+  Sigma,
+  Users,
+  Loader2,
 } from 'lucide-react';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { LanguageProvider, useAppLanguage } from './contexts/LanguageContext';
 import { LanguageSettingsModal } from './components/LanguageSettingsModal';
+
+const AiWhiteboardView = lazy(() => import('./components/AiWhiteboardView').then((m) => ({ default: m.AiWhiteboardView })));
+const ThreePhysicsLabView = lazy(() => import('./components/ThreePhysicsLabView').then((m) => ({ default: m.ThreePhysicsLabView })));
+const VoiceToMathView = lazy(() => import('./components/VoiceToMathView').then((m) => ({ default: m.VoiceToMathView })));
+const HandwritingSolverView = lazy(() => import('./components/HandwritingSolverView').then((m) => ({ default: m.HandwritingSolverView })));
+const SocraticTutorView = lazy(() => import('./components/SocraticTutorView').then((m) => ({ default: m.SocraticTutorView })));
+const ScientificResearchView = lazy(() => import('./components/ScientificResearchView').then((m) => ({ default: m.ScientificResearchView })));
+const FormulaExplorerView = lazy(() => import('./components/FormulaExplorerView').then((m) => ({ default: m.FormulaExplorerView })));
+const DocumentTutorView = lazy(() => import('./components/DocumentTutorView').then((m) => ({ default: m.DocumentTutorView })));
+const PastQuestionSearchView = lazy(() => import('./components/PastQuestionSearchView').then((m) => ({ default: m.PastQuestionSearchView })));
+const BiologyLabView = lazy(() => import('./components/BiologyLabView').then((m) => ({ default: m.BiologyLabView })));
+const EquationEditorView = lazy(() => import('./components/EquationEditorView').then((m) => ({ default: m.EquationEditorView })));
+const CollaborativeStudyRoomView = lazy(() => import('./components/CollaborativeStudyRoomView').then((m) => ({ default: m.CollaborativeStudyRoomView })));
+
+const ModuleLoader = () => (
+  <div className="rounded-2xl border border-slate-200 dark:border-[#27272A] bg-white dark:bg-[#0A0A0A] p-12 flex items-center justify-center gap-2 text-xs sm:text-sm text-slate-500">
+    <Loader2 className="w-5 h-5 animate-spin text-[#22C55E]" />
+    <span>Loading SmartSolve Studio module...</span>
+  </div>
+);
 
 function MainApp() {
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -92,7 +124,20 @@ function MainApp() {
         'titration',
         'statistics',
         'matrix',
+        'chem_balancer',
         'revision',
+        'ai_whiteboard',
+        'physics_3d',
+        'voice_math',
+        'handwriting',
+        'socratic_tutor',
+        'scientific_research',
+        'formula_explorer',
+        'document_tutor',
+        'past_questions',
+        'biology_lab',
+        'equation_editor',
+        'study_rooms',
       ];
       if (tabParam && validTabs.includes(tabParam)) {
         return tabParam;
@@ -374,11 +419,40 @@ function MainApp() {
     }
   };
 
+  const [navGroup, setNavGroup] = useState<'all' | 'core' | 'studio'>('all');
+
+  const studioTabIds = new Set([
+    'ai_whiteboard',
+    'physics_3d',
+    'voice_math',
+    'handwriting',
+    'socratic_tutor',
+    'scientific_research',
+    'formula_explorer',
+    'document_tutor',
+    'past_questions',
+    'biology_lab',
+    'equation_editor',
+    'study_rooms',
+  ]);
+
   const navigationTabs = [
     { id: 'scientific', name: t('scientific', 'Scientific'), icon: Calculator, badge: 'FX' },
     { id: 'learn_topic', name: 'Learn Any Topic', icon: GraduationCap, badge: 'AI Tutor' },
     { id: 'ai_solver', name: t('ai_solver', 'AI Solver'), icon: Sparkles, badge: 'Step Solver' },
     { id: 'ai_chat', name: t('ai_chat', 'AI Chat'), icon: MessageSquare, badge: 'Multimodal' },
+    { id: 'ai_whiteboard', name: 'AI Whiteboard', icon: PenTool, badge: 'Studio' },
+    { id: 'physics_3d', name: '3D Physics', icon: Box, badge: 'WebGL 3D' },
+    { id: 'voice_math', name: 'Voice-to-Math', icon: Mic, badge: 'Voice' },
+    { id: 'handwriting', name: 'Handwriting OCR', icon: ScanLine, badge: 'OCR' },
+    { id: 'socratic_tutor', name: 'Socratic Tutor', icon: HelpCircle, badge: 'Guided' },
+    { id: 'scientific_research', name: 'Research Mode', icon: Microscope, badge: 'Consensus' },
+    { id: 'formula_explorer', name: 'Formula Explorer', icon: SlidersHorizontal, badge: 'Sliders' },
+    { id: 'document_tutor', name: 'Document Tutor', icon: FileText, badge: 'PDF Q&A' },
+    { id: 'past_questions', name: 'Past Questions', icon: Search, badge: 'Verified' },
+    { id: 'biology_lab', name: 'Biology Lab', icon: Dna, badge: 'Anatomy' },
+    { id: 'equation_editor', name: 'Equation Editor', icon: Sigma, badge: 'LaTeX' },
+    { id: 'study_rooms', name: 'Study Rooms', icon: Users, badge: 'Live Sync' },
     { id: 'grapher', name: t('grapher', '2D Grapher'), icon: TrendingUp, badge: 'Canvas' },
     { id: 'periodic_table', name: t('periodic_table', 'Periodic Table'), icon: FlaskConical, badge: 'Chemistry' },
     { id: 'physics_sim', name: t('physics_sim', 'Physics Lab'), icon: Activity, badge: 'Simulations' },
@@ -402,6 +476,13 @@ function MainApp() {
     { id: 'matrix', name: t('matrix', 'Matrix Lab'), icon: Cpu, badge: '3x3 Gauss' },
     { id: 'revision', name: t('revision', 'Cheat-Sheets'), icon: BookOpen, badge: 'Print PDF' },
   ];
+
+  const visibleNavigationTabs =
+    navGroup === 'all'
+      ? navigationTabs
+      : navGroup === 'studio'
+      ? navigationTabs.filter((tab) => studioTabIds.has(tab.id))
+      : navigationTabs.filter((tab) => !studioTabIds.has(tab.id));
 
   const getTabName = (tabId: string) => {
     const found = navigationTabs.find((t) => t.id === tabId);
@@ -436,9 +517,31 @@ function MainApp() {
           isDark ? 'bg-[#0A0A0A] border-[#27272A]' : 'bg-white border-slate-200'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto py-2.5 scrollbar-none">
-            {navigationTabs.map((tab) => {
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-1 pr-2 border-r border-slate-200 dark:border-[#27272A] shrink-0">
+            {(
+              [
+                { id: 'all', label: 'All' },
+                { id: 'studio', label: 'AI & 3D Studio' },
+                { id: 'core', label: 'Calc & Labs' },
+              ] as const
+            ).map((grp) => (
+              <button
+                key={grp.id}
+                type="button"
+                onClick={() => setNavGroup(grp.id)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap cursor-pointer transition-colors ${
+                  navGroup === grp.id
+                    ? 'bg-[#22C55E]/15 text-[#22C55E]'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {grp.label}
+              </button>
+            ))}
+          </div>
+          <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto py-2.5 scrollbar-none flex-1">
+            {visibleNavigationTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
@@ -628,6 +731,24 @@ function MainApp() {
         <div className={activeTab === 'revision' ? 'block' : 'hidden'}>
           <RevisionSheetsView />
         </div>
+
+        {/* 12 Lazy-Loaded SmartSolve Studio Modules */}
+        {studioTabIds.has(activeTab) && (
+          <Suspense fallback={<ModuleLoader />}>
+            {activeTab === 'ai_whiteboard' && <AiWhiteboardView />}
+            {activeTab === 'physics_3d' && <ThreePhysicsLabView />}
+            {activeTab === 'voice_math' && <VoiceToMathView onOpenInGemini={handleOpenInGemini} />}
+            {activeTab === 'handwriting' && <HandwritingSolverView onOpenInGemini={handleOpenInGemini} />}
+            {activeTab === 'socratic_tutor' && <SocraticTutorView />}
+            {activeTab === 'scientific_research' && <ScientificResearchView />}
+            {activeTab === 'formula_explorer' && <FormulaExplorerView />}
+            {activeTab === 'document_tutor' && <DocumentTutorView />}
+            {activeTab === 'past_questions' && <PastQuestionSearchView />}
+            {activeTab === 'biology_lab' && <BiologyLabView />}
+            {activeTab === 'equation_editor' && <EquationEditorView onOpenInGemini={handleOpenInGemini} />}
+            {activeTab === 'study_rooms' && <CollaborativeStudyRoomView />}
+          </Suspense>
+        )}
       </main>
 
       {/* Floating Quick-Access AI Chat Assistant Button (visible across all tabs except ai_chat) */}

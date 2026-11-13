@@ -1,0 +1,109 @@
+{
+  "entities": {
+    "StudyRoom": {
+      "title": "StudyRoom",
+      "description": "A collaborative study room supporting public and private access, shared whiteboard, and moderation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "subject": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "description": { "type": "string", "maxLength": 400 },
+        "visibility": { "type": "string", "enum": ["public", "private"] },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "ownerName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "roomCode": { "type": "string", "minLength": 4, "maxLength": 20, "pattern": "^[A-Z0-9]+$" },
+        "whiteboardLocked": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "subject", "visibility", "ownerId", "ownerName", "roomCode", "whiteboardLocked", "status", "createdAt", "updatedAt"]
+    },
+    "RoomInvite": {
+      "title": "RoomInvite",
+      "description": "Lookup index keyed by invite/roomCode enabling exact-code join without exposing private room lists.",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "visibility": { "type": "string", "enum": ["public", "private"] },
+        "title": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "subject": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "ownerId", "visibility", "title", "subject", "createdAt"]
+    },
+    "RoomMember": {
+      "title": "RoomMember",
+      "description": "Participant membership and moderation state within a study room.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "role": { "type": "string", "enum": ["owner", "moderator", "member"] },
+        "muted": { "type": "boolean" },
+        "inviteCode": { "type": "string", "maxLength": 20 },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role", "muted", "joinedAt", "updatedAt"]
+    },
+    "RoomMessage": {
+      "title": "RoomMessage",
+      "description": "Shared question, solution explanation, or discussion message in a study room.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "roomId": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "type": { "type": "string", "enum": ["chat", "question", "solution"] },
+        "content": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "latex": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "roomId", "authorId", "authorName", "type", "content", "createdAt"]
+    },
+    "WhiteboardStroke": {
+      "title": "WhiteboardStroke",
+      "description": "Synchronized drawing stroke or shape on a collaborative study room whiteboard.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "roomId": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "tool": { "type": "string", "enum": ["pen", "eraser", "line", "rect", "circle", "text"] },
+        "color": { "type": "string", "minLength": 3, "maxLength": 24 },
+        "width": { "type": "number" },
+        "points": { "type": "array" },
+        "text": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "roomId", "authorId", "authorName", "tool", "color", "width", "points", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/study_rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/StudyRoom" },
+      "description": "Collaborative study rooms with owner/visibility/moderation settings."
+    },
+    "/room_invites/{inviteCode}": {
+      "schema": { "$ref": "#/entities/RoomInvite" },
+      "description": "Exact-code invite lookup documents preventing private room enumeration."
+    },
+    "/study_rooms/{roomId}/members/{memberId}": {
+      "schema": { "$ref": "#/entities/RoomMember" },
+      "description": "Room participants and moderation permissions."
+    },
+    "/study_rooms/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/RoomMessage" },
+      "description": "Questions, solutions, and chat messages inside a study room."
+    },
+    "/study_rooms/{roomId}/strokes/{strokeId}": {
+      "schema": { "$ref": "#/entities/WhiteboardStroke" },
+      "description": "Real-time collaborative whiteboard strokes for a study room."
+    }
+  }
+}

@@ -13,6 +13,18 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelectAction }
   const [query, setQuery] = useState('');
 
   const mathEntries = [
+    { name: 'AI Interactive Whiteboard', sub: 'Progressive AI chalkboard diagrams, step-by-step equations, drawing & board saving', tab: 'ai_whiteboard' },
+    { name: 'Interactive 3D Physics Studio', sub: 'Real 3D WebGL simulations for circular motion, projectile, gravity, inclined forces, 3D waves, E&M, and energy', tab: 'physics_3d' },
+    { name: 'Voice-to-Mathematics Studio', sub: 'Speak mathematical questions, auto-format into LaTeX equations, and solve deterministically', tab: 'voice_math' },
+    { name: 'Handwriting Equation Recognition', sub: 'Recognize handwritten fractions, powers, roots, integrals & scientific notation from pad or photos', tab: 'handwriting' },
+    { name: 'Socratic AI Tutor', sub: 'Guided coaching with progressive hints and step checking before revealing the complete solution', tab: 'socratic_tutor' },
+    { name: 'Scientific Research Mode', sub: 'Explore scientific laws, experiments & theories distinguishing empirical consensus from frontier uncertainty', tab: 'scientific_research' },
+    { name: 'Formula Relationship Explorer', sub: 'Interactive variable sliders showing real-time deterministic recalculation and response curves', tab: 'formula_explorer' },
+    { name: 'AI Document Tutor (PDF & Notes)', sub: 'Upload PDFs and notes for chapter summaries, difficult passage explanations, quizzes & cited Q&A', tab: 'document_tutor' },
+    { name: 'Past Question Search Library', sub: 'Filter verified JAMB, WAEC & JUPEB past questions by subject, topic, exam & year plus separate drill generator', tab: 'past_questions' },
+    { name: 'Interactive Biology Lab', sub: 'Clickable anatomical and cellular models (Animal/Plant cells, Heart, Nephron, Leaf cross-section)', tab: 'biology_lab' },
+    { name: 'Advanced Mathematical Equation Editor', sub: 'Multi-tab LaTeX keyboard for fractions, roots, matrices, integrals, summations, Greek & sets', tab: 'equation_editor' },
+    { name: 'Collaborative Study Rooms', sub: 'Authenticated public & private study rooms with real-time synced whiteboard, questions, chat & moderation', tab: 'study_rooms' },
     { name: 'Learn Any Topic (AI Master Tutor)', sub: 'Complete academic masterclasses: introduction, formulas, symbols, SI units, when to use, diagrams, graphs, and practice problems for WAEC, JAMB, JUPEB & University', tab: 'learn_topic' },
     { name: '2D Function Grapher', sub: 'Interactive canvas plotting, roots, derivatives, trigonometric & polynomial curves', tab: 'grapher' },
     { name: '2D Vector & Force Polygon Lab', sub: 'Interactive vector addition, resolution Fx/Fy, resultant R, equilibrant, and inclined plane simulator', tab: 'vectors' },

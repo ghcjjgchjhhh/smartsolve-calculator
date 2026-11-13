@@ -1,38 +1,91 @@
-import { GoogleGenAI } from '@google/genai';
-import { LearnTopicLesson } from '../types';
+import {
+  ExamModeQuestion,
+  FormulaQuestion,
+  LearnTopicFormula,
+  LearnTopicLesson,
+} from '../types';
 import { detectAndGenerateDiagram } from './aiDiagramDetector';
 import { detectAndEnhanceGraphs } from './aiGraphDetector';
+import { computeDeterministically } from './deterministicSolver';
+import { JAMB_QUESTIONS } from '../data/jambQuestions';
+import { AdaptiveMode } from './tutorProgressService';
 
 const STORAGE_KEY = 'smartsolve_recent_lessons';
+const FORMULA_Q_CACHE_KEY = 'smartsolve_formula_q_cache_v1';
 
 export interface LearnTopicParams {
   topic: string;
   subject?: string;
   examLevel?: string;
   language?: string;
-  userApiKey?: string;
+  adaptiveMode?: AdaptiveMode;
 }
 
-export function resolveClientGeminiKey(explicitKey?: string): string {
-  if (explicitKey && explicitKey.trim().length > 15) return explicitKey.trim();
-  try {
-    if (typeof window !== 'undefined') {
-      const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
-      if (envKey && envKey !== 'MY_GEMINI_API_KEY' && envKey.length > 15) return envKey;
-      const stored =
-        localStorage.getItem('gemini_user_api_key') ||
-        localStorage.getItem('gemini_api_key') ||
-        '';
-      if (stored && stored.trim().length > 15) return stored.trim();
+export interface FormulaQuestionsParams {
+  topic: string;
+  subject: string;
+  examLevel: string;
+  formula: LearnTopicFormula;
+  existingQuestions?: string[];
+  forceRefresh?: boolean;
+}
+
+export interface AdaptiveExplanationResult {
+  title: string;
+  encouragement: string;
+  simpleAnalogy: string;
+  stepByStepCore: string[];
+  easyCheckQuestion?: {
+    question: string;
+    hint: string;
+    steps: string[];
+    finalAnswer: string;
+    expectedNumericValue?: number | null;
+    unit?: string;
+  };
+}
+
+function enrichFormulaQuestionsDeterministically(questions: FormulaQuestion[]): FormulaQuestion[] {
+  return questions.map((q, idx) => {
+    const out: FormulaQuestion = {
+      ...q,
+      id: q.id || `fq_${Date.now()}_${idx + 1}`,
+      steps: Array.isArray(q.steps) ? q.steps : [],
+    };
+    if (out.evaluableExpression && out.evaluableExpression.trim()) {
+      const det = computeDeterministically(out.evaluableExpression, 'deg');
+      if (det.computed && det.valueText) {
+        const numeric = parseFloat(det.valueText);
+        if (!isNaN(numeric) && isFinite(numeric)) {
+          out.expectedNumericValue = numeric;
+          out.verifiedDeterministically = true;
+        }
+      }
     }
-  } catch {
-    // ignore storage errors
-  }
-  return '';
+    return out;
+  });
 }
 
 function enrichLessonVisuals(lesson: LearnTopicLesson, originalTopic: string): LearnTopicLesson {
-  const enriched = { ...lesson };
+  const enriched: LearnTopicLesson = {
+    ...lesson,
+    formulas: Array.isArray(lesson.formulas)
+      ? lesson.formulas.map((f, i) => ({
+          ...f,
+          id: f.id || `formula_${i + 1}`,
+          symbols: Array.isArray(f.symbols) ? f.symbols : [],
+          questions: Array.isArray(f.questions)
+            ? enrichFormulaQuestionsDeterministically(f.questions)
+            : undefined,
+        }))
+      : [],
+    workedExamples: Array.isArray(lesson.workedExamples) ? lesson.workedExamples : [],
+    importantNotes: Array.isArray(lesson.importantNotes) ? lesson.importantNotes : [],
+    commonPitfalls: Array.isArray(lesson.commonPitfalls) ? lesson.commonPitfalls : [],
+    practiceQuestions: Array.isArray(lesson.practiceQuestions) ? lesson.practiceQuestions : [],
+    suggestedFollowUps: Array.isArray(lesson.suggestedFollowUps) ? lesson.suggestedFollowUps : [],
+  };
+
   try {
     const mockSolution: any = {
       title: enriched.topic,
@@ -61,220 +114,58 @@ function enrichLessonVisuals(lesson: LearnTopicLesson, originalTopic: string): L
       }
     }
   } catch {
-    // ignore enrichment issues
+    // ignore enrichment errors
   }
   return enriched;
 }
 
-function buildLearnPrompt(topic: string, subject: string, examLevel: string, language: string): string {
-  return `
-You are SmartSolve AI, an acclaimed professor and master academic tutor specializing in teaching Mathematics, Physics, Chemistry, Biology, Further Mathematics, and Economics for WAEC, JAMB, JUPEB, and University undergraduate students.
-
-The student wants to learn:
-Topic / Concept / Formula / Question: "${topic}"
-Academic Subject: "${subject}"
-Target Academic Level: "${examLevel}"
-Preferred Language: "${language}"
-
-CRITICAL TUTOR TEACHING GUIDELINES:
-1. NEVER invent non-existent formulas or provide hand-wavy or incomplete explanations. Provide comprehensive, textbook-rigorous academic depth.
-2. Format ALL formulas, math expressions, equations, and powers using clean standard LaTeX notation ($...$ and $$...$$). NEVER leave unformatted raw ascii equations.
-3. In LaTeX, NEVER use raw '%' (always escape as '\\%'). Ensure matching braces (\\left( matched with \\right), \\{ ... \\}).
-4. MEANINGS OF ALL SYMBOLS & SI UNITS: For every formula introduced, explicitly detail every variable symbol, what physical/mathematical quantity it represents, and its standard SI unit (e.g. $m$: mass in kilograms [\\text{kg}], $v$: final velocity in meters per second [\\text{m/s}]).
-5. WHEN TO USE EACH FORMULA: Clearly explain the exact physical conditions, assumptions, or problem types where each formula applies (and when NOT to use it).
-6. STEP-BY-STEP WORKED EXAMPLES: Provide 2 to 3 fully worked, high-yield examination examples showing:
-   - Problem statement
-   - Given values with symbols and units
-   - Governing formula
-   - Direct numerical substitution
-   - Step-by-step arithmetic/algebraic calculations
-   - Boxed final answer with correct SI unit (\\boxed{...})
-   - Conceptual explanation of the physical/mathematical principle
-7. IMPORTANT NOTES & COMMON PITFALLS:
-   - Provide crucial exam tips, boundary conditions, and sign conventions.
-   - List frequent student misconceptions and trap answers.
-8. PRACTICE QUESTIONS: Provide 2 to 3 challenging exam-style practice questions with hints, detailed solutions, and final answers suitable for WAEC, JAMB, JUPEB, and University levels.
-9. RESPOND ONLY WITH A VALID JSON OBJECT matching this exact structure:
-{
-  "topic": "Clean descriptive topic title",
-  "subject": "${subject}",
-  "targetExamLevel": "${examLevel}",
-  "summary": "1-2 sentence high-yield summary of the concept",
-  "introduction": "Engaging, thorough pedagogical introduction explaining what this concept is and why it matters",
-  "realWorldAnalogy": "A brilliant, intuitive real-world analogy that makes the concept instantly click in the student's mind",
-  "detailedExplanation": [
-    "Comprehensive academic explanation paragraph 1 with fundamental principles...",
-    "Detailed theoretical breakdown paragraph 2 with derivations or scientific mechanisms...",
-    "Key laws, theorems, or governing principles paragraph 3..."
-  ],
-  "formulas": [
-    {
-      "name": "Name of the formula/law",
-      "latex": "LaTeX formula (e.g. $$v^2 = u^2 + 2as$$)",
-      "whenToUse": "Exact conditions and problem contexts when to apply this equation",
-      "derivationSummary": "Brief mathematical origin or derivation rationale",
-      "symbols": [
-        { "symbol": "$v$", "meaning": "Final velocity", "siUnit": "m/s" },
-        { "symbol": "$u$", "meaning": "Initial velocity", "siUnit": "m/s" }
-      ]
-    }
-  ],
-  "tables": [
-    {
-      "title": "Key Comparisons / Values",
-      "headers": ["Parameter / Type", "Description / Formula", "SI Unit / Standard Value"],
-      "rows": [
-        ["Parameter A", "Description", "Unit"],
-        ["Parameter B", "Description", "Unit"]
-      ]
-    }
-  ],
-  "workedExamples": [
-    {
-      "title": "Worked Example 1 (Standard Exam Level)",
-      "problemStatement": "A full question statement in LaTeX...",
-      "givenValues": [
-        { "name": "Initial velocity", "symbol": "u", "value": "0", "unit": "m/s" }
-      ],
-      "formulaUsed": "$$v = u + at$$",
-      "substitution": "$$v = 0 + (9.8)(4)$$",
-      "steps": [
-        "1. Identify given values: ...",
-        "2. State governing formula: ...",
-        "3. Substitute numerical values: ...",
-        "4. Calculate intermediate step: ...",
-        "5. State final answer with units: ..."
-      ],
-      "finalAnswer": "\\boxed{39.2\\text{ m/s}}",
-      "unit": "m/s",
-      "explanation": "Why this formula was appropriate and physical meaning of the result"
-    }
-  ],
-  "importantNotes": [
-    "High-yield exam tip or boundary condition 1",
-    "High-yield exam tip 2"
-  ],
-  "commonPitfalls": [
-    "Frequent student error or trap 1",
-    "Sign convention mistake or unit trap 2"
-  ],
-  "practiceQuestions": [
-    {
-      "id": "pq1",
-      "question": "Challenging practice question statement...",
-      "difficulty": "Medium",
-      "hint": "Useful conceptual hint to get started",
-      "solution": [
-        "Step 1: ...",
-        "Step 2: ...",
-        "Step 3: ..."
-      ],
-      "finalAnswer": "\\boxed{...}"
-    }
-  ],
-  "suggestedFollowUps": [
-    "Can you derive the primary formula from first principles?",
-    "How does this apply to University 100-level exam questions?",
-    "Show me another challenging example with friction or resistance",
-    "Explain the graph of this concept in detail"
-  ]
-}
-`.trim();
-}
-
-async function learnDirectWithGemini(
-  apiKey: string,
-  topic: string,
-  subject: string,
-  examLevel: string,
-  language: string
-): Promise<LearnTopicLesson> {
-  const ai = new GoogleGenAI({ apiKey });
-  const promptText = buildLearnPrompt(topic, subject, examLevel, language);
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
-  let lastError: any = null;
-
-  for (let i = 0; i < candidateModels.length; i++) {
-    const model = candidateModels[i];
-    try {
-      const config: any = { responseMimeType: 'application/json' };
-      if (model === 'gemini-3.8-flash') {
-        config.thinkingConfig = { thinkingLevel: 'LOW' };
-      } else if (model === 'gemini-3.1-flash-lite') {
-        config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
-      }
-      const response = await ai.models.generateContent({
-        model,
-        contents: [{ text: promptText }],
-        config,
-      });
-      const resultText = response.text?.trim() || '{}';
-      let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-      const match = cleanJson.match(/\{[\s\S]*\}/);
-      if (match) cleanJson = match[0];
-      const parsed = JSON.parse(cleanJson);
-      parsed.timestamp = Date.now();
-      return parsed;
-    } catch (err: any) {
-      lastError = err;
-      if (i < candidateModels.length - 1) continue;
-    }
-  }
-  throw lastError;
-}
-
-async function followUpDirectWithGemini(
-  apiKey: string,
-  topic: string,
-  question: string,
-  lessonSummary: string
-): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey });
-  const promptText = `
-You are SmartSolve AI, an acclaimed professor and master academic tutor.
-You are in an interactive 1-on-1 tutoring session with a student studying "${topic || 'Academic STEM'}".
-Lesson Context:
-${lessonSummary ? lessonSummary.slice(0, 1500) : ''}
-
-Student's Follow-up Question:
-"${question}"
-
-Provide a crystal-clear, pedagogical response:
-1. Directly answer the student's question with academic precision and warmth.
-2. Format all mathematical expressions, derivations, chemical equations, and formulas in standard LaTeX ($...$ and $$...$$).
-3. If giving an extra example, show given values, formula, numerical steps, and boxed final answer (\\boxed{...}).
-4. Keep the explanation rigorous yet easy to understand for WAEC, JAMB, JUPEB, and University undergraduate students.
-5. Provide a quick follow-up challenge or thought-provoking check at the end.
-`.trim();
-
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
-  let lastError: any = null;
-  for (let i = 0; i < candidateModels.length; i++) {
-    const model = candidateModels[i];
-    try {
-      const config: any = {};
-      if (model === 'gemini-3.8-flash') {
-        config.thinkingConfig = { thinkingLevel: 'LOW' };
-      } else if (model === 'gemini-3.1-flash-lite') {
-        config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
-      }
-      const response = await ai.models.generateContent({
-        model,
-        contents: [{ text: promptText }],
-        config,
-      });
-      return response.text?.trim() || 'Tutor response unavailable.';
-    } catch (err: any) {
-      lastError = err;
-      if (i < candidateModels.length - 1) continue;
-    }
-  }
-  throw lastError;
-}
-
 /**
- * Saves completed lesson to local storage for quick revision
+ * Matches verified curated past questions from SmartSolve's vetted JAMB/WAEC/JUPEB bank
+ * and distinguishes them cleanly from AI-generated questions.
  */
+export function findVerifiedPastQuestions(topic: string, subject: string): ExamModeQuestion[] {
+  const stopWords = new Set(['the', 'and', 'for', 'with', 'into', 'from', 'that', 'this', 'laws', 'law', 'introduction']);
+  const tokens = `${topic} ${subject}`
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !stopWords.has(w));
+
+  if (tokens.length === 0) return [];
+
+  const scored = JAMB_QUESTIONS.map((q) => {
+    const haystack = `${q.subject} ${q.topic} ${q.question} ${q.formula}`.toLowerCase();
+    let score = 0;
+    if (subject && subject !== 'Auto-Detect' && q.subject.toLowerCase() === subject.toLowerCase()) {
+      score += 2;
+    }
+    for (const tok of tokens) {
+      if (q.topic.toLowerCase().includes(tok)) score += 4;
+      else if (haystack.includes(tok)) score += 1;
+    }
+    return { q, score };
+  })
+    .filter((item) => item.score >= 4)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
+
+  return scored.map(({ q }) => ({
+    id: `verified_${q.id}`,
+    examBody: q.exam.includes('WAEC') ? 'WAEC' : q.exam.includes('JUPEB') ? 'JUPEB' : 'JAMB',
+    questionType: 'Multiple-Choice',
+    difficulty: q.difficulty === 'Easy' ? 'Easy' : q.difficulty === 'Hard' || q.difficulty === 'Very Hard' ? 'Difficult' : 'Intermediate',
+    sourceType: 'verified-past',
+    year: q.year || q.examYear || 'Verified Archive',
+    question: q.question,
+    options: q.options,
+    correctAnswer: q.correctAnswer,
+    formula: q.formula,
+    whyFormula: q.whyFormula || `This curated past question directly tests ${q.topic} using ${q.formula}.`,
+    hint: q.examTip || `Identify given quantities and apply ${q.formula}.`,
+    steps: q.steps,
+    finalAnswer: q.finalAnswer || `Option ${q.correctAnswer}: ${q.options[q.correctAnswer]}`,
+  }));
+}
+
 export function saveLessonToHistory(lesson: LearnTopicLesson): void {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -296,83 +187,90 @@ export function getSavedLessons(): LearnTopicLesson[] {
   }
 }
 
+function getFormulaCacheKey(topic: string, formulaName: string): string {
+  return `${topic.trim().toLowerCase()}::${formulaName.trim().toLowerCase()}`;
+}
+
+function getCachedFormulaQuestions(topic: string, formulaName: string): FormulaQuestion[] | null {
+  try {
+    const raw = localStorage.getItem(FORMULA_Q_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw) as Record<string, FormulaQuestion[]>;
+    const key = getFormulaCacheKey(topic, formulaName);
+    return Array.isArray(cache[key]) && cache[key].length > 0 ? cache[key] : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedFormulaQuestions(topic: string, formulaName: string, questions: FormulaQuestion[]): void {
+  try {
+    const raw = localStorage.getItem(FORMULA_Q_CACHE_KEY);
+    const cache: Record<string, FormulaQuestion[]> = raw ? JSON.parse(raw) : {};
+    const key = getFormulaCacheKey(topic, formulaName);
+    cache[key] = questions;
+    // Bound cache size cleanly
+    const keys = Object.keys(cache);
+    if (keys.length > 35) {
+      delete cache[keys[0]];
+    }
+    localStorage.setItem(FORMULA_Q_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // ignore storage limits
+  }
+}
+
 /**
- * Fetches a comprehensive lesson from the AI academic tutor
+ * Fetches a comprehensive universal topic lesson from secure server-side routes.
  */
 export async function fetchTopicLesson(params: LearnTopicParams): Promise<LearnTopicLesson> {
-  const { topic, subject = 'General STEM', examLevel = 'JUPEB, JAMB, WAEC & University', language = 'English', userApiKey } = params;
-  const resolvedKey = resolveClientGeminiKey(userApiKey);
+  const {
+    topic,
+    subject = 'Auto-Detect',
+    examLevel = 'JUPEB, JAMB, WAEC & University',
+    language = 'English',
+    adaptiveMode = 'standard',
+  } = params;
 
-  // 1. Direct browser execution if client API key is configured
-  if (resolvedKey) {
-    try {
-      const directLesson = await learnDirectWithGemini(resolvedKey, topic, subject, examLevel, language);
-      const enriched = enrichLessonVisuals(directLesson, topic);
-      saveLessonToHistory(enriched);
-      return enriched;
-    } catch (directErr) {
-      console.warn('Direct browser Learn Any Topic failed, falling back to server API:', directErr);
-    }
-  }
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (resolvedKey) {
-    headers['x-gemini-key'] = resolvedKey;
-  }
-
+  const payload = { topic, subject, examLevel, language, adaptiveMode };
   let response: Response;
+
   try {
     response = await fetch('/api/learn', {
       method: 'POST',
-      headers,
-      body: JSON.stringify({
-        topic,
-        subject,
-        examLevel,
-        language,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
 
     if (response.status === 404) {
       response = await fetch('/api/ai/learn', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({
-          topic,
-          subject,
-          examLevel,
-          language,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
     }
 
     if (response.status === 404) {
       response = await fetch('/api/solve', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({
-          action: 'learn_topic',
-          topic,
-          subject,
-          examLevel,
-          language,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'learn_topic', ...payload }),
       });
     }
   } catch {
     const offlineLesson = getOfflineCuratedLesson(topic, subject, examLevel);
     if (offlineLesson) {
+      saveLessonToHistory(offlineLesson);
       return offlineLesson;
     }
-    throw new Error('Unable to connect to AI Tutor. Please check your internet connection and tap Retry.');
+    throw new Error('Unable to connect to AI Tutor. Please check your connection and tap Retry.');
   }
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
     const offlineFallback = getOfflineCuratedLesson(topic, subject, examLevel);
     if (offlineFallback) {
+      saveLessonToHistory(offlineFallback);
       return offlineFallback;
     }
     throw new Error(
@@ -389,78 +287,133 @@ export async function fetchTopicLesson(params: LearnTopicParams): Promise<LearnT
   }
 
   const lesson = enrichLessonVisuals(data.lesson, topic);
+  // Restore any already-cached 12-question sets per formula for instant zero-token loading
+  lesson.formulas = lesson.formulas.map((f) => {
+    const cached = getCachedFormulaQuestions(lesson.topic, f.name);
+    return cached && (!f.questions || f.questions.length === 0) ? { ...f, questions: cached } : f;
+  });
+
   saveLessonToHistory(lesson);
   return lesson;
 }
 
 /**
- * Ask a follow-up clarification question to the AI Academic Tutor
+ * Generates 12 distinct questions (3 Easy, 3 Intermediate, 3 Difficult, 3 Exam-Standard)
+ * under ONE formula progressively via server-side route, with local caching.
  */
-export async function askTopicFollowUp(
-  topic: string,
-  question: string,
-  lessonSummary: string,
-  userApiKey?: string
-): Promise<string> {
-  const resolvedKey = resolveClientGeminiKey(userApiKey);
+export async function fetchFormulaQuestions(params: FormulaQuestionsParams): Promise<FormulaQuestion[]> {
+  const { topic, subject, examLevel, formula, existingQuestions = [], forceRefresh = false } = params;
 
-  // 1. Direct browser execution if client API key is available
-  if (resolvedKey) {
-    try {
-      return await followUpDirectWithGemini(resolvedKey, topic, question, lessonSummary);
-    } catch (directErr) {
-      console.warn('Direct browser follow-up failed, falling back to server API:', directErr);
+  if (!forceRefresh) {
+    const cached = getCachedFormulaQuestions(topic, formula.name);
+    if (cached && cached.length >= 6) {
+      return cached;
     }
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+  const body = {
+    action: 'formula_questions',
+    topic,
+    subject,
+    examLevel,
+    formulaName: formula.name,
+    formulaLatex: formula.latex,
+    whenToUse: formula.whenToUse,
+    conditions: formula.conditions || '',
+    symbols: formula.symbols,
+    existingQuestions,
+    nonce: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
   };
-  if (resolvedKey) {
-    headers['x-gemini-key'] = resolvedKey;
-  }
 
-  let response = await fetch('/api/learn/follow-up', {
+  let response = await fetch('/api/learn/formula-questions', {
     method: 'POST',
-    headers,
-    body: JSON.stringify({
-      topic,
-      question,
-      lessonSummary,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
 
   if (response.status === 404) {
     response = await fetch('/api/learn', {
       method: 'POST',
-      headers,
-      body: JSON.stringify({
-        action: 'follow_up',
-        topic,
-        question,
-        lessonSummary,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
   }
 
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `Could not load formula practice questions (${response.status}).`);
+  }
+
+  const data = await response.json();
+  const rawQuestions: FormulaQuestion[] = Array.isArray(data.questions) ? data.questions : [];
+  if (rawQuestions.length === 0) {
+    throw new Error('No practice questions returned for this formula. Tap Retry.');
+  }
+
+  const enriched = enrichFormulaQuestionsDeterministically(rawQuestions);
+  saveCachedFormulaQuestions(topic, formula.name, enriched);
+  return enriched;
+}
+
+/**
+ * Generates an adaptive simplified explanation or level-up challenge when triggered.
+ */
+export async function fetchAdaptiveExplanation(params: {
+  topic: string;
+  subject: string;
+  strugglingPoint?: string;
+  mode: 'simplify' | 'challenge';
+}): Promise<AdaptiveExplanationResult> {
+  const response = await fetch('/api/learn', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'adapt_explanation',
+      topic: params.topic,
+      subject: params.subject,
+      strugglingPoint: params.strugglingPoint || params.topic,
+      mode: params.mode,
+    }),
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || 'Unable to generate adaptive explanation right now.');
+  }
+
+  const data = await response.json();
+  return data.adaptation;
+}
+
+/**
+ * Ask a follow-up clarification question to the AI Academic Tutor (server-side only).
+ */
+export async function askTopicFollowUp(
+  topic: string,
+  question: string,
+  lessonSummary: string,
+  adaptiveMode: AdaptiveMode = 'standard'
+): Promise<string> {
+  const payload = { topic, question, lessonSummary, adaptiveMode };
+
+  let response = await fetch('/api/learn/follow-up', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
   if (response.status === 404) {
-    response = await fetch('/api/ai/learn', {
+    response = await fetch('/api/learn', {
       method: 'POST',
-      headers,
-      body: JSON.stringify({
-        action: 'follow_up',
-        topic,
-        question,
-        lessonSummary,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'follow_up', ...payload }),
     });
   }
 
   if (response.status === 404) {
-    // Ultimate fallback to /api/chat endpoint if learn routes aren't mounted
     const chatRes = await fetch('/api/chat', {
       method: 'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: `Regarding the topic "${topic}": ${question}`,
         problemContext: { title: topic, problemStatement: lessonSummary },
@@ -482,61 +435,107 @@ export async function askTopicFollowUp(
 }
 
 /**
- * High-yield curated offline lessons for instant study and offline resilience
+ * Curated offline fallback lessons for core high-demand topics.
  */
-function getOfflineCuratedLesson(topic: string, subject: string, examLevel: string): LearnTopicLesson | null {
+function getOfflineCuratedLesson(topic: string, _subject: string, examLevel: string): LearnTopicLesson | null {
   const lower = topic.toLowerCase();
 
-  // 1. Circle Geometry & Chord Perpendicular Distance
   if (lower.includes('circle') || lower.includes('chord') || lower.includes('tangent')) {
-    const lesson: LearnTopicLesson = {
+    return {
       topic: 'Circle Geometry: Chords, Tangents & Perpendicular Distances',
       subject: 'Mathematics',
       targetExamLevel: examLevel,
-      summary: 'Master circle theorems, chord properties, perpendicular distances from the center, and tangent-radius relationships.',
+      summary: 'Master circle theorems, chord bisectors, perpendicular distances from the center, and tangent-radius rules.',
+      simpleDefinition: 'Circle geometry studies exact relationships between lines, angles, radii, chords, and tangents inside or touching a circle.',
       introduction:
-        'Circle geometry is a foundational pillar of high-school and university Euclidean mathematics. A circle consists of all points equidistant from a fixed center O. Key properties govern the relationship between radii, chords, secants, and tangents.',
+        'Draw any straight cut across a round cake without passing through the middle—that cut is a chord. Circle geometry gives us surprisingly clean geometric shortcuts to find hidden lengths and angles without measuring with a protractor.',
       realWorldAnalogy:
-        'Imagine a pizza sliced with a single straight knife cut that doesn’t pass through the center. That cut is a chord. A line drawn straight from the center point of the pizza to meet that slice at a 90° angle will always divide the slice into two perfectly identical halves.',
+        'Imagine slicing a circular pizza with a straight knife cut that misses the center. A toothpick pointing straight from the center at 90 degrees to your cut will always split the slice into two equal halves.',
       detailedExplanation: [
-        'Theorem 1 (Perpendicular Chord Bisector): The perpendicular line drawn from the center of a circle to a chord bisects the chord. Conversely, the line joining the center of a circle to the midpoint of a chord is perpendicular to the chord.',
-        'Pythagorean Right Triangle in Circles: By joining the center O to one endpoint of the chord (radius r), and dropping a perpendicular OM of distance d to the chord AB of length L, a right-angled triangle \\Delta OMB is formed where the hypotenuse is r, one leg is the perpendicular distance d, and the other leg is the half-chord \\frac{L}{2}.',
-        'Theorem 2 (Tangents and Radii): A tangent to a circle is perpendicular to the radius drawn to the point of contact. Furthermore, tangents drawn from an external point to a circle are equal in length.',
+        'Foundation: Every point on a circle sits at an identical distance r (the radius) from the center O.',
+        'Perpendicular Chord Bisector: Dropping a perpendicular line OM from center O onto chord AB cuts AB cleanly in half, creating a right-angled triangle \\Delta OMB.',
+        'Pythagorean Connection: Because \\Delta OMB has a 90° angle at M, the radius r acts as the hypotenuse while half the chord (L/2) and center distance (d) form the legs.',
+      ],
+      importantConcepts: [
+        'A perpendicular from the center O to any chord AB always bisects AB into two equal halves.',
+        'Equal chords are equidistant from the center O.',
+        'A tangent meets the radius at exactly 90° at the point of contact.',
+      ],
+      characteristicsAndProperties: [
+        'Longest possible chord is the diameter (L = 2r, where distance d = 0).',
+        'Angle subtended by a diameter at any point on the circumference is always 90°.',
+        'Opposite angles of a cyclic quadrilateral sum to 180°.',
+      ],
+      typesAndClassifications: [
+        { name: 'Chord', description: 'Straight line segment joining two points on the circumference', example: 'Line AB inside the circle' },
+        { name: 'Diameter', description: 'Special chord passing directly through center O', example: 'Length = 2r' },
+        { name: 'Tangent', description: 'Line touching the circle at exactly one external point', example: 'Wheel touching flat road' },
+      ],
+      everydayExamples: [
+        'Designing arched bridges and curved tunnel clearances using chord-distance calculations.',
+        'Measuring circular pipe cross-sections when partially filled with water.',
+      ],
+      commonExamQuestions: [
+        { question: 'Find perpendicular distance from center O to a chord given radius and chord length', examStyle: 'WAEC / JAMB', keyIdea: 'Halve chord length first, then apply Pythagoras' },
+        { question: 'Calculate distance between two parallel chords on opposite vs same side of center', examStyle: 'JUPEB / WAEC', keyIdea: 'Add d1 + d2 for opposite sides; subtract |d1 - d2| for same side' },
       ],
       formulas: [
         {
+          id: 'chord_perp_dist',
           name: 'Chord Perpendicular Distance Formula',
           latex: '$$r^2 = d^2 + \\left(\\frac{L}{2}\\right)^2 \\iff d = \\sqrt{r^2 - \\left(\\frac{L}{2}\\right)^2}$$',
-          whenToUse: 'When given the radius r and chord length L, or when calculating the distance from the circle center to any chord.',
-          derivationSummary: 'Direct application of Pythagoras theorem on \\Delta OMB with hypotenuse OB = r, base MB = L/2, and altitude OM = d.',
+          whenToUse: 'Whenever given two of {radius r, chord length L, distance from center d} and asked for the third.',
+          conditions: 'Applies to flat Euclidean circles where M is the midpoint of chord AB and OM ⊥ AB.',
+          derivationSummary: 'Pythagoras theorem on right-angled triangle \\Delta OMB.',
           symbols: [
-            { symbol: '$r$', meaning: 'Radius of the circle', siUnit: 'm (or cm)' },
-            { symbol: '$d$', meaning: 'Perpendicular distance from center O to chord AB', siUnit: 'm (or cm)' },
-            { symbol: '$L$', meaning: 'Total length of the chord AB', siUnit: 'm (or cm)' },
+            { symbol: '$r$', meaning: 'Circle radius', siUnit: 'm (or cm)' },
+            { symbol: '$d$', meaning: 'Perpendicular distance from O to chord AB', siUnit: 'm (or cm)' },
+            { symbol: '$L$', meaning: 'Total chord length AB', siUnit: 'm (or cm)' },
           ],
-        },
-        {
-          name: 'Length of Chord from Subtended Angle',
-          latex: '$$L = 2r \\sin\\left(\\frac{\\theta}{2}\\right)$$',
-          whenToUse: 'When the angle subtended by the chord at the circle center \\theta is known.',
-          symbols: [
-            { symbol: '$L$', meaning: 'Chord length', siUnit: 'cm' },
-            { symbol: '$r$', meaning: 'Radius', siUnit: 'cm' },
-            { symbol: '$\\theta$', meaning: 'Angle subtended at center O', siUnit: 'degrees or radians' },
-          ],
-        },
-      ],
-      tables: [
-        {
-          title: 'Circle Theorem Summary for WAEC, JAMB & JUPEB',
-          headers: ['Theorem', 'Geometric Condition', 'Mathematical Relation'],
-          rows: [
-            ['Perpendicular to Chord', 'OM \\perp AB at midpoint M', 'AM = MB = \\frac{1}{2}AB'],
-            ['Angle at Center', 'Arc subtends \\angle AOB at center and \\angle APB at circumference', '\\angle AOB = 2\\angle APB'],
-            ['Angles in Same Segment', 'Two angles subtended by same chord', '\\angle APB = \\angle AQB'],
-            ['Angle in Semicircle', 'Diameter subtends angle at circumference', '\\angle APB = 90^\\circ'],
-            ['Tangent & Radius', 'Tangent at T meets radius OT', 'OT \\perp PT \\implies \\angle OTP = 90^\\circ'],
-          ],
+          workedExamplesByLevel: {
+            simple: {
+              title: 'Simple: Radius from Distance & Chord',
+              level: 'Simple',
+              problemStatement: 'A chord of length $12\\text{ cm}$ is $8\\text{ cm}$ from the center O. Find radius $r$.',
+              givenValues: [
+                { name: 'Chord length', symbol: 'L', value: '12', unit: 'cm' },
+                { name: 'Distance', symbol: 'd', value: '8', unit: 'cm' },
+              ],
+              formulaUsed: '$$r = \\sqrt{d^2 + (L/2)^2}$$',
+              substitution: '$$r = \\sqrt{8^2 + 6^2}$$',
+              steps: ['Half chord: $L/2 = 12/2 = 6\\text{ cm}$.', '$r = \\sqrt{64 + 36} = \\sqrt{100} = 10\\text{ cm}$.'],
+              finalAnswer: '\\boxed{10\\text{ cm}}',
+              unit: 'cm',
+              explanation: 'Forms a classic 6-8-10 Pythagorean triple.',
+            },
+            intermediate: {
+              title: 'Intermediate: Distance to Chord',
+              level: 'Intermediate',
+              problemStatement: 'A circle has radius $14\\text{ cm}$ and chord $AB = 20\\text{ cm}$. Find distance from O to AB.',
+              givenValues: [
+                { name: 'Radius', symbol: 'r', value: '14', unit: 'cm' },
+                { name: 'Chord', symbol: 'L', value: '20', unit: 'cm' },
+              ],
+              formulaUsed: '$$d = \\sqrt{r^2 - (L/2)^2}$$',
+              substitution: '$$d = \\sqrt{14^2 - 10^2}$$',
+              steps: ['Half chord: $20/2 = 10\\text{ cm}$.', '$d = \\sqrt{196 - 100} = \\sqrt{96} \\approx 9.80\\text{ cm}$.'],
+              finalAnswer: '\\boxed{9.80\\text{ cm}}',
+              unit: 'cm',
+              explanation: 'Remember to divide L by 2 before squaring.',
+            },
+            difficult: {
+              title: 'Difficult: Parallel Chords Distance',
+              level: 'Difficult',
+              problemStatement: 'In a circle of radius $10\\text{ cm}$, two parallel chords have lengths $12\\text{ cm}$ and $16\\text{ cm}$ on opposite sides of center O. Find the distance between them.',
+              givenValues: [{ name: 'Radius', symbol: 'r', value: '10', unit: 'cm' }],
+              formulaUsed: '$$D = d_1 + d_2$$',
+              substitution: '$$d_1 = \\sqrt{10^2 - 6^2},\\; d_2 = \\sqrt{10^2 - 8^2}$$',
+              steps: ['$d_1 = 8\\text{ cm}$, $d_2 = 6\\text{ cm}$.', 'Opposite sides add: $8 + 6 = 14\\text{ cm}$.'],
+              finalAnswer: '\\boxed{14\\text{ cm}}',
+              unit: 'cm',
+              explanation: 'Compute center-to-chord distances individually before adding.',
+            },
+          },
         },
       ],
       diagram: {
@@ -544,7 +543,7 @@ function getOfflineCuratedLesson(topic: string, subject: string, examLevel: stri
         type: 'circle_geometry',
         title: 'Circle Geometry: Radius, Chord & Perpendicular Distance',
         topic: 'Circle Geometry',
-        caption: 'Circle with center O, radius r = 14 cm, chord AB = 20 cm, and perpendicular altitude OM = 9.80 cm.',
+        caption: 'Circle with center O, radius r = 14 cm, chord AB = 20 cm, and perpendicular OM = 9.80 cm.',
         givenParameters: { radius: '14 cm', chord: '20 cm', distance: '9.80 cm' },
         data: {
           circle: {
@@ -565,213 +564,55 @@ function getOfflineCuratedLesson(topic: string, subject: string, examLevel: stri
       },
       workedExamples: [
         {
-          title: 'WAEC / JAMB Standard Question',
-          problemStatement:
-            'A circle has a radius of 14 cm and center O. A chord AB is 20 cm long. Calculate the perpendicular distance from the center O to the chord AB. Take \\pi = \\frac{22}{7} where necessary.',
+          title: 'WAEC / JAMB Chord Distance Example',
+          level: 'Intermediate',
+          problemStatement: 'A circle has radius $14\\text{ cm}$ and center O. A chord AB is $20\\text{ cm}$ long. Calculate the perpendicular distance from O to AB.',
           givenValues: [
-            { name: 'Radius of circle', symbol: 'r', value: '14', unit: 'cm' },
-            { name: 'Length of chord AB', symbol: 'L', value: '20', unit: 'cm' },
+            { name: 'Radius', symbol: 'r', value: '14', unit: 'cm' },
+            { name: 'Chord', symbol: 'L', value: '20', unit: 'cm' },
           ],
-          formulaUsed: '$$d = \\sqrt{r^2 - \\left(\\frac{L}{2}\\right)^2}$$',
-          substitution: '$$d = \\sqrt{14^2 - \\left(\\frac{20}{2}\\right)^2} = \\sqrt{196 - 100}$$',
-          steps: [
-            '1. State given quantities: radius $r = 14\\text{ cm}$, chord $AB = 20\\text{ cm}$.',
-            '2. The perpendicular from center O to chord AB bisects the chord at M. Therefore: $$MB = \\frac{AB}{2} = \\frac{20}{2} = 10\\text{ cm}$$',
-            '3. Triangle \\Delta OMB is a right-angled triangle with hypotenuse $OB = r = 14\\text{ cm}$, leg $MB = 10\\text{ cm}$, and perpendicular $OM = d$.',
-            '4. Apply Pythagoras theorem: $$OM^2 + MB^2 = OB^2 \\implies d^2 + 10^2 = 14^2$$',
-            '5. Solve for $d$: $$d^2 = 196 - 100 = 96$$',
-            '6. Extract square root: $$d = \\sqrt{96} = 4\\sqrt{6} \\approx 9.797959\\text{ cm} \\approx 9.80\\text{ cm}$$',
-          ],
-          finalAnswer: '\\boxed{d = 4\\sqrt{6}\\text{ cm} \\approx 9.80\\text{ cm}}',
+          formulaUsed: '$$d = \\sqrt{r^2 - (L/2)^2}$$',
+          substitution: '$$d = \\sqrt{14^2 - 10^2}$$',
+          steps: ['Half chord = $10\\text{ cm}$.', '$d = \\sqrt{196 - 100} = \\sqrt{96} = 4\\sqrt{6} \\approx 9.80\\text{ cm}$.'],
+          finalAnswer: '\\boxed{9.80\\text{ cm}}',
           unit: 'cm',
-          explanation:
-            'The perpendicular distance represents the shortest straight-line distance from the center to any point along the chord.',
+          explanation: 'Perpendicular from center always bisects the chord.',
         },
       ],
       importantNotes: [
-        'The perpendicular from the center of a circle to a chord ALWAYS bisects the chord into two equal halves.',
-        'Chords that are equidistant from the center are equal in length ($d_1 = d_2 \\iff L_1 = L_2$).',
-        'The longest chord in any circle is the diameter ($L_{\\max} = 2r$), which has a perpendicular distance of $d = 0$.',
+        'Always halve chord length first ($L/2$) before using Pythagoras.',
+        'Equal chords sit at equal perpendicular distances from the center.',
       ],
       commonPitfalls: [
-        'Forgetting to divide the chord length by 2 before squaring in the Pythagorean formula ($14^2 - 20^2$ gives a negative number).',
-        'Confusing the chord length with arc length ($L_{\\text{chord}} \\neq s = r\\theta$).',
+        'Using full chord length L instead of half-chord L/2.',
+        'Adding instead of subtracting distances when parallel chords lie on the SAME side of the center.',
       ],
       practiceQuestions: [
         {
-          id: 'pq1',
-          question:
-            'A chord of length 24 cm is at a distance of 5 cm from the center of a circle. What is the radius of the circle?',
-          difficulty: 'Medium',
-          hint: 'Use $r = \\sqrt{d^2 + (L/2)^2}$ where $d = 5\\text{ cm}$ and $L/2 = 12\\text{ cm}$.',
-          solution: [
-            'Half chord: $12\\text{ cm}$.',
-            'Pythagoras: $r^2 = 5^2 + 12^2 = 25 + 144 = 169$.',
-            'Radius: $r = \\sqrt{169} = 13\\text{ cm}$.',
-          ],
-          finalAnswer: '\\boxed{r = 13\\text{ cm}}',
-        },
-        {
-          id: 'pq2',
-          question:
-            'Two parallel chords in a circle of radius 10 cm have lengths 12 cm and 16 cm. If they lie on opposite sides of the center, calculate the distance between them.',
-          difficulty: 'Challenging (JUPEB/University)',
-          hint: 'Calculate the perpendicular distance from the center to each chord separately, then add the distances.',
-          solution: [
-            'For chord 1 (12 cm): $d_1 = \\sqrt{10^2 - 6^2} = \\sqrt{64} = 8\\text{ cm}$.',
-            'For chord 2 (16 cm): $d_2 = \\sqrt{10^2 - 8^2} = \\sqrt{36} = 6\\text{ cm}$.',
-            'Since chords lie on opposite sides of center: Distance $= d_1 + d_2 = 8 + 6 = 14\\text{ cm}$.',
-          ],
-          finalAnswer: '\\boxed{14\\text{ cm}}',
+          id: 'pq_offline_1',
+          question: 'A chord of length 24 cm is 5 cm from the center of a circle. Calculate the radius.',
+          difficulty: 'Intermediate',
+          formulaUsed: '$$r = \\sqrt{d^2 + (L/2)^2}$$',
+          whyThisFormula: 'Radius is the hypotenuse formed by distance d and half-chord L/2.',
+          hint: 'Half of 24 cm is 12 cm.',
+          solution: ['$r = \\sqrt{5^2 + 12^2} = \\sqrt{25 + 144} = \\sqrt{169} = 13\\text{ cm}$'],
+          finalAnswer: '\\boxed{13\\text{ cm}}',
+          expectedNumericValue: 13,
+          unit: 'cm',
         },
       ],
+      topicNavigation: {
+        prerequisites: ['Pythagoras Theorem', 'Properties of Triangles'],
+        relatedTopics: ['Circle Theorems: Cyclic Quadrilaterals', 'Tangent-Secant Theorem'],
+        advancedTopics: ['Coordinate Geometry of Circles', 'Arc Length & Sector Area'],
+        keyFormulasToMaster: ['Chord Perpendicular Distance Formula'],
+        recommendedNextStep: 'Practice parallel chord problems on both the same side and opposite sides of center O.',
+      },
       suggestedFollowUps: [
-        'How do I solve when two parallel chords are on the SAME side of the center?',
-        'Can you explain the Alternate Segment Theorem with an example?',
-        'Show how to calculate the area of the minor segment formed by this chord.',
+        'How do I solve when two chords are on the same side of the center?',
+        'Explain the Alternate Segment Theorem with a worked example.',
       ],
     };
-    return lesson;
-  }
-
-  // 2. Projectile Motion at an Angle
-  if (lower.includes('projectile') || lower.includes('trajectory')) {
-    const lesson: LearnTopicLesson = {
-      topic: 'Projectile Motion at an Angle',
-      subject: 'Physics',
-      targetExamLevel: examLevel,
-      summary: 'Two-dimensional kinematic motion under constant gravitational acceleration neglecting air resistance.',
-      introduction:
-        'Projectile motion is the 2D curved path (parabola) traced by an object launched into the air under the sole influence of gravity. The horizontal motion proceeds at constant velocity, while the vertical motion experiences constant downward acceleration $g = 9.8\\text{ m/s}^2$.',
-      realWorldAnalogy:
-        'Think of tossing a basketball to a teammate. While the ball travels steadily forward across the floor, gravity pulls it upward to a stop and drops it back down. The two movements happen at the same time completely independent of each other.',
-      detailedExplanation: [
-        'Principle of Independence of Orthogonal Motions: Galileo discovered that the horizontal motion and vertical motion of a projectile do not affect each other. They share only one variable: elapsed time $t$.',
-        'Horizontal Component: Since there is no horizontal acceleration ($a_x = 0$), the horizontal velocity remains constant throughout: $$u_x = u\\cos\\theta$$',
-        'Vertical Component: Gravity exerts downward acceleration ($a_y = -g$). The vertical velocity decreases to zero at the peak and reverses: $$u_y = u\\sin\\theta - gt$$',
-      ],
-      formulas: [
-        {
-          name: 'Time of Flight (T)',
-          latex: '$$T = \\frac{2u\\sin\\theta}{g}$$',
-          whenToUse: 'When finding total elapsed time from launch to landing on level ground.',
-          symbols: [
-            { symbol: '$T$', meaning: 'Total time of flight', siUnit: 's' },
-            { symbol: '$u$', meaning: 'Initial launch speed', siUnit: 'm/s' },
-            { symbol: '$\\theta$', meaning: 'Launch angle with horizontal', siUnit: 'degrees' },
-            { symbol: '$g$', meaning: 'Acceleration due to gravity ($9.8\\text{ m/s}^2$)', siUnit: 'm/s²' },
-          ],
-        },
-        {
-          name: 'Maximum Height ($H_{\\max}$)',
-          latex: '$$H_{\\max} = \\frac{u^2 \\sin^2\\theta}{2g}$$',
-          whenToUse: 'When determining the highest vertical point reached by the projectile.',
-          symbols: [
-            { symbol: '$H_{\\max}$', meaning: 'Maximum vertical altitude', siUnit: 'm' },
-            { symbol: '$u$', meaning: 'Launch velocity', siUnit: 'm/s' },
-            { symbol: '$\\theta$', meaning: 'Launch angle', siUnit: 'degrees' },
-          ],
-        },
-        {
-          name: 'Horizontal Range (R)',
-          latex: '$$R = \\frac{u^2 \\sin 2\\theta}{g}$$',
-          whenToUse: 'When determining total horizontal ground distance covered on level terrain.',
-          symbols: [
-            { symbol: '$R$', meaning: 'Horizontal range', siUnit: 'm' },
-            { symbol: '$\\theta$', meaning: 'Launch angle (Maximum range occurs at $\\theta = 45^\\circ$)', siUnit: 'degrees' },
-          ],
-        },
-      ],
-      tables: [
-        {
-          title: 'Kinematics Breakdown: Horizontal vs Vertical',
-          headers: ['Parameter', 'Horizontal Axis (X)', 'Vertical Axis (Y)'],
-          rows: [
-            ['Acceleration', '$a_x = 0$', '$a_y = -g = -9.8\\text{ m/s}^2$'],
-            ['Initial Velocity', '$u_x = u\\cos\\theta$', '$u_y = u\\sin\\theta$'],
-            ['Velocity at time t', '$v_x = u\\cos\\theta$ (constant)', '$v_y = u\\sin\\theta - gt$'],
-            ['Displacement', '$x = (u\\cos\\theta)t$', '$y = (u\\sin\\theta)t - \\frac{1}{2}gt^2$'],
-            ['Peak Condition', 'Velocity still equals $u\\cos\\theta$', '$v_y = 0$ at peak'],
-          ],
-        },
-      ],
-      graphs: [
-        {
-          id: 'proj_graph_1',
-          title: 'Projectile Trajectory (Y vs X)',
-          category: 'physics',
-          graphType: 'projectile_motion',
-          xAxis: { label: 'Horizontal Distance x', unit: 'm', min: 0, max: 80, step: 10 },
-          yAxis: { label: 'Vertical Height y', unit: 'm', min: 0, max: 25, step: 5 },
-          curves: [
-            {
-              id: 'parabola',
-              label: 'Trajectory y(x)',
-              color: '#10B981',
-              type: 'function',
-              fnExpression: 'x * Math.tan(45 * Math.PI / 180) - (9.8 * x * x) / (2 * 28 * 28 * Math.cos(45 * Math.PI / 180) ** 2)',
-            },
-          ],
-          keyPoints: [
-            { x: 0, y: 0, label: 'Launch (0,0)', type: 'intercept' },
-            { x: 40, y: 20, label: 'Apex H_max', type: 'max' },
-            { x: 80, y: 0, label: 'Landing R_max', type: 'root' },
-          ],
-        },
-      ],
-      workedExamples: [
-        {
-          title: 'WAEC / JAMB Projectile Calculation',
-          problemStatement:
-            'A ball is kicked from ground level with an initial velocity of $20\\text{ m/s}$ at an angle of $30^\\circ$ to the horizontal. Taking $g = 10\\text{ m/s}^2$, calculate: (a) Time of flight, (b) Maximum height reached, (c) Horizontal range.',
-          givenValues: [
-            { name: 'Initial speed', symbol: 'u', value: '20', unit: 'm/s' },
-            { name: 'Launch angle', symbol: '\\theta', value: '30', unit: 'degrees' },
-            { name: 'Gravity', symbol: 'g', value: '10', unit: 'm/s²' },
-          ],
-          formulaUsed: '$$T = \\frac{2u\\sin\\theta}{g}, \\quad H = \\frac{u^2\\sin^2\\theta}{2g}, \\quad R = \\frac{u^2\\sin 2\\theta}{g}$$',
-          substitution: '$$T = \\frac{2(20)\\sin 30^\\circ}{10}, \\quad H = \\frac{20^2 (0.5)^2}{2(10)}, \\quad R = \\frac{20^2 \\sin 60^\\circ}{10}$$',
-          steps: [
-            '1. Evaluate trigonometric ratios: $\\sin 30^\\circ = 0.5$, $\\sin 60^\\circ = \\frac{\\sqrt{3}}{2} \\approx 0.866$.',
-            '2. Time of flight: $$T = \\frac{40 \\times 0.5}{10} = \\frac{20}{10} = 2.0\\text{ s}$$',
-            '3. Maximum height: $$H_{\\max} = \\frac{400 \\times 0.25}{20} = \\frac{100}{20} = 5.0\\text{ m}$$',
-            '4. Range: $$R = \\frac{400 \\times 0.866}{10} = 40 \\times 0.866 = 34.64\\text{ m}$$',
-          ],
-          finalAnswer: '\\boxed{T = 2.0\\text{ s}, \\quad H_{\\max} = 5.0\\text{ m}, \\quad R = 34.6\\text{ m}}',
-          unit: 's, m, m',
-          explanation: 'At the highest point, the vertical velocity is zero, but the horizontal velocity remains $20\\cos 30^\\circ = 17.32\\text{ m/s}$.',
-        },
-      ],
-      importantNotes: [
-        'Maximum range on level ground occurs at $\\theta = 45^\\circ$ because $\\sin(2 \\times 45^\\circ) = \\sin 90^\\circ = 1$.',
-        'Complementary launch angles (e.g., $30^\\circ$ and $60^\\circ$, or $15^\\circ$ and $75^\\circ$) achieve the exact same horizontal range for the same launch speed.',
-        'At the apex of flight, the total velocity is NOT zero; it equals the horizontal velocity $u_x = u\\cos\\theta$.',
-      ],
-      commonPitfalls: [
-        'Confusing $\\sin^2\\theta$ ($(\\sin\\theta)^2$) with $\\sin 2\\theta$ in the height and range equations.',
-        'Setting velocity to zero at the highest point and forgetting that horizontal velocity $u\\cos\\theta$ never vanishes.',
-      ],
-      practiceQuestions: [
-        {
-          id: 'pq_proj1',
-          question:
-            'A bullet is fired horizontally from a cliff 80 m high with a velocity of 120 m/s. How long does it take to strike the ground? ($g = 10\\text{ m/s}^2$)',
-          difficulty: 'Medium',
-          hint: 'Since initial vertical velocity $u_y = 0$, use $h = \\frac{1}{2}gt^2$.',
-          solution: [
-            '$80 = \\frac{1}{2}(10)t^2 = 5t^2$',
-            '$t^2 = 16 \\implies t = 4\\text{ s}$',
-          ],
-          finalAnswer: '\\boxed{t = 4.0\\text{ s}}',
-        },
-      ],
-      suggestedFollowUps: [
-        'How do I calculate projectile motion on an inclined plane?',
-        'What happens when launch and landing heights are different?',
-        'Can you show the derivation of the trajectory parabola equation $y(x)$?',
-      ],
-    };
-    return lesson;
   }
 
   return null;

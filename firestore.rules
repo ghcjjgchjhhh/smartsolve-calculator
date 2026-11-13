@@ -1,0 +1,262 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default Deny Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 2 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function roomPath(roomId) {
+      return /databases/$(database)/documents/study_rooms/$(roomId);
+    }
+
+    function memberPath(roomId, uid) {
+      return /databases/$(database)/documents/study_rooms/$(roomId)/members/$(uid);
+    }
+
+    function isRoomOwner(roomId) {
+      return exists(roomPath(roomId)) && get(roomPath(roomId)).data.ownerId == request.auth.uid;
+    }
+
+    function isRoomMember(roomId) {
+      return exists(memberPath(roomId, request.auth.uid));
+    }
+
+    function isRoomMod(roomId) {
+      return isRoomOwner(roomId) || (
+        isRoomMember(roomId) && get(memberPath(roomId, request.auth.uid)).data.role in ['owner', 'moderator']
+      );
+    }
+
+    function isMemberUnmuted(roomId) {
+      return isRoomOwner(roomId) || (
+        isRoomMember(roomId) && get(memberPath(roomId, request.auth.uid)).data.muted == false
+      );
+    }
+
+    // 3. Entity Schema Validation Helpers
+    function isValidStudyRoom(data, roomId) {
+      return data.keys().hasAll([
+          'id', 'title', 'subject', 'visibility', 'ownerId', 'ownerName',
+          'roomCode', 'whiteboardLocked', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'title', 'subject', 'description', 'visibility', 'ownerId', 'ownerName',
+          'roomCode', 'whiteboardLocked', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.id == roomId
+        && data.title is string && data.title.size() >= 2 && data.title.size() <= 120
+        && data.subject is string && data.subject.size() >= 2 && data.subject.size() <= 60
+        && (!('description' in data) || (data.description is string && data.description.size() <= 400))
+        && data.visibility in ['public', 'private']
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128
+        && data.ownerName is string && data.ownerName.size() >= 1 && data.ownerName.size() <= 100
+        && data.roomCode is string && data.roomCode.size() >= 4 && data.roomCode.size() <= 20 && data.roomCode.matches('^[A-Z0-9]+$')
+        && data.whiteboardLocked is bool
+        && data.status in ['active', 'closed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidRoomInvite(data) {
+      return data.keys().hasAll(['roomId', 'ownerId', 'visibility', 'title', 'subject', 'createdAt'])
+        && data.keys().hasOnly(['roomId', 'ownerId', 'visibility', 'title', 'subject', 'createdAt'])
+        && isValidId(data.roomId)
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128
+        && data.visibility in ['public', 'private']
+        && data.title is string && data.title.size() >= 2 && data.title.size() <= 120
+        && data.subject is string && data.subject.size() >= 2 && data.subject.size() <= 60
+        && data.createdAt is timestamp;
+    }
+
+    function isValidRoomMember(data, memberId) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'muted', 'joinedAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'role', 'muted', 'inviteCode', 'joinedAt', 'updatedAt'])
+        && data.uid == memberId
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.role in ['owner', 'moderator', 'member']
+        && data.muted is bool
+        && (!('inviteCode' in data) || (data.inviteCode is string && data.inviteCode.size() <= 20))
+        && data.joinedAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidRoomMessage(data, roomId, msgId) {
+      return data.keys().hasAll(['id', 'roomId', 'authorId', 'authorName', 'type', 'content', 'createdAt'])
+        && data.keys().hasOnly(['id', 'roomId', 'authorId', 'authorName', 'type', 'content', 'latex', 'createdAt'])
+        && data.id == msgId
+        && data.roomId == roomId
+        && data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 100
+        && data.type in ['chat', 'question', 'solution']
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 2000
+        && (!('latex' in data) || (data.latex is string && data.latex.size() <= 1000))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidWhiteboardStroke(data, roomId, strokeId) {
+      return data.keys().hasAll(['id', 'roomId', 'authorId', 'authorName', 'tool', 'color', 'width', 'points', 'createdAt'])
+        && data.keys().hasOnly(['id', 'roomId', 'authorId', 'authorName', 'tool', 'color', 'width', 'points', 'text', 'createdAt'])
+        && data.id == strokeId
+        && data.roomId == roomId
+        && data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 100
+        && data.tool in ['pen', 'eraser', 'line', 'rect', 'circle', 'text']
+        && data.color is string && data.color.size() >= 3 && data.color.size() <= 24
+        && data.width is number && data.width >= 1 && data.width <= 32
+        && data.points is list && data.points.size() >= 2 && data.points.size() <= 400
+        && data.points[0] is number && data.points[1] is number
+        && (!('text' in data) || (data.text is string && data.text.size() <= 300))
+        && data.createdAt is timestamp;
+    }
+
+    // 4. Collection Rules
+    match /room_invites/{inviteCode} {
+      allow get: if isSignedIn() && inviteCode is string && inviteCode.size() >= 4 && inviteCode.size() <= 20 && inviteCode.matches('^[A-Z0-9]+$');
+      allow list: if false;
+      allow create: if isSignedIn()
+        && inviteCode is string && inviteCode.size() >= 4 && inviteCode.size() <= 20 && inviteCode.matches('^[A-Z0-9]+$')
+        && isValidRoomInvite(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && existsAfter(roomPath(incoming().roomId))
+        && getAfter(roomPath(incoming().roomId)).data.ownerId == request.auth.uid
+        && getAfter(roomPath(incoming().roomId)).data.roomCode == inviteCode;
+      allow update: if false;
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    match /study_rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId) && (
+        existing().visibility == 'public' || existing().ownerId == request.auth.uid || isRoomMember(roomId)
+      );
+      allow list: if isSignedIn() && (
+        resource.data.visibility == 'public' || resource.data.ownerId == request.auth.uid
+      );
+      allow create: if isSignedIn()
+        && isValidId(roomId)
+        && isValidStudyRoom(incoming(), roomId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().status == 'active'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(roomId)
+        && isValidStudyRoom(incoming(), roomId)
+        && existing().status != 'closed'
+        && incoming().ownerId == existing().ownerId
+        && incoming().id == existing().id
+        && incoming().roomCode == existing().roomCode
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'subject', 'description', 'visibility', 'whiteboardLocked', 'status', 'updatedAt'])) ||
+          (isRoomMod(roomId) && incoming().diff(existing()).affectedKeys().hasOnly(['whiteboardLocked', 'updatedAt']))
+        );
+      allow delete: if isSignedIn() && isValidId(roomId) && existing().ownerId == request.auth.uid;
+
+      match /members/{memberId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(memberId) && (
+          isRoomOwner(roomId) || isRoomMember(roomId) || roomDocVisibleOrOwner(roomId)
+        );
+        allow list: if isSignedIn() && (isRoomOwner(roomId) || isRoomMember(roomId));
+        allow create: if isSignedIn()
+          && isValidId(roomId)
+          && isValidId(memberId)
+          && isValidRoomMember(incoming(), memberId)
+          && memberId == request.auth.uid
+          && incoming().muted == false
+          && incoming().joinedAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(roomPath(roomId))
+          && get(roomPath(roomId)).data.status == 'active'
+          && (
+            (get(roomPath(roomId)).data.ownerId == request.auth.uid && incoming().role == 'owner') ||
+            (incoming().role == 'member' && (
+              get(roomPath(roomId)).data.visibility == 'public' ||
+              ('inviteCode' in incoming() && incoming().inviteCode == get(roomPath(roomId)).data.roomCode)
+            ))
+          );
+        allow update: if isSignedIn()
+          && isValidId(roomId)
+          && isValidId(memberId)
+          && isValidRoomMember(incoming(), memberId)
+          && existing().uid == incoming().uid
+          && existing().joinedAt == incoming().joinedAt
+          && incoming().updatedAt == request.time
+          && get(roomPath(roomId)).data.status == 'active'
+          && (
+            (isRoomOwner(roomId) && incoming().role != 'owner' && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'muted', 'updatedAt'])) ||
+            (isRoomMod(roomId) && existing().role == 'member' && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['muted', 'updatedAt'])) ||
+            (memberId == request.auth.uid && incoming().role == existing().role && incoming().muted == existing().muted && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']))
+          );
+        allow delete: if isSignedIn() && isValidId(roomId) && isValidId(memberId) && (
+          memberId == request.auth.uid || (isRoomMod(roomId) && existing().role != 'owner')
+        );
+      }
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(messageId) && (isRoomOwner(roomId) || isRoomMember(roomId));
+        allow list: if isSignedIn() && (isRoomOwner(roomId) || isRoomMember(roomId));
+        allow create: if isSignedIn()
+          && isValidId(roomId)
+          && isValidId(messageId)
+          && isValidRoomMessage(incoming(), roomId, messageId)
+          && incoming().authorId == request.auth.uid
+          && incoming().createdAt == request.time
+          && exists(roomPath(roomId))
+          && get(roomPath(roomId)).data.status == 'active'
+          && (isRoomOwner(roomId) || isRoomMember(roomId))
+          && isMemberUnmuted(roomId);
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(roomId) && isValidId(messageId) && (
+          existing().authorId == request.auth.uid || isRoomMod(roomId)
+        );
+      }
+
+      match /strokes/{strokeId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(strokeId) && (isRoomOwner(roomId) || isRoomMember(roomId));
+        allow list: if isSignedIn() && (isRoomOwner(roomId) || isRoomMember(roomId));
+        allow create: if isSignedIn()
+          && isValidId(roomId)
+          && isValidId(strokeId)
+          && isValidWhiteboardStroke(incoming(), roomId, strokeId)
+          && incoming().authorId == request.auth.uid
+          && incoming().createdAt == request.time
+          && exists(roomPath(roomId))
+          && get(roomPath(roomId)).data.status == 'active'
+          && (isRoomOwner(roomId) || isRoomMember(roomId))
+          && isMemberUnmuted(roomId)
+          && (!get(roomPath(roomId)).data.whiteboardLocked || isRoomMod(roomId));
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(roomId) && isValidId(strokeId) && (
+          existing().authorId == request.auth.uid || isRoomMod(roomId)
+        );
+      }
+    }
+
+    function roomDocVisibleOrOwner(roomId) {
+      return exists(roomPath(roomId)) && (
+        get(roomPath(roomId)).data.visibility == 'public' ||
+        get(roomPath(roomId)).data.ownerId == request.auth.uid
+      );
+    }
+  }
+}

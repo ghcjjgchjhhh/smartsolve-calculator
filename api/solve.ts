@@ -1,7 +1,12 @@
 import { GoogleGenAI } from '@google/genai';
 import learnHandler from './learn';
 
-async function generateWithModelFallback(ai: GoogleGenAI, contents: any[], timeoutMs: number = 20000) {
+async function generateWithModelFallback(
+  ai: GoogleGenAI,
+  contents: any[],
+  timeoutMs: number = 22000,
+  requireValidJson: boolean = false
+) {
   // Candidate models: prioritize gemini-3.1-flash-lite for instant speed, fallback to gemini-3.8-flash
   const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
   let lastError: any = null;
@@ -28,13 +33,21 @@ async function generateWithModelFallback(ai: GoogleGenAI, contents: any[], timeo
         setTimeout(() => reject(new Error(`Timeout: Model ${model} took longer than ${Math.round(timeoutMs / 1000)} seconds`)), timeoutMs)
       );
 
-      const response = await Promise.race([generatePromise, timeoutPromise]) as any;
+      const response = (await Promise.race([generatePromise, timeoutPromise])) as any;
+      if (requireValidJson) {
+        const resultText = response.text?.trim() || '{}';
+        let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+        const match = cleanJson.match(/\{[\s\S]*\}/);
+        if (match) cleanJson = match[0];
+        JSON.parse(cleanJson);
+      }
       return response;
     } catch (err: any) {
       lastError = err;
       const msg = err?.message || String(err);
       if (i < candidateModels.length - 1) {
         console.warn(`[SmartSolve AI] Model ${model} failed (${msg.slice(0, 90)}). Retrying with ${candidateModels[i + 1]}...`);
+        await new Promise((r) => setTimeout(r, 650));
         continue;
       }
     }
@@ -95,7 +108,14 @@ export default async function handler(req: any, res: any) {
       );
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
 
     // 0. LEARN ANY TOPIC DELEGATION (extra resilience if /api/learn isn't matched)
     if (body.action === 'learn_topic' || body.action === 'learn_follow_up') {
@@ -309,7 +329,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
     contents.push({ text: promptText });
 
-    const response = await generateWithModelFallback(ai, contents);
+    const response = await generateWithModelFallback(ai, contents, 22000, true);
 
     const resultText = response.text?.trim() || '{}';
     let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
