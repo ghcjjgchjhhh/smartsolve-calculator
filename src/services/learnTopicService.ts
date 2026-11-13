@@ -1,5 +1,7 @@
+import { GoogleGenAI } from '@google/genai';
 import { LearnTopicLesson } from '../types';
 import { detectAndGenerateDiagram } from './aiDiagramDetector';
+import { detectAndEnhanceGraphs } from './aiGraphDetector';
 
 const STORAGE_KEY = 'smartsolve_recent_lessons';
 
@@ -9,6 +11,265 @@ export interface LearnTopicParams {
   examLevel?: string;
   language?: string;
   userApiKey?: string;
+}
+
+export function resolveClientGeminiKey(explicitKey?: string): string {
+  if (explicitKey && explicitKey.trim().length > 15) return explicitKey.trim();
+  try {
+    if (typeof window !== 'undefined') {
+      const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+      if (envKey && envKey !== 'MY_GEMINI_API_KEY' && envKey.length > 15) return envKey;
+      const stored =
+        localStorage.getItem('gemini_user_api_key') ||
+        localStorage.getItem('gemini_api_key') ||
+        '';
+      if (stored && stored.trim().length > 15) return stored.trim();
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return '';
+}
+
+function enrichLessonVisuals(lesson: LearnTopicLesson, originalTopic: string): LearnTopicLesson {
+  const enriched = { ...lesson };
+  try {
+    const mockSolution: any = {
+      title: enriched.topic,
+      category: enriched.subject,
+      problemStatement: `${enriched.topic}. ${enriched.introduction || ''}`,
+      formula: enriched.formulas?.[0]?.latex || '',
+      steps: [
+        ...(enriched.detailedExplanation || []),
+        ...(enriched.workedExamples?.flatMap((e) => [e.problemStatement, ...(e.steps || [])]) || []),
+      ],
+      graphs: enriched.graphs || [],
+      diagram: enriched.diagram,
+    };
+
+    if (!enriched.diagram) {
+      const diag = detectAndGenerateDiagram(mockSolution, originalTopic);
+      if (diag) {
+        enriched.diagram = diag;
+      }
+    }
+
+    if (!enriched.graphs || enriched.graphs.length === 0) {
+      const enhancedGraphs = detectAndEnhanceGraphs(mockSolution, originalTopic);
+      if (enhancedGraphs && enhancedGraphs.length > 0 && !enriched.diagram) {
+        enriched.graphs = enhancedGraphs;
+      }
+    }
+  } catch {
+    // ignore enrichment issues
+  }
+  return enriched;
+}
+
+function buildLearnPrompt(topic: string, subject: string, examLevel: string, language: string): string {
+  return `
+You are SmartSolve AI, an acclaimed professor and master academic tutor specializing in teaching Mathematics, Physics, Chemistry, Biology, Further Mathematics, and Economics for WAEC, JAMB, JUPEB, and University undergraduate students.
+
+The student wants to learn:
+Topic / Concept / Formula / Question: "${topic}"
+Academic Subject: "${subject}"
+Target Academic Level: "${examLevel}"
+Preferred Language: "${language}"
+
+CRITICAL TUTOR TEACHING GUIDELINES:
+1. NEVER invent non-existent formulas or provide hand-wavy or incomplete explanations. Provide comprehensive, textbook-rigorous academic depth.
+2. Format ALL formulas, math expressions, equations, and powers using clean standard LaTeX notation ($...$ and $$...$$). NEVER leave unformatted raw ascii equations.
+3. In LaTeX, NEVER use raw '%' (always escape as '\\%'). Ensure matching braces (\\left( matched with \\right), \\{ ... \\}).
+4. MEANINGS OF ALL SYMBOLS & SI UNITS: For every formula introduced, explicitly detail every variable symbol, what physical/mathematical quantity it represents, and its standard SI unit (e.g. $m$: mass in kilograms [\\text{kg}], $v$: final velocity in meters per second [\\text{m/s}]).
+5. WHEN TO USE EACH FORMULA: Clearly explain the exact physical conditions, assumptions, or problem types where each formula applies (and when NOT to use it).
+6. STEP-BY-STEP WORKED EXAMPLES: Provide 2 to 3 fully worked, high-yield examination examples showing:
+   - Problem statement
+   - Given values with symbols and units
+   - Governing formula
+   - Direct numerical substitution
+   - Step-by-step arithmetic/algebraic calculations
+   - Boxed final answer with correct SI unit (\\boxed{...})
+   - Conceptual explanation of the physical/mathematical principle
+7. IMPORTANT NOTES & COMMON PITFALLS:
+   - Provide crucial exam tips, boundary conditions, and sign conventions.
+   - List frequent student misconceptions and trap answers.
+8. PRACTICE QUESTIONS: Provide 2 to 3 challenging exam-style practice questions with hints, detailed solutions, and final answers suitable for WAEC, JAMB, JUPEB, and University levels.
+9. RESPOND ONLY WITH A VALID JSON OBJECT matching this exact structure:
+{
+  "topic": "Clean descriptive topic title",
+  "subject": "${subject}",
+  "targetExamLevel": "${examLevel}",
+  "summary": "1-2 sentence high-yield summary of the concept",
+  "introduction": "Engaging, thorough pedagogical introduction explaining what this concept is and why it matters",
+  "realWorldAnalogy": "A brilliant, intuitive real-world analogy that makes the concept instantly click in the student's mind",
+  "detailedExplanation": [
+    "Comprehensive academic explanation paragraph 1 with fundamental principles...",
+    "Detailed theoretical breakdown paragraph 2 with derivations or scientific mechanisms...",
+    "Key laws, theorems, or governing principles paragraph 3..."
+  ],
+  "formulas": [
+    {
+      "name": "Name of the formula/law",
+      "latex": "LaTeX formula (e.g. $$v^2 = u^2 + 2as$$)",
+      "whenToUse": "Exact conditions and problem contexts when to apply this equation",
+      "derivationSummary": "Brief mathematical origin or derivation rationale",
+      "symbols": [
+        { "symbol": "$v$", "meaning": "Final velocity", "siUnit": "m/s" },
+        { "symbol": "$u$", "meaning": "Initial velocity", "siUnit": "m/s" }
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "title": "Key Comparisons / Values",
+      "headers": ["Parameter / Type", "Description / Formula", "SI Unit / Standard Value"],
+      "rows": [
+        ["Parameter A", "Description", "Unit"],
+        ["Parameter B", "Description", "Unit"]
+      ]
+    }
+  ],
+  "workedExamples": [
+    {
+      "title": "Worked Example 1 (Standard Exam Level)",
+      "problemStatement": "A full question statement in LaTeX...",
+      "givenValues": [
+        { "name": "Initial velocity", "symbol": "u", "value": "0", "unit": "m/s" }
+      ],
+      "formulaUsed": "$$v = u + at$$",
+      "substitution": "$$v = 0 + (9.8)(4)$$",
+      "steps": [
+        "1. Identify given values: ...",
+        "2. State governing formula: ...",
+        "3. Substitute numerical values: ...",
+        "4. Calculate intermediate step: ...",
+        "5. State final answer with units: ..."
+      ],
+      "finalAnswer": "\\boxed{39.2\\text{ m/s}}",
+      "unit": "m/s",
+      "explanation": "Why this formula was appropriate and physical meaning of the result"
+    }
+  ],
+  "importantNotes": [
+    "High-yield exam tip or boundary condition 1",
+    "High-yield exam tip 2"
+  ],
+  "commonPitfalls": [
+    "Frequent student error or trap 1",
+    "Sign convention mistake or unit trap 2"
+  ],
+  "practiceQuestions": [
+    {
+      "id": "pq1",
+      "question": "Challenging practice question statement...",
+      "difficulty": "Medium",
+      "hint": "Useful conceptual hint to get started",
+      "solution": [
+        "Step 1: ...",
+        "Step 2: ...",
+        "Step 3: ..."
+      ],
+      "finalAnswer": "\\boxed{...}"
+    }
+  ],
+  "suggestedFollowUps": [
+    "Can you derive the primary formula from first principles?",
+    "How does this apply to University 100-level exam questions?",
+    "Show me another challenging example with friction or resistance",
+    "Explain the graph of this concept in detail"
+  ]
+}
+`.trim();
+}
+
+async function learnDirectWithGemini(
+  apiKey: string,
+  topic: string,
+  subject: string,
+  examLevel: string,
+  language: string
+): Promise<LearnTopicLesson> {
+  const ai = new GoogleGenAI({ apiKey });
+  const promptText = buildLearnPrompt(topic, subject, examLevel, language);
+  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  let lastError: any = null;
+
+  for (let i = 0; i < candidateModels.length; i++) {
+    const model = candidateModels[i];
+    try {
+      const config: any = { responseMimeType: 'application/json' };
+      if (model === 'gemini-3.8-flash') {
+        config.thinkingConfig = { thinkingLevel: 'LOW' };
+      } else if (model === 'gemini-3.1-flash-lite') {
+        config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+      }
+      const response = await ai.models.generateContent({
+        model,
+        contents: [{ text: promptText }],
+        config,
+      });
+      const resultText = response.text?.trim() || '{}';
+      let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      const match = cleanJson.match(/\{[\s\S]*\}/);
+      if (match) cleanJson = match[0];
+      const parsed = JSON.parse(cleanJson);
+      parsed.timestamp = Date.now();
+      return parsed;
+    } catch (err: any) {
+      lastError = err;
+      if (i < candidateModels.length - 1) continue;
+    }
+  }
+  throw lastError;
+}
+
+async function followUpDirectWithGemini(
+  apiKey: string,
+  topic: string,
+  question: string,
+  lessonSummary: string
+): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey });
+  const promptText = `
+You are SmartSolve AI, an acclaimed professor and master academic tutor.
+You are in an interactive 1-on-1 tutoring session with a student studying "${topic || 'Academic STEM'}".
+Lesson Context:
+${lessonSummary ? lessonSummary.slice(0, 1500) : ''}
+
+Student's Follow-up Question:
+"${question}"
+
+Provide a crystal-clear, pedagogical response:
+1. Directly answer the student's question with academic precision and warmth.
+2. Format all mathematical expressions, derivations, chemical equations, and formulas in standard LaTeX ($...$ and $$...$$).
+3. If giving an extra example, show given values, formula, numerical steps, and boxed final answer (\\boxed{...}).
+4. Keep the explanation rigorous yet easy to understand for WAEC, JAMB, JUPEB, and University undergraduate students.
+5. Provide a quick follow-up challenge or thought-provoking check at the end.
+`.trim();
+
+  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  let lastError: any = null;
+  for (let i = 0; i < candidateModels.length; i++) {
+    const model = candidateModels[i];
+    try {
+      const config: any = {};
+      if (model === 'gemini-3.8-flash') {
+        config.thinkingConfig = { thinkingLevel: 'LOW' };
+      } else if (model === 'gemini-3.1-flash-lite') {
+        config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+      }
+      const response = await ai.models.generateContent({
+        model,
+        contents: [{ text: promptText }],
+        config,
+      });
+      return response.text?.trim() || 'Tutor response unavailable.';
+    } catch (err: any) {
+      lastError = err;
+      if (i < candidateModels.length - 1) continue;
+    }
+  }
+  throw lastError;
 }
 
 /**
@@ -40,12 +301,25 @@ export function getSavedLessons(): LearnTopicLesson[] {
  */
 export async function fetchTopicLesson(params: LearnTopicParams): Promise<LearnTopicLesson> {
   const { topic, subject = 'General STEM', examLevel = 'JUPEB, JAMB, WAEC & University', language = 'English', userApiKey } = params;
+  const resolvedKey = resolveClientGeminiKey(userApiKey);
+
+  // 1. Direct browser execution if client API key is configured
+  if (resolvedKey) {
+    try {
+      const directLesson = await learnDirectWithGemini(resolvedKey, topic, subject, examLevel, language);
+      const enriched = enrichLessonVisuals(directLesson, topic);
+      saveLessonToHistory(enriched);
+      return enriched;
+    } catch (directErr) {
+      console.warn('Direct browser Learn Any Topic failed, falling back to server API:', directErr);
+    }
+  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (userApiKey) {
-    headers['x-gemini-key'] = userApiKey;
+  if (resolvedKey) {
+    headers['x-gemini-key'] = resolvedKey;
   }
 
   let response: Response;
@@ -73,31 +347,48 @@ export async function fetchTopicLesson(params: LearnTopicParams): Promise<LearnT
         }),
       });
     }
-  } catch (netErr: any) {
-    // If network fails (e.g., offline mode), check curated offline database
+
+    if (response.status === 404) {
+      response = await fetch('/api/solve', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'learn_topic',
+          topic,
+          subject,
+          examLevel,
+          language,
+        }),
+      });
+    }
+  } catch {
     const offlineLesson = getOfflineCuratedLesson(topic, subject, examLevel);
     if (offlineLesson) {
       return offlineLesson;
     }
-    throw new Error('Unable to connect to AI Tutor. Please check your internet connection or try again.');
+    throw new Error('Unable to connect to AI Tutor. Please check your internet connection and tap Retry.');
   }
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
-    // Check if offline curated lesson can help
     const offlineFallback = getOfflineCuratedLesson(topic, subject, examLevel);
     if (offlineFallback) {
       return offlineFallback;
     }
-    throw new Error(errData.error || `Academic Tutor error (${response.status})`);
+    throw new Error(
+      errData.error ||
+        (response.status === 404
+          ? 'Academic Tutor service route not found (404). Please refresh or tap Retry.'
+          : `Academic Tutor error (${response.status}). Please tap Retry.`)
+    );
   }
 
   const data = await response.json();
   if (!data.lesson) {
-    throw new Error('No lesson data returned from the AI academic tutor.');
+    throw new Error('No lesson data returned from the AI academic tutor. Please tap Retry.');
   }
 
-  const lesson: LearnTopicLesson = data.lesson;
+  const lesson = enrichLessonVisuals(data.lesson, topic);
   saveLessonToHistory(lesson);
   return lesson;
 }
@@ -111,14 +402,25 @@ export async function askTopicFollowUp(
   lessonSummary: string,
   userApiKey?: string
 ): Promise<string> {
+  const resolvedKey = resolveClientGeminiKey(userApiKey);
+
+  // 1. Direct browser execution if client API key is available
+  if (resolvedKey) {
+    try {
+      return await followUpDirectWithGemini(resolvedKey, topic, question, lessonSummary);
+    } catch (directErr) {
+      console.warn('Direct browser follow-up failed, falling back to server API:', directErr);
+    }
+  }
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (userApiKey) {
-    headers['x-gemini-key'] = userApiKey;
+  if (resolvedKey) {
+    headers['x-gemini-key'] = resolvedKey;
   }
 
-  const response = await fetch('/api/learn/follow-up', {
+  let response = await fetch('/api/learn/follow-up', {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -128,9 +430,51 @@ export async function askTopicFollowUp(
     }),
   });
 
+  if (response.status === 404) {
+    response = await fetch('/api/learn', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'follow_up',
+        topic,
+        question,
+        lessonSummary,
+      }),
+    });
+  }
+
+  if (response.status === 404) {
+    response = await fetch('/api/ai/learn', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'follow_up',
+        topic,
+        question,
+        lessonSummary,
+      }),
+    });
+  }
+
+  if (response.status === 404) {
+    // Ultimate fallback to /api/chat endpoint if learn routes aren't mounted
+    const chatRes = await fetch('/api/chat', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        message: `Regarding the topic "${topic}": ${question}`,
+        problemContext: { title: topic, problemStatement: lessonSummary },
+      }),
+    });
+    if (chatRes.ok) {
+      const chatData = await chatRes.json();
+      if (chatData.reply) return chatData.reply;
+    }
+  }
+
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to get follow-up clarification.');
+    throw new Error(err.error || `Failed to get follow-up clarification (${response.status}).`);
   }
 
   const data = await response.json();

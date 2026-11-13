@@ -808,6 +808,9 @@ app.post('/api/ai/chat', handleChatRequest);
 const handleLearnRequest = async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
+    if (body.action === 'follow_up' || body.question) {
+      return handleLearnFollowUpRequest(req, res);
+    }
     const topic = (body.topic || body.prompt || '').trim();
     const subject = (body.subject || 'General STEM').trim();
     const examLevel = (body.examLevel || 'JUPEB, JAMB, WAEC & University').trim();

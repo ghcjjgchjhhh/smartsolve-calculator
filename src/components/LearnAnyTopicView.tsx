@@ -126,24 +126,33 @@ export const LearnAnyTopicView: React.FC = () => {
 
   const lessonTopRef = useRef<HTMLDivElement | null>(null);
   const followUpBottomRef = useRef<HTMLDivElement | null>(null);
+  const lastAttemptRef = useRef<{ query: string; subject?: string } | null>(null);
 
   useEffect(() => {
     setSavedLessons(getSavedLessons());
   }, []);
 
   const handleTeachMe = async (customQuery?: string, subjectOverride?: string) => {
-    const query = (customQuery || topicInput).trim();
+    const query = (customQuery ?? topicInput).trim();
     if (!query) return;
+
+    const effectiveSubject =
+      subjectOverride ?? (selectedSubject === 'All Subjects' ? undefined : selectedSubject);
+    lastAttemptRef.current = { query, subject: effectiveSubject };
 
     setIsLoading(true);
     setError(null);
     setFollowUpHistory([]);
 
     try {
-      const userApiKey = localStorage.getItem('gemini_api_key') || undefined;
+      const userApiKey =
+        localStorage.getItem('gemini_user_api_key') ||
+        localStorage.getItem('gemini_api_key') ||
+        (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+        undefined;
       const result = await fetchTopicLesson({
         topic: query,
-        subject: subjectOverride || (selectedSubject === 'All Subjects' ? undefined : selectedSubject),
+        subject: effectiveSubject,
         examLevel: selectedLevel,
         language: currentLanguage.name,
         userApiKey,
@@ -166,6 +175,15 @@ export const LearnAnyTopicView: React.FC = () => {
     }
   };
 
+  const handleRetryLesson = () => {
+    const attempt = lastAttemptRef.current;
+    if (attempt?.query) {
+      handleTeachMe(attempt.query, attempt.subject);
+    } else if (topicInput.trim()) {
+      handleTeachMe(topicInput.trim());
+    }
+  };
+
   const handleFollowUpSubmit = async (customText?: string) => {
     const questionText = (customText || followUpQuestion).trim();
     if (!questionText || !lesson || isFollowUpLoading) return;
@@ -176,7 +194,11 @@ export const LearnAnyTopicView: React.FC = () => {
     setIsFollowUpLoading(true);
 
     try {
-      const userApiKey = localStorage.getItem('gemini_api_key') || undefined;
+      const userApiKey =
+        localStorage.getItem('gemini_user_api_key') ||
+        localStorage.getItem('gemini_api_key') ||
+        (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+        undefined;
       const lessonSummary = `${lesson.topic}: ${lesson.summary}. Formulas: ${lesson.formulas.map((f) => f.name + ': ' + f.latex).join('; ')}`;
       const reply = await askTopicFollowUp(lesson.topic, questionText, lessonSummary, userApiKey);
 
@@ -449,10 +471,12 @@ Generated via SmartSolve Calculator Pro`;
             <h4 className="text-sm font-bold text-red-200">Lesson Generation Issue</h4>
             <p className="text-xs text-red-300 mt-0.5">{error}</p>
             <button
-              onClick={() => handleTeachMe()}
-              className="mt-2 text-xs font-bold px-3 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
+              type="button"
+              onClick={handleRetryLesson}
+              className="mt-2.5 inline-flex items-center space-x-1.5 text-xs font-bold px-3.5 py-1.5 rounded-xl bg-red-500 text-white hover:bg-red-600 active:scale-95 transition-all cursor-pointer shadow-md"
             >
-              Retry
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Retry</span>
             </button>
           </div>
         </div>
