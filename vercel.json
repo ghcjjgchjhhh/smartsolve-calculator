@@ -4,6 +4,26 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/api/ai/solve",
+      "destination": "/api/solve"
+    },
+    {
+      "source": "/api/ai/chat",
+      "destination": "/api/chat"
+    },
+    {
+      "source": "/api/ai/learn",
+      "destination": "/api/learn"
+    },
+    {
+      "source": "/api/learn/follow-up",
+      "destination": "/api/learn?action=follow_up"
+    },
+    {
+      "source": "/api/learn/formula-questions",
+      "destination": "/api/learn?action=formula_questions"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

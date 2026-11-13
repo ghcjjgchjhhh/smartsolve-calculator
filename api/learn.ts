@@ -125,8 +125,10 @@ export default async function handler(req: any, res: any) {
       },
     });
 
+    const effectiveAction = String(body.action || req.query?.action || '').trim();
+
     // ACTION 1: CONVERSATIONAL FOLLOW-UP TUTOR
-    if (body.action === 'follow_up' || body.question) {
+    if (effectiveAction === 'follow_up' || body.question) {
       const { topic, question, lessonSummary, adaptiveMode } = body;
       if (!question || !String(question).trim()) {
         return sendJsonResponse(res, 400, { error: 'Please enter a follow-up question.' });
@@ -161,7 +163,7 @@ TEACHING VOICE & RULES:
     }
 
     // ACTION 2: PROGRESSIVE 12-QUESTION GENERATOR UNDER ONE FORMULA
-    if (body.action === 'formula_questions') {
+    if (effectiveAction === 'formula_questions') {
       const topic = String(body.topic || '').trim();
       const subject = String(body.subject || 'STEM').trim();
       const examLevel = String(body.examLevel || 'JUPEB, JAMB, WAEC & University').trim();
@@ -247,7 +249,7 @@ Note: Only populate "options" & "correctOption" for Multiple-Choice / Formula Id
     }
 
     // ACTION 3: ADAPTIVE EXPLANATION SIMPLIFIER (WHEN STUDENT STRUGGLES OR ASKS FOR SIMPLER)
-    if (body.action === 'adapt_explanation') {
+    if (effectiveAction === 'adapt_explanation') {
       const topic = String(body.topic || '').trim();
       const subject = String(body.subject || 'STEM').trim();
       const strugglingPoint = String(body.strugglingPoint || topic).trim();

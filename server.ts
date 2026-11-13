@@ -11,8 +11,6 @@ import socraticHandler from './api/socratic';
 import researchHandler from './api/research';
 import documentTutorHandler from './api/document-tutor';
 import learnHandler from './api/learn';
-import learnFollowUpHandler from './api/learn/follow-up';
-import learnFormulaQuestionsHandler from './api/learn/formula-questions';
 
 dotenv.config();
 
@@ -841,8 +839,14 @@ app.post('/api/ai/chat', handleChatRequest);
 // 4. LEARN ANY TOPIC ENGINE & INTERACTIVE ACADEMIC TUTOR (Unified with Vercel /api/learn handlers)
 app.post('/api/learn', (req, res) => learnHandler(req, res));
 app.post('/api/ai/learn', (req, res) => learnHandler(req, res));
-app.post('/api/learn/follow-up', (req, res) => learnFollowUpHandler(req, res));
-app.post('/api/learn/formula-questions', (req, res) => learnFormulaQuestionsHandler(req, res));
+app.post('/api/learn/follow-up', (req, res) => {
+  req.body = { ...(req.body || {}), action: 'follow_up' };
+  return learnHandler(req, res);
+});
+app.post('/api/learn/formula-questions', (req, res) => {
+  req.body = { ...(req.body || {}), action: 'formula_questions' };
+  return learnHandler(req, res);
+});
 
 // 5. NEW ADVANCED PLATFORM ROUTES (Whiteboard, Voice Math, Handwriting, Socratic, Research, Document Tutor)
 app.post('/api/whiteboard', (req, res) => whiteboardHandler(req, res));
