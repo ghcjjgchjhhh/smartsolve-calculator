@@ -4,82 +4,39 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Play, Pause, RotateCcw, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
+import {
+  DEFAULT_SIM_PARAMS,
+  SIM_TABS,
+  SimCategory,
+  SimMode,
+  SimParams,
+  computeSimTelemetry,
+} from '../utils/threeLabCatalog';
+import {
+  buildExtendedSimScene,
+  makeArrowGroup,
+  orientArrow,
+  updateExtendedSimScene,
+} from '../utils/threeLabBuilders';
 
-type SimMode =
-  | 'circular'
-  | 'projectile'
-  | 'gravity'
-  | 'forces'
-  | 'waves'
-  | 'electricity'
-  | 'energy';
-
-interface SimParams {
-  // Circular
-  radius: number;
-  omega: number;
-  mass: number;
-  // Projectile
-  speed: number;
-  angleDeg: number;
-  gravity: number;
-  // Gravity
-  centralMass: number;
-  orbitRadius: number;
-  // Forces (inclined plane)
-  inclineDeg: number;
-  frictionMu: number;
-  // Waves
-  waveAmp: number;
-  waveFreq: number;
-  wavelength: number;
-  // Electricity
-  voltage: number;
-  resistance: number;
-  magneticField: number;
-  // Energy (pendulum)
-  pendulumLen: number;
-  pendulumDeg: number;
-}
-
-const SIM_TABS: { id: SimMode; label: string; formula: string }[] = [
-  { id: 'circular', label: 'Circular Motion', formula: 'F_c = m\\omega^2 r,\\quad v = \\omega r' },
-  { id: 'projectile', label: 'Projectile Motion', formula: 'R = \\frac{v_0^2 \\sin(2\\theta)}{g},\\quad H = \\frac{v_0^2 \\sin^2\\theta}{2g}' },
-  { id: 'gravity', label: 'Gravity & Orbits', formula: 'F = \\frac{GMm}{r^2},\\quad v_{orb} = \\sqrt{\\frac{GM}{r}}' },
-  { id: 'forces', label: 'Forces & Incline', formula: 'a = g(\\sin\\theta - \\mu\\cos\\theta),\\quad N = mg\\cos\\theta' },
-  { id: 'waves', label: '3D Waves', formula: 'y(x,z,t) = A\\sin(kx - \\omega t),\\quad v = f\\lambda' },
-  { id: 'electricity', label: 'Electricity & B-Field', formula: 'I = \\frac{V}{R},\\quad B = \\mu_0 n I' },
-  { id: 'energy', label: 'Conservation of Energy', formula: 'E_k + E_p = \\frac{1}{2}mv^2 + mgh = \\text{const}' },
+const CATEGORY_OPTIONS: { id: SimCategory; label: string }[] = [
+  { id: 'all', label: 'All 3D Models (29)' },
+  { id: 'physics', label: 'Physics (13)' },
+  { id: 'math', label: 'Math 3D Shapes (6)' },
+  { id: 'chemistry', label: 'Chemistry 3D (5)' },
+  { id: 'biology', label: 'Biology 3D (5)' },
 ];
 
 export const ThreePhysicsLabView: React.FC = () => {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<SimCategory>('all');
   const [simMode, setSimMode] = useState<SimMode>('circular');
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [controlsOpen, setControlsOpen] = useState<boolean>(true);
   const [contextLost, setContextLost] = useState<boolean>(false);
   const [resetSeed, setResetSeed] = useState<number>(0);
 
-  const [params, setParams] = useState<SimParams>({
-    radius: 3.2,
-    omega: 2.0,
-    mass: 4.0,
-    speed: 14,
-    angleDeg: 45,
-    gravity: 9.81,
-    centralMass: 10,
-    orbitRadius: 4.2,
-    inclineDeg: 28,
-    frictionMu: 0.15,
-    waveAmp: 0.7,
-    waveFreq: 1.4,
-    wavelength: 3.2,
-    voltage: 12,
-    resistance: 4,
-    magneticField: 1.5,
-    pendulumLen: 4.0,
-    pendulumDeg: 38,
-  });
+  const [params, setParams] = useState<SimParams>(DEFAULT_SIM_PARAMS);
 
   const paramsRef = useRef(params);
   paramsRef.current = params;
@@ -88,83 +45,24 @@ export const ThreePhysicsLabView: React.FC = () => {
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
 
-  // Deterministic live telemetry derived from physics equations
-  const telemetry = (() => {
-    const p = params;
-    switch (simMode) {
-      case 'circular': {
-        const v = p.omega * p.radius;
-        const fc = p.mass * p.omega * p.omega * p.radius;
-        return [
-          { label: 'Tangential Speed', value: `${v.toFixed(2)} m/s` },
-          { label: 'Centripetal Force', value: `${fc.toFixed(2)} N` },
-          { label: 'Period T', value: `${((2 * Math.PI) / p.omega).toFixed(2)} s` },
-        ];
-      }
-      case 'projectile': {
-        const rad = (p.angleDeg * Math.PI) / 180;
-        const range = (p.speed * p.speed * Math.sin(2 * rad)) / p.gravity;
-        const maxH = Math.pow(p.speed * Math.sin(rad), 2) / (2 * p.gravity);
-        const tof = (2 * p.speed * Math.sin(rad)) / p.gravity;
-        return [
-          { label: 'Range R', value: `${range.toFixed(2)} m` },
-          { label: 'Max Height H', value: `${maxH.toFixed(2)} m` },
-          { label: 'Flight Time', value: `${tof.toFixed(2)} s` },
-        ];
-      }
-      case 'gravity': {
-        const vOrb = Math.sqrt((p.centralMass * 4.5) / p.orbitRadius);
-        const period = (2 * Math.PI * p.orbitRadius) / Math.max(0.1, vOrb);
-        const gLocal = (p.centralMass * 4.5) / (p.orbitRadius * p.orbitRadius);
-        return [
-          { label: 'Orbital Speed', value: `${vOrb.toFixed(2)} km/s` },
-          { label: 'Orbital Period', value: `${period.toFixed(2)} s` },
-          { label: 'Field Strength g', value: `${gLocal.toFixed(2)} m/s²` },
-        ];
-      }
-      case 'forces': {
-        const rad = (p.inclineDeg * Math.PI) / 180;
-        const normal = p.mass * p.gravity * Math.cos(rad);
-        const downSlope = p.mass * p.gravity * Math.sin(rad);
-        const frictionMax = p.frictionMu * normal;
-        const netF = Math.max(0, downSlope - frictionMax);
-        const acc = netF / p.mass;
-        return [
-          { label: 'Normal Force N', value: `${normal.toFixed(1)} N` },
-          { label: 'Friction f', value: `${Math.min(downSlope, frictionMax).toFixed(1)} N` },
-          { label: 'Acceleration a', value: `${acc.toFixed(2)} m/s²` },
-        ];
-      }
-      case 'waves': {
-        const vWave = p.waveFreq * p.wavelength;
-        return [
-          { label: 'Wave Speed v', value: `${vWave.toFixed(2)} m/s` },
-          { label: 'Angular Freq ω', value: `${(2 * Math.PI * p.waveFreq).toFixed(2)} rad/s` },
-          { label: 'Wave Number k', value: `${((2 * Math.PI) / p.wavelength).toFixed(2)} rad/m` },
-        ];
-      }
-      case 'electricity': {
-        const current = p.voltage / Math.max(0.5, p.resistance);
-        const power = p.voltage * current;
-        return [
-          { label: 'Current I', value: `${current.toFixed(2)} A` },
-          { label: 'Power P', value: `${power.toFixed(1)} W` },
-          { label: 'Solenoid Flux Φ', value: `${(p.magneticField * 0.45 * current).toFixed(2)} mWb` },
-        ];
-      }
-      case 'energy': {
-        const rad = (p.pendulumDeg * Math.PI) / 180;
-        const hMax = p.pendulumLen * (1 - Math.cos(rad));
-        const eTotal = p.mass * p.gravity * hMax;
-        const vMax = Math.sqrt(2 * p.gravity * hMax);
-        return [
-          { label: 'Total Energy E', value: `${eTotal.toFixed(1)} J` },
-          { label: 'Peak Speed v_max', value: `${vMax.toFixed(2)} m/s` },
-          { label: 'Period T', value: `${(2 * Math.PI * Math.sqrt(p.pendulumLen / p.gravity)).toFixed(2)} s` },
-        ];
+  const visibleTabs =
+    categoryFilter === 'all'
+      ? SIM_TABS
+      : SIM_TABS.filter((tab) => tab.category === categoryFilter);
+
+  const handleSelectCategory = (cat: SimCategory) => {
+    setCategoryFilter(cat);
+    if (cat !== 'all') {
+      const currentTab = SIM_TABS.find((t) => t.id === simMode);
+      if (!currentTab || currentTab.category !== cat) {
+        const firstInCat = SIM_TABS.find((t) => t.category === cat);
+        if (firstInCat) setSimMode(firstInCat.id);
       }
     }
-  })();
+  };
+
+  // Deterministic live telemetry derived from physics, math, chemistry & biology equations
+  const telemetry = computeSimTelemetry(simMode, params);
 
   useEffect(() => {
     const container = mountRef.current;
@@ -196,10 +94,11 @@ export const ThreePhysicsLabView: React.FC = () => {
 
     renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = !isSoftwareGl;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
+    renderer.toneMappingExposure = 1.05;
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
@@ -213,7 +112,7 @@ export const ThreePhysicsLabView: React.FC = () => {
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#090D14');
-    scene.fog = new THREE.FogExp2('#090D14', 0.028);
+    scene.fog = new THREE.FogExp2('#090D14', 0.025);
 
     const pmrem = new THREE.PMREMGenerator(renderer);
     const roomEnv = new RoomEnvironment();
@@ -228,12 +127,12 @@ export const ThreePhysicsLabView: React.FC = () => {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = !isSoftwareGl;
     controls.dampingFactor = 0.07;
-    controls.minDistance = 3.5;
-    controls.maxDistance = 24;
+    controls.minDistance = 3.0;
+    controls.maxDistance = 26;
     controls.maxPolarAngle = Math.PI * 0.49;
 
     // Three-Point Studio Lighting
-    const hemi = new THREE.HemisphereLight(0xdbeafe, 0x1e293b, 0.55);
+    const hemi = new THREE.HemisphereLight(0xdbeafe, 0x1e293b, 0.6);
     scene.add(hemi);
 
     const keyLight = new THREE.DirectionalLight(0xfff4e0, 2.2);
@@ -243,7 +142,7 @@ export const ThreePhysicsLabView: React.FC = () => {
     keyLight.shadow.bias = -0.0005;
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.9);
+    const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.95);
     rimLight.position.set(-8, 6, -6);
     scene.add(rimLight);
 
@@ -278,46 +177,20 @@ export const ThreePhysicsLabView: React.FC = () => {
     };
 
     // Mutable runtime handles updated inside animation loop without allocations
-    const runtime: any = {};
+    const runtime: Record<string, any> = {};
     const _vA = new THREE.Vector3();
     const _vB = new THREE.Vector3();
-    const _vDir = new THREE.Vector3();
-
-    const makeArrowGroup = (color: number) => {
-      const grp = new THREE.Group();
-      const shaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.04, 0.04, 1, 12),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.2 })
-      );
-      shaft.position.y = 0.5;
-      const head = new THREE.Mesh(
-        new THREE.ConeGeometry(0.11, 0.28, 16),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.2 })
-      );
-      head.position.y = 1.1;
-      grp.add(shaft, head);
-      return grp;
-    };
-
-    const orientArrow = (arrow: THREE.Group, origin: THREE.Vector3, dir: THREE.Vector3, length: number) => {
-      arrow.position.copy(origin);
-      if (length < 0.05) {
-        arrow.visible = false;
-        return;
-      }
-      arrow.visible = true;
-      _vDir.copy(dir).normalize();
-      arrow.quaternion.setFromUnitVectors(_vA.set(0, 1, 0), _vDir);
-      arrow.scale.set(1, Math.min(3.5, Math.max(0.25, length)), 1);
-    };
 
     // Build Composite 3D Rig per Selected Mode
     const buildSimulationScene = (mode: SimMode) => {
       clearSimGroup();
       Object.keys(runtime).forEach((k) => delete runtime[k]);
 
+      if (buildExtendedSimScene(mode, simGroup, runtime, isSoftwareGl)) {
+        return;
+      }
+
       if (mode === 'circular') {
-        // Pedestal post + rotating tether arm + composite metallic bob + Force/Velocity vectors
         const base = new THREE.Mesh(
           new THREE.CylinderGeometry(0.55, 0.7, 0.4, 24),
           new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.6, roughness: 0.35 })
@@ -370,7 +243,6 @@ export const ThreePhysicsLabView: React.FC = () => {
         runtime.velArrow = velArrow;
         runtime.theta = 0;
       } else if (mode === 'projectile') {
-        // Composite 3D Launcher + Ground target + Projectile Sphere + Trajectory Curve
         const pad = new THREE.Mesh(
           new THREE.BoxGeometry(1.4, 0.25, 1.4),
           new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.5, roughness: 0.4 })
@@ -405,7 +277,6 @@ export const ThreePhysicsLabView: React.FC = () => {
         runtime.trailLine = trailLine;
         runtime.t = 0;
       } else if (mode === 'gravity') {
-        // Central Planet + Atmosphere Ring + Composite Satellite (core + 2 solar wings)
         const planet = new THREE.Mesh(
           new THREE.SphereGeometry(1.15, 36, 36),
           new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.45, metalness: 0.15 })
@@ -450,7 +321,6 @@ export const ThreePhysicsLabView: React.FC = () => {
         runtime.planetPos = planet.position;
         runtime.angle = 0;
       } else if (mode === 'forces') {
-        // Adjustable Inclined Ramp + Sliding Composite Block + 3 Force Vectors (N, mgSin, f)
         const rampGrp = new THREE.Group();
         rampGrp.position.set(-3, 0, 0);
 
@@ -487,7 +357,6 @@ export const ThreePhysicsLabView: React.FC = () => {
         runtime.s = 6.2;
         runtime.v = 0;
       } else if (mode === 'waves') {
-        // Dynamic 3D Deforming Wave Sheet + Crest Highlight Spheres
         const segX = 48;
         const segZ = 24;
         const geo = new THREE.PlaneGeometry(10, 5, segX, segZ);
@@ -512,7 +381,6 @@ export const ThreePhysicsLabView: React.FC = () => {
         runtime.waveGeo = geo;
         runtime.phase = 0;
       } else if (mode === 'electricity') {
-        // 3D Solenoid Coils + Conductor Loop + Moving Charge Spheres + Central B-Field Arrow
         const board = new THREE.Mesh(
           new THREE.BoxGeometry(8, 0.25, 4.4),
           new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 })
@@ -549,7 +417,6 @@ export const ThreePhysicsLabView: React.FC = () => {
         runtime.bArrow = bArrow;
         runtime.flowOffset = 0;
       } else if (mode === 'energy') {
-        // Composite Pendulum A-Frame Stand + Rod + Heavy Brass Bob
         const standBase = new THREE.Mesh(
           new THREE.BoxGeometry(4, 0.22, 2.2),
           new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.5, roughness: 0.4 })
@@ -605,114 +472,116 @@ export const ThreePhysicsLabView: React.FC = () => {
       const mode = simModeRef.current;
       const active = isPlayingRef.current;
 
-      if (mode === 'circular' && runtime.bobGrp) {
-        if (active) runtime.theta += p.omega * dt;
-        const r = Math.min(4.6, Math.max(1.2, p.radius));
-        const x = Math.cos(runtime.theta) * r;
-        const z = Math.sin(runtime.theta) * r;
-        runtime.bobGrp.position.set(x, 1.8, z);
-        runtime.arm.position.set(x / 2, 1.8, z / 2);
-        runtime.arm.scale.set(1, r, 1);
-        runtime.arm.rotation.set(0, -runtime.theta, Math.PI / 2);
-        runtime.orbitRing.scale.set(r, r, 1);
+      if (!updateExtendedSimScene(mode, runtime, p, dt, active)) {
+        if (mode === 'circular' && runtime.bobGrp) {
+          if (active) runtime.theta += p.omega * dt;
+          const r = Math.min(4.6, Math.max(1.2, p.radius));
+          const x = Math.cos(runtime.theta) * r;
+          const z = Math.sin(runtime.theta) * r;
+          runtime.bobGrp.position.set(x, 1.8, z);
+          runtime.arm.position.set(x / 2, 1.8, z / 2);
+          runtime.arm.scale.set(1, r, 1);
+          runtime.arm.rotation.set(0, -runtime.theta, Math.PI / 2);
+          runtime.orbitRing.scale.set(r, r, 1);
 
-        _vA.set(x, 1.8, z);
-        _vB.set(-x, 0, -z);
-        orientArrow(runtime.forceArrow, _vA, _vB, (p.mass * p.omega * p.omega * r) / 28);
-        _vB.set(-Math.sin(runtime.theta), 0, Math.cos(runtime.theta));
-        orientArrow(runtime.velArrow, _vA, _vB, (p.omega * r) / 4);
-      } else if (mode === 'projectile' && runtime.projectile) {
-        const rad = (p.angleDeg * Math.PI) / 180;
-        const vx = p.speed * Math.cos(rad);
-        const vy = p.speed * Math.sin(rad);
-        const tof = Math.max(0.2, (2 * vy) / p.gravity);
-        const range = vx * tof;
-        const scale = Math.min(0.45, 10 / Math.max(10, range));
+          _vA.set(x, 1.8, z);
+          _vB.set(-x, 0, -z);
+          orientArrow(runtime.forceArrow, _vA, _vB, (p.mass * p.omega * p.omega * r) / 28);
+          _vB.set(-Math.sin(runtime.theta), 0, Math.cos(runtime.theta));
+          orientArrow(runtime.velArrow, _vA, _vB, (p.omega * r) / 4);
+        } else if (mode === 'projectile' && runtime.projectile) {
+          const rad = (p.angleDeg * Math.PI) / 180;
+          const vx = p.speed * Math.cos(rad);
+          const vy = p.speed * Math.sin(rad);
+          const tof = Math.max(0.2, (2 * vy) / p.gravity);
+          const range = vx * tof;
+          const scale = Math.min(0.45, 10 / Math.max(10, range));
 
-        if (active) {
-          runtime.t = (runtime.t + dt) % (tof + 0.5);
-        }
-        const tCur = Math.min(tof, runtime.t);
-        const px = -5 + vx * tCur * scale;
-        const py = Math.max(0.25, 0.45 + (vy * tCur - 0.5 * p.gravity * tCur * tCur) * scale);
-        runtime.projectile.position.set(px, py, 0);
-        runtime.barrelGrp.rotation.z = rad;
+          if (active) {
+            runtime.t = (runtime.t + dt) % (tof + 0.5);
+          }
+          const tCur = Math.min(tof, runtime.t);
+          const px = -5 + vx * tCur * scale;
+          const py = Math.max(0.25, 0.45 + (vy * tCur - 0.5 * p.gravity * tCur * tCur) * scale);
+          runtime.projectile.position.set(px, py, 0);
+          runtime.barrelGrp.rotation.z = rad;
 
-        const posAttr = runtime.trailLine.geometry.attributes.position as THREE.BufferAttribute;
-        for (let i = 0; i < 48; i++) {
-          const ti = (i / 47) * tof;
-          posAttr.setXYZ(
-            i,
-            -5 + vx * ti * scale,
-            Math.max(0.1, 0.45 + (vy * ti - 0.5 * p.gravity * ti * ti) * scale),
-            0
-          );
-        }
-        posAttr.needsUpdate = true;
-      } else if (mode === 'gravity' && runtime.satGrp) {
-        const r = Math.min(5.5, Math.max(2.0, p.orbitRadius));
-        const speed = Math.sqrt((p.centralMass * 4.5) / r) * 0.25;
-        if (active) runtime.angle += speed * dt;
-        const sx = Math.cos(runtime.angle) * r;
-        const sz = Math.sin(runtime.angle) * r;
-        runtime.satGrp.position.set(sx, 2.0, sz);
-        runtime.satGrp.lookAt(0, 2.0, 0);
-        runtime.orbitPath.scale.set(r, r, 1);
+          const posAttr = runtime.trailLine.geometry.attributes.position as THREE.BufferAttribute;
+          for (let i = 0; i < 48; i++) {
+            const ti = (i / 47) * tof;
+            posAttr.setXYZ(
+              i,
+              -5 + vx * ti * scale,
+              Math.max(0.1, 0.45 + (vy * ti - 0.5 * p.gravity * ti * ti) * scale),
+              0
+            );
+          }
+          posAttr.needsUpdate = true;
+        } else if (mode === 'gravity' && runtime.satGrp) {
+          const r = Math.min(5.5, Math.max(2.0, p.orbitRadius));
+          const speed = Math.sqrt((p.centralMass * 4.5) / r) * 0.25;
+          if (active) runtime.angle += speed * dt;
+          const sx = Math.cos(runtime.angle) * r;
+          const sz = Math.sin(runtime.angle) * r;
+          runtime.satGrp.position.set(sx, 2.0, sz);
+          runtime.satGrp.lookAt(0, 2.0, 0);
+          runtime.orbitPath.scale.set(r, r, 1);
 
-        _vA.set(sx, 2.0, sz);
-        _vB.set(-sx, 0, -sz);
-        orientArrow(runtime.gravArrow, _vA, _vB, (p.centralMass * 2.5) / (r * r));
-      } else if (mode === 'forces' && runtime.rampGrp) {
-        const rad = (p.inclineDeg * Math.PI) / 180;
-        runtime.rampGrp.rotation.z = rad;
-        const acc = p.gravity * (Math.sin(rad) - p.frictionMu * Math.cos(rad));
-        if (active) {
-          if (acc > 0) {
-            runtime.v += acc * dt * 0.65;
-            runtime.s -= runtime.v * dt;
-            if (runtime.s < 0.7) {
-              runtime.s = 6.2;
-              runtime.v = 0;
+          _vA.set(sx, 2.0, sz);
+          _vB.set(-sx, 0, -sz);
+          orientArrow(runtime.gravArrow, _vA, _vB, (p.centralMass * 2.5) / (r * r));
+        } else if (mode === 'forces' && runtime.rampGrp) {
+          const rad = (p.inclineDeg * Math.PI) / 180;
+          runtime.rampGrp.rotation.z = rad;
+          const acc = p.gravity * (Math.sin(rad) - p.frictionMu * Math.cos(rad));
+          if (active) {
+            if (acc > 0) {
+              runtime.v += acc * dt * 0.65;
+              runtime.s -= runtime.v * dt;
+              if (runtime.s < 0.7) {
+                runtime.s = 6.2;
+                runtime.v = 0;
+              }
             }
           }
+          runtime.blockGrp.position.set(runtime.s, 0, 0);
+          _vA.set(runtime.s, 0.6, 0);
+          orientArrow(runtime.normArrow, _vA, _vB.set(0, 1, 0), 1.3);
+          orientArrow(runtime.slideArrow, _vA, _vB.set(-1, 0, 0), Math.sin(rad) * 2.2);
+          orientArrow(runtime.fricArrow, _vA, _vB.set(1, 0, 0), Math.min(2.0, p.frictionMu * 2.5));
+        } else if (mode === 'waves' && runtime.waveGeo) {
+          if (active) runtime.phase += dt * p.waveFreq * Math.PI * 2;
+          const pos = runtime.waveGeo.attributes.position as THREE.BufferAttribute;
+          const k = (Math.PI * 2) / p.wavelength;
+          for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const z = pos.getZ(i);
+            const y = p.waveAmp * Math.sin(k * x - runtime.phase) * Math.cos(z * 0.35);
+            pos.setY(i, y);
+          }
+          pos.needsUpdate = true;
+          runtime.waveGeo.computeVertexNormals();
+        } else if (mode === 'electricity' && runtime.charges) {
+          const current = p.voltage / Math.max(0.5, p.resistance);
+          if (active) runtime.flowOffset += current * dt * 0.35;
+          runtime.charges.forEach((ch: THREE.Mesh, idx: number) => {
+            const u = ((idx / runtime.charges.length) + runtime.flowOffset) % 1;
+            const ang = u * Math.PI * 2 * 6;
+            const x = -1.65 + u * 3.3;
+            ch.position.set(x, 1.4 + Math.sin(ang) * 0.85, Math.cos(ang) * 0.85);
+          });
+          runtime.bArrow.scale.set(1, Math.min(4.6, 0.8 + p.magneticField * current * 0.25), 1);
+        } else if (mode === 'energy' && runtime.pivotGrp) {
+          const len = Math.min(4.4, Math.max(1.8, p.pendulumLen));
+          const omegaP = Math.sqrt(p.gravity / len);
+          if (active) runtime.t += dt;
+          const theta0 = (p.pendulumDeg * Math.PI) / 180;
+          const theta = theta0 * Math.cos(omegaP * runtime.t);
+          runtime.pivotGrp.rotation.z = theta;
+          runtime.rod.scale.set(1, len, 1);
+          runtime.rod.position.y = -len / 2;
+          runtime.bob.position.y = -len;
         }
-        runtime.blockGrp.position.set(runtime.s, 0, 0);
-        _vA.set(runtime.s, 0.6, 0);
-        orientArrow(runtime.normArrow, _vA, _vB.set(0, 1, 0), 1.3);
-        orientArrow(runtime.slideArrow, _vA, _vB.set(-1, 0, 0), Math.sin(rad) * 2.2);
-        orientArrow(runtime.fricArrow, _vA, _vB.set(1, 0, 0), Math.min(2.0, p.frictionMu * 2.5));
-      } else if (mode === 'waves' && runtime.waveGeo) {
-        if (active) runtime.phase += dt * p.waveFreq * Math.PI * 2;
-        const pos = runtime.waveGeo.attributes.position as THREE.BufferAttribute;
-        const k = (Math.PI * 2) / p.wavelength;
-        for (let i = 0; i < pos.count; i++) {
-          const x = pos.getX(i);
-          const z = pos.getZ(i);
-          const y = p.waveAmp * Math.sin(k * x - runtime.phase) * Math.cos(z * 0.35);
-          pos.setY(i, y);
-        }
-        pos.needsUpdate = true;
-        runtime.waveGeo.computeVertexNormals();
-      } else if (mode === 'electricity' && runtime.charges) {
-        const current = p.voltage / Math.max(0.5, p.resistance);
-        if (active) runtime.flowOffset += current * dt * 0.35;
-        runtime.charges.forEach((ch: THREE.Mesh, idx: number) => {
-          const u = ((idx / runtime.charges.length) + runtime.flowOffset) % 1;
-          const ang = u * Math.PI * 2 * 6;
-          const x = -1.65 + u * 3.3;
-          ch.position.set(x, 1.4 + Math.sin(ang) * 0.85, Math.cos(ang) * 0.85);
-        });
-        runtime.bArrow.scale.set(1, Math.min(4.6, 0.8 + p.magneticField * current * 0.25), 1);
-      } else if (mode === 'energy' && runtime.pivotGrp) {
-        const len = Math.min(4.4, Math.max(1.8, p.pendulumLen));
-        const omegaP = Math.sqrt(p.gravity / len);
-        if (active) runtime.t += dt;
-        const theta0 = (p.pendulumDeg * Math.PI) / 180;
-        const theta = theta0 * Math.cos(omegaP * runtime.t);
-        runtime.pivotGrp.rotation.z = theta;
-        runtime.rod.scale.set(1, len, 1);
-        runtime.rod.position.y = -len / 2;
-        runtime.bob.position.y = -len;
       }
 
       controls.update();
@@ -721,7 +590,7 @@ export const ThreePhysicsLabView: React.FC = () => {
       if (isSoftwareGl) {
         rafId = window.setTimeout(() => {
           rafId = requestAnimationFrame(animate);
-        }, 28) as any;
+        }, 45) as any;
       } else {
         rafId = requestAnimationFrame(animate);
       }
@@ -756,22 +625,22 @@ export const ThreePhysicsLabView: React.FC = () => {
     };
   }, [resetSeed]);
 
-  const activeTabInfo = SIM_TABS.find((t) => t.id === simMode)!;
+  const activeTabInfo = SIM_TABS.find((t) => t.id === simMode) || SIM_TABS[0];
 
   return (
     <div className="space-y-5">
-      {/* Mode Selector Ribbon */}
+      {/* Subject Filter & 3D Shape Selector Ribbon */}
       <section className="rounded-2xl border border-slate-200 dark:border-[#27272A] bg-white dark:bg-[#0A0A0A] p-4 sm:p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-              Interactive 3D Physics Studio
+              Interactive 3D Physics, Math, Chemistry & Biology Studio
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-[#A1A1AA]">
-              Drag to orbit 360°, scroll or pinch to zoom, and tune physical parameters live.
+              Explore 29 interactive 3D models with live formulas — drag to orbit 360°, pinch to zoom, and tune variables.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setIsPlaying((v) => !v)}
@@ -791,15 +660,34 @@ export const ThreePhysicsLabView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {SIM_TABS.map((tab) => (
+        {/* Subject Category Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-[#27272A]">
+          {CATEGORY_OPTIONS.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => handleSelectCategory(cat.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors whitespace-nowrap shrink-0 mb-2 ${
+                categoryFilter === cat.id
+                  ? 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/40'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#18181B]'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sideways-Scrollable / Wrapped 3D Shape Selector */}
+        <div className="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto pr-1">
+          {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setSimMode(tab.id)}
               className={`px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap ${
                 simMode === tab.id
-                  ? 'bg-[#22C55E] text-white font-bold'
+                  ? 'bg-[#22C55E] text-white font-bold shadow-sm'
                   : 'bg-slate-100 dark:bg-[#18181B] text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-[#27272A]'
               }`}
             >
@@ -811,10 +699,15 @@ export const ThreePhysicsLabView: React.FC = () => {
 
       {/* 3D Viewport Container */}
       <div className="relative rounded-2xl border border-slate-200 dark:border-[#27272A] bg-[#090D14] overflow-hidden">
-        {/* Top Telemetry Strip (Semantic DOM, solid high-contrast surface without backdrop-filter over canvas) */}
+        {/* Top Formula & Telemetry Strip */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#0D131D] border-b border-white/10">
-          <div className="overflow-x-auto max-w-full">
-            <MathRenderer content={`$$${activeTabInfo.formula}$$`} />
+          <div className="space-y-1 max-w-full overflow-x-auto">
+            <div className="text-[11px] font-semibold text-slate-400">
+              {activeTabInfo.label} · {activeTabInfo.description}
+            </div>
+            <div className="overflow-x-auto max-w-full">
+              <MathRenderer content={`$$${activeTabInfo.formula}$$`} />
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             {telemetry.map((m) => (
@@ -861,54 +754,18 @@ export const ThreePhysicsLabView: React.FC = () => {
 
           {controlsOpen && (
             <div className="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {simMode === 'circular' && (
-                <>
-                  <SliderField label="Radius r" unit="m" min={1.2} max={4.5} step={0.1} value={params.radius} onChange={(v) => setParams((p) => ({ ...p, radius: v }))} />
-                  <SliderField label="Angular Speed ω" unit="rad/s" min={0.4} max={6.0} step={0.1} value={params.omega} onChange={(v) => setParams((p) => ({ ...p, omega: v }))} />
-                  <SliderField label="Mass m" unit="kg" min={1} max={20} step={0.5} value={params.mass} onChange={(v) => setParams((p) => ({ ...p, mass: v }))} />
-                </>
-              )}
-              {simMode === 'projectile' && (
-                <>
-                  <SliderField label="Launch Speed v₀" unit="m/s" min={5} max={28} step={0.5} value={params.speed} onChange={(v) => setParams((p) => ({ ...p, speed: v }))} />
-                  <SliderField label="Launch Angle θ" unit="°" min={10} max={80} step={1} value={params.angleDeg} onChange={(v) => setParams((p) => ({ ...p, angleDeg: v }))} />
-                  <SliderField label="Gravity g" unit="m/s²" min={1.6} max={20} step={0.1} value={params.gravity} onChange={(v) => setParams((p) => ({ ...p, gravity: v }))} />
-                </>
-              )}
-              {simMode === 'gravity' && (
-                <>
-                  <SliderField label="Central Mass M" unit="×10²⁴ kg" min={2} max={25} step={0.5} value={params.centralMass} onChange={(v) => setParams((p) => ({ ...p, centralMass: v }))} />
-                  <SliderField label="Orbital Radius r" unit="×10⁶ m" min={2.0} max={5.5} step={0.1} value={params.orbitRadius} onChange={(v) => setParams((p) => ({ ...p, orbitRadius: v }))} />
-                </>
-              )}
-              {simMode === 'forces' && (
-                <>
-                  <SliderField label="Ramp Angle θ" unit="°" min={5} max={60} step={1} value={params.inclineDeg} onChange={(v) => setParams((p) => ({ ...p, inclineDeg: v }))} />
-                  <SliderField label="Friction Coeff μ" unit="" min={0} max={0.8} step={0.02} value={params.frictionMu} onChange={(v) => setParams((p) => ({ ...p, frictionMu: v }))} />
-                  <SliderField label="Block Mass m" unit="kg" min={1} max={25} step={0.5} value={params.mass} onChange={(v) => setParams((p) => ({ ...p, mass: v }))} />
-                </>
-              )}
-              {simMode === 'waves' && (
-                <>
-                  <SliderField label="Amplitude A" unit="m" min={0.1} max={1.4} step={0.05} value={params.waveAmp} onChange={(v) => setParams((p) => ({ ...p, waveAmp: v }))} />
-                  <SliderField label="Frequency f" unit="Hz" min={0.3} max={3.5} step={0.1} value={params.waveFreq} onChange={(v) => setParams((p) => ({ ...p, waveFreq: v }))} />
-                  <SliderField label="Wavelength λ" unit="m" min={1.2} max={6.0} step={0.1} value={params.wavelength} onChange={(v) => setParams((p) => ({ ...p, wavelength: v }))} />
-                </>
-              )}
-              {simMode === 'electricity' && (
-                <>
-                  <SliderField label="Source Voltage V" unit="V" min={1} max={24} step={0.5} value={params.voltage} onChange={(v) => setParams((p) => ({ ...p, voltage: v }))} />
-                  <SliderField label="Resistance R" unit="Ω" min={1} max={20} step={0.5} value={params.resistance} onChange={(v) => setParams((p) => ({ ...p, resistance: v }))} />
-                  <SliderField label="Magnetic Field B" unit="T" min={0.2} max={4.0} step={0.1} value={params.magneticField} onChange={(v) => setParams((p) => ({ ...p, magneticField: v }))} />
-                </>
-              )}
-              {simMode === 'energy' && (
-                <>
-                  <SliderField label="Pendulum Length L" unit="m" min={1.8} max={4.4} step={0.1} value={params.pendulumLen} onChange={(v) => setParams((p) => ({ ...p, pendulumLen: v }))} />
-                  <SliderField label="Release Angle θ₀" unit="°" min={5} max={65} step={1} value={params.pendulumDeg} onChange={(v) => setParams((p) => ({ ...p, pendulumDeg: v }))} />
-                  <SliderField label="Gravity g" unit="m/s²" min={1.6} max={20} step={0.1} value={params.gravity} onChange={(v) => setParams((p) => ({ ...p, gravity: v }))} />
-                </>
-              )}
+              {activeTabInfo.sliders.map((slider) => (
+                <SliderField
+                  key={slider.key}
+                  label={slider.label}
+                  unit={slider.unit}
+                  min={slider.min}
+                  max={slider.max}
+                  step={slider.step}
+                  value={params[slider.key]}
+                  onChange={(v) => setParams((prev) => ({ ...prev, [slider.key]: v }))}
+                />
+              ))}
             </div>
           )}
         </div>
