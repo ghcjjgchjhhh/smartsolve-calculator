@@ -1844,7 +1844,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
     <div
       ref={containerRef}
       className={`bg-[#0A0A0A] border border-[#27272A] rounded-3xl shadow-2xl overflow-hidden transition-all text-white ${
-        isFullscreen ? 'fixed inset-0 z-50 rounded-none overflow-y-auto p-4 sm:p-6 bg-black' : 'my-4'
+        isFullscreen ? 'fixed inset-0 z-[1100] rounded-none overflow-y-auto p-4 sm:p-6 bg-black' : 'my-4'
       }`}
     >
       {/* Top Header & Tab Ribbon (if multiple graphs exist) */}

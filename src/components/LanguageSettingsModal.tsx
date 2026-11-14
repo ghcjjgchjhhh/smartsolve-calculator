@@ -15,7 +15,7 @@ export const LanguageSettingsModal: React.FC = () => {
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-[#121417] border border-[#27272A] rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] flex flex-col animate-scaleUp">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#27272A] pb-3">

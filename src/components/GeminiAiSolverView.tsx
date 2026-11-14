@@ -1010,7 +1010,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
         {/* Fullscreen Photo Lightbox Modal */}
         {isImageModalOpen && imagePreview && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
+          <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
             <div className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center">
               <button
                 type="button"

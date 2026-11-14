@@ -1447,7 +1447,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       <aside
         className={`${
           isSessionsDrawerOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        } fixed md:static inset-y-0 left-0 z-50 md:z-auto w-72 sm:w-80 bg-[#0F0F12] border-r border-[#27272A] flex flex-col transition-transform duration-300 ease-in-out`}
+        } fixed md:static inset-y-0 left-0 z-[1100] md:z-auto w-72 sm:w-80 bg-[#0F0F12] border-r border-[#27272A] flex flex-col transition-transform duration-300 ease-in-out`}
       >
         {/* Sidebar Header */}
         <div className="p-4 border-b border-[#27272A] flex items-center justify-between">
@@ -1580,7 +1580,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       {isSessionsDrawerOpen && (
         <div
           onClick={() => setIsSessionsDrawerOpen(false)}
-          className="fixed inset-0 bg-black/70 z-40 md:hidden backdrop-blur-xs"
+          className="fixed inset-0 bg-black/70 z-[1090] md:hidden backdrop-blur-xs"
         />
       )}
 
@@ -2296,7 +2296,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       {fullViewImage && (
         <div
           onClick={() => setFullViewImage(null)}
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 z-[1100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
         >
           <div className="relative max-w-4xl max-h-[90vh]">
             <img
@@ -2317,7 +2317,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
 
       {/* 5. VOICE & LANGUAGE CUSTOMIZATION MODAL */}
       {isVoiceModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[1100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#121216] border border-[#27272A] rounded-3xl p-5 sm:p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto scrollbar-thin animate-scaleUp">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#27272A] pb-3">

@@ -75,7 +75,7 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/80 backdrop-blur-sm flex justify-end">
+    <div className="fixed inset-0 z-[1100] overflow-hidden bg-black/80 backdrop-blur-sm flex justify-end">
       <div
         className={`w-full max-w-lg h-full shadow-2xl flex flex-col border-l animate-in slide-in-from-right duration-200 transition-colors ${
           isDark
@@ -383,7 +383,7 @@ export const HistoryDrawer: React.FC<Props> = ({ isOpen, onClose }) => {
 
         {/* Modal for viewing selected historic item */}
         {activeItem && (
-          <div className="fixed inset-0 z-60 bg-black/80 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[1110] bg-black/80 flex items-center justify-center p-4">
             <div className="max-w-xl w-full max-h-[90vh] overflow-y-auto">
               <div className="flex justify-end mb-2">
                 <button

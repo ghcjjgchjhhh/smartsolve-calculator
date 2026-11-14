@@ -85,7 +85,7 @@ export const InstallAppModal: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-xl bg-[#0A0A0A] rounded-3xl shadow-2xl border border-[#27272A] overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header with App Icon */}
         <div className="relative bg-[#13161D] p-5 sm:p-6 text-[#FFFFFF] border-b border-[#27272A]">

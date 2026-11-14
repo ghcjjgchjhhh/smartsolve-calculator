@@ -2466,7 +2466,7 @@ TUTOR INSTRUCTIONS:
 
       {/* CBT EXAM SUBMISSION CONFIRMATION MODAL */}
       {showSubmitConfirmModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[1100] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#0D0D11] border border-[#27272A] rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl space-y-5 text-white">
             <div className="flex items-start justify-between gap-3 border-b border-[#27272A] pb-3">
               <div className="flex items-center space-x-3">
@@ -2540,7 +2540,7 @@ TUTOR INSTRUCTIONS:
 
       {/* COMPREHENSIVE CBT EXAM RESULTS MODAL (Auto-Triggered on Completion) */}
       {showResultsModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+        <div className="fixed inset-0 z-[1100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
           <div className="bg-[#0A0A0A] border border-[#27272A] rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative text-[#FFFFFF] space-y-6 max-h-[90vh] overflow-y-auto">
             {/* Top Back & Close Bar */}
             <div className="flex items-center justify-between pb-3 border-b border-[#27272A]">

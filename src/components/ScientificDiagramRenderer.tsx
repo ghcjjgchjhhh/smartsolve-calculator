@@ -1119,7 +1119,7 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
   return (
     <div
       className={`bg-[#0A0A0E] border border-[#27272A] rounded-2xl overflow-hidden shadow-xl transition-all ${
-        isFullscreen ? 'fixed inset-4 z-50 flex flex-col bg-[#0A0A0E]/95 backdrop-blur-xl' : ''
+        isFullscreen ? 'fixed inset-4 z-[1100] flex flex-col bg-[#0A0A0E]/95 backdrop-blur-xl' : ''
       } ${className}`}
     >
       {/* Header Toolbar */}
