@@ -54,7 +54,7 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
     // Faint ruled lines for clean handwriting
     ctx.strokeStyle = '#E2E8F0';
     ctx.lineWidth = 1;
-    for (let y = 55; y < c.height; y += 55) {
+    for (let y = 60; y < c.height; y += 60) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(c.width, y);
@@ -99,7 +99,7 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = padTool === 'eraser' ? '#FFFFFF' : '#0F172A';
-    ctx.lineWidth = padTool === 'eraser' ? 18 : 3.5;
+    ctx.lineWidth = padTool === 'eraser' ? 22 : 4;
     ctx.lineTo(pt.x, pt.y);
     ctx.stroke();
   };
@@ -129,6 +129,30 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
     reader.readAsDataURL(file);
   };
 
+  const compressImageDataUrl = (dataUrl: string, maxDim = 1280): Promise<{ dataUrl: string; mime: string }> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const off = document.createElement('canvas');
+        off.width = w;
+        off.height = h;
+        const ctx = off.getContext('2d');
+        if (!ctx) {
+          resolve({ dataUrl, mime: uploadedMime });
+          return;
+        }
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve({ dataUrl: off.toDataURL('image/jpeg', 0.85), mime: 'image/jpeg' });
+      };
+      img.onerror = () => resolve({ dataUrl, mime: uploadedMime });
+      img.src = dataUrl;
+    });
+
   const handleRecognize = async () => {
     setError('');
     let imageBase64 = '';
@@ -136,14 +160,16 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
 
     if (inputMode === 'draw') {
       if (!padRef.current) return;
-      imageBase64 = padRef.current.toDataURL('image/png');
-      mimeType = 'image/png';
+      imageBase64 = padRef.current.toDataURL('image/jpeg', 0.88);
+      mimeType = 'image/jpeg';
     } else {
       if (!uploadedPreview) {
         setError('Please upload a handwritten mathematics image first.');
         return;
       }
-      imageBase64 = uploadedPreview;
+      const compressed = await compressImageDataUrl(uploadedPreview);
+      imageBase64 = compressed.dataUrl;
+      mimeType = compressed.mime;
     }
 
     setIsAnalyzing(true);
@@ -265,8 +291,8 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
             <div className="rounded-xl overflow-hidden border border-slate-300 dark:border-[#27272A] bg-white">
               <canvas
                 ref={padRef}
-                width={760}
-                height={280}
+                width={840}
+                height={420}
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
@@ -277,8 +303,8 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
           </div>
         ) : (
           <div className="space-y-3">
-            <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 dark:border-[#27272A] p-6 text-center cursor-pointer hover:border-[#22C55E] transition-colors">
-              <Upload className="w-7 h-7 text-[#22C55E] mb-2" />
+            <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 dark:border-[#27272A] p-8 sm:p-10 text-center cursor-pointer hover:border-[#22C55E] transition-colors">
+              <Upload className="w-8 h-8 text-[#22C55E] mb-2" />
               <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
                 Upload handwritten photo or screenshot
               </span>
@@ -292,7 +318,7 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
               <div className="rounded-xl border border-slate-200 dark:border-[#27272A] p-3 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <ImageIcon className="w-5 h-5 text-[#22C55E] shrink-0" />
-                  <img src={uploadedPreview} alt="Handwritten math preview" className="max-h-36 rounded-lg object-contain" />
+                  <img src={uploadedPreview} alt="Handwritten math preview" className="max-h-56 rounded-lg object-contain" />
                 </div>
                 <button
                   type="button"
