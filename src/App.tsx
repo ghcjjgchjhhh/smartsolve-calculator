@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { Header, NavigationTabItem, NavGroupFilter } from './components/Header';
+import { Header } from './components/Header';
 import { ScientificCalculator } from './components/ScientificCalculator';
 import { MathHub } from './components/MathHub';
 import { PhysicsHub } from './components/PhysicsHub';
@@ -207,6 +207,9 @@ function MainApp() {
     }
 
     setActiveTab(targetTab);
+    if (typeof window !== 'undefined' && window.scrollY > 80) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleGoBack = () => {
@@ -419,7 +422,7 @@ function MainApp() {
     }
   };
 
-  const [navGroup, setNavGroup] = useState<NavGroupFilter>('all');
+  const [navGroup, setNavGroup] = useState<'all' | 'core' | 'studio'>('all');
 
   const studioTabIds = new Set([
     'ai_whiteboard',
@@ -436,45 +439,45 @@ function MainApp() {
     'study_rooms',
   ]);
 
-  const navigationTabs: NavigationTabItem[] = [
-    { id: 'scientific', name: t('scientific', 'Scientific'), icon: Calculator, badge: 'FX', category: 'Core & Calculators' },
-    { id: 'learn_topic', name: 'Learn Any Topic', icon: GraduationCap, badge: 'AI Tutor', category: 'AI Tutors & Solvers' },
-    { id: 'ai_solver', name: t('ai_solver', 'AI Solver'), icon: Sparkles, badge: 'Step Solver', category: 'AI Tutors & Solvers' },
-    { id: 'ai_chat', name: t('ai_chat', 'AI Chat'), icon: MessageSquare, badge: 'Multimodal', category: 'AI Tutors & Solvers' },
-    { id: 'ai_whiteboard', name: 'AI Whiteboard', icon: PenTool, badge: 'Studio', category: 'AI & 3D Studio' },
-    { id: 'physics_3d', name: '3D Physics', icon: Box, badge: 'WebGL 3D', category: 'AI & 3D Studio' },
-    { id: 'voice_math', name: 'Voice-to-Math', icon: Mic, badge: 'Voice', category: 'AI & 3D Studio' },
-    { id: 'handwriting', name: 'Handwriting OCR', icon: ScanLine, badge: 'OCR', category: 'AI & 3D Studio' },
-    { id: 'socratic_tutor', name: 'Socratic Tutor', icon: HelpCircle, badge: 'Guided', category: 'AI Tutors & Solvers' },
-    { id: 'scientific_research', name: 'Research Mode', icon: Microscope, badge: 'Consensus', category: 'AI & 3D Studio' },
-    { id: 'formula_explorer', name: 'Formula Explorer', icon: SlidersHorizontal, badge: 'Sliders', category: 'AI & 3D Studio' },
-    { id: 'document_tutor', name: 'Document Tutor', icon: FileText, badge: 'PDF Q&A', category: 'AI Tutors & Solvers' },
-    { id: 'past_questions', name: 'Past Questions', icon: Search, badge: 'Verified', category: 'Exam Prep & Study Rooms' },
-    { id: 'biology_lab', name: 'Biology Lab', icon: Dna, badge: 'Anatomy', category: 'Physics, Chem & Labs' },
-    { id: 'equation_editor', name: 'Equation Editor', icon: Sigma, badge: 'LaTeX', category: 'Core & Calculators' },
-    { id: 'study_rooms', name: 'Study Rooms', icon: Users, badge: 'Live Sync', category: 'Exam Prep & Study Rooms' },
-    { id: 'grapher', name: t('grapher', '2D Grapher'), icon: TrendingUp, badge: 'Canvas', category: 'Core & Calculators' },
-    { id: 'periodic_table', name: t('periodic_table', 'Periodic Table'), icon: FlaskConical, badge: 'Chemistry', category: 'Physics, Chem & Labs' },
-    { id: 'physics_sim', name: t('physics_sim', 'Physics Lab'), icon: Activity, badge: 'Simulations', category: 'Physics, Chem & Labs' },
-    { id: 'flashcards', name: t('flashcards', 'Flashcards'), icon: Layers, badge: 'Memory', category: 'Exam Prep & Study Rooms' },
-    { id: 'notebook', name: t('notebook', 'My Formulas'), icon: BookOpen, badge: 'Notebook', category: 'Core & Calculators' },
-    { id: 'math', name: t('math_hub', 'Mathematics'), icon: FunctionSquare, badge: '19 Topics', category: 'Core & Calculators' },
-    { id: 'physics', name: t('physics_hub', 'Physics'), icon: Atom, badge: '44 Formulas', category: 'Physics, Chem & Labs' },
-    { id: 'equation', name: t('equations', 'Equations'), icon: Cpu, badge: 'Auto', category: 'Core & Calculators' },
-    { id: 'converter', name: t('converter', 'Converter'), icon: Scale, badge: '16 Types', category: 'Core & Calculators' },
-    { id: 'jamb', name: t('exam_prep', 'JAMB / WAEC'), icon: GraduationCap, badge: 'JAMB · WAEC', category: 'Exam Prep & Study Rooms' },
-    { id: 'smart_input', name: t('smart_input', 'Smart Input'), icon: MessageSquareCode, badge: 'AI Parser', category: 'AI Tutors & Solvers' },
-    { id: 'vectors', name: t('vectors', 'Vector Lab'), icon: Compass, badge: '2D Forces', category: 'Physics, Chem & Labs' },
-    { id: 'circuits', name: t('circuits', 'Circuit Lab'), icon: Zap, badge: 'DC Ohm', category: 'Physics, Chem & Labs' },
-    { id: 'organic', name: t('organic', 'Organic Chemistry'), icon: FlaskConical, badge: '2D Molecules', category: 'Physics, Chem & Labs' },
-    { id: 'diagnostics', name: t('diagnostics', 'Exam Radar'), icon: Award, badge: 'Diagnostics', category: 'Exam Prep & Study Rooms' },
-    { id: 'optics', name: t('optics', 'Optics Lab'), icon: Eye, badge: 'Ray Tracer', category: 'Physics, Chem & Labs' },
-    { id: 'gas_laws', name: t('gas_laws', 'Gas Lab'), icon: Gauge, badge: 'PV = nRT', category: 'Physics, Chem & Labs' },
-    { id: 'titration', name: t('titration', 'Titration Lab'), icon: FlaskConical, badge: 'pH Curve', category: 'Physics, Chem & Labs' },
-    { id: 'chem_balancer', name: t('chemistry_solver', 'Chemistry Solver'), icon: FlaskConical, badge: 'AI Tutor & Lab', category: 'Physics, Chem & Labs' },
-    { id: 'statistics', name: t('statistics', 'Stats & Ogive'), icon: BarChart2, badge: 'Ogive', category: 'Core & Calculators' },
-    { id: 'matrix', name: t('matrix', 'Matrix Lab'), icon: Cpu, badge: '3x3 Gauss', category: 'Core & Calculators' },
-    { id: 'revision', name: t('revision', 'Cheat-Sheets'), icon: BookOpen, badge: 'Print PDF', category: 'Exam Prep & Study Rooms' },
+  const navigationTabs = [
+    { id: 'scientific', name: t('scientific', 'Scientific'), icon: Calculator, badge: 'FX' },
+    { id: 'learn_topic', name: 'Learn Any Topic', icon: GraduationCap, badge: 'AI Tutor' },
+    { id: 'ai_solver', name: t('ai_solver', 'AI Solver'), icon: Sparkles, badge: 'Step Solver' },
+    { id: 'ai_chat', name: t('ai_chat', 'AI Chat'), icon: MessageSquare, badge: 'Multimodal' },
+    { id: 'ai_whiteboard', name: 'AI Whiteboard', icon: PenTool, badge: 'Studio' },
+    { id: 'physics_3d', name: '3D Physics', icon: Box, badge: 'WebGL 3D' },
+    { id: 'voice_math', name: 'Voice-to-Math', icon: Mic, badge: 'Voice' },
+    { id: 'handwriting', name: 'Handwriting OCR', icon: ScanLine, badge: 'OCR' },
+    { id: 'socratic_tutor', name: 'Socratic Tutor', icon: HelpCircle, badge: 'Guided' },
+    { id: 'scientific_research', name: 'Research Mode', icon: Microscope, badge: 'Consensus' },
+    { id: 'formula_explorer', name: 'Formula Explorer', icon: SlidersHorizontal, badge: 'Sliders' },
+    { id: 'document_tutor', name: 'Document Tutor', icon: FileText, badge: 'PDF Q&A' },
+    { id: 'past_questions', name: 'Past Questions', icon: Search, badge: 'Verified' },
+    { id: 'biology_lab', name: 'Biology Lab', icon: Dna, badge: 'Anatomy' },
+    { id: 'equation_editor', name: 'Equation Editor', icon: Sigma, badge: 'LaTeX' },
+    { id: 'study_rooms', name: 'Study Rooms', icon: Users, badge: 'Live Sync' },
+    { id: 'grapher', name: t('grapher', '2D Grapher'), icon: TrendingUp, badge: 'Canvas' },
+    { id: 'periodic_table', name: t('periodic_table', 'Periodic Table'), icon: FlaskConical, badge: 'Chemistry' },
+    { id: 'physics_sim', name: t('physics_sim', 'Physics Lab'), icon: Activity, badge: 'Simulations' },
+    { id: 'flashcards', name: t('flashcards', 'Flashcards'), icon: Layers, badge: 'Memory' },
+    { id: 'notebook', name: t('notebook', 'My Formulas'), icon: BookOpen, badge: 'Notebook' },
+    { id: 'math', name: t('math_hub', 'Mathematics'), icon: FunctionSquare, badge: '19 Topics' },
+    { id: 'physics', name: t('physics_hub', 'Physics'), icon: Atom, badge: '44 Formulas' },
+    { id: 'equation', name: t('equations', 'Equations'), icon: Cpu, badge: 'Auto' },
+    { id: 'converter', name: t('converter', 'Converter'), icon: Scale, badge: '16 Types' },
+    { id: 'jamb', name: t('exam_prep', 'JAMB / WAEC'), icon: GraduationCap, badge: 'JAMB · WAEC' },
+    { id: 'smart_input', name: t('smart_input', 'Smart Input'), icon: MessageSquareCode, badge: 'AI Parser' },
+    { id: 'vectors', name: t('vectors', 'Vector Lab'), icon: Compass, badge: '2D Forces' },
+    { id: 'circuits', name: t('circuits', 'Circuit Lab'), icon: Zap, badge: 'DC Ohm' },
+    { id: 'organic', name: t('organic', 'Organic Chemistry'), icon: FlaskConical, badge: '2D Molecules' },
+    { id: 'diagnostics', name: t('diagnostics', 'Exam Radar'), icon: Award, badge: 'Diagnostics' },
+    { id: 'optics', name: t('optics', 'Optics Lab'), icon: Eye, badge: 'Ray Tracer' },
+    { id: 'gas_laws', name: t('gas_laws', 'Gas Lab'), icon: Gauge, badge: 'PV = nRT' },
+    { id: 'titration', name: t('titration', 'Titration Lab'), icon: FlaskConical, badge: 'pH Curve' },
+    { id: 'chem_balancer', name: t('chemistry_solver', 'Chemistry Solver'), icon: FlaskConical, badge: 'AI Tutor & Lab' },
+    { id: 'statistics', name: t('statistics', 'Stats & Ogive'), icon: BarChart2, badge: 'Ogive' },
+    { id: 'matrix', name: t('matrix', 'Matrix Lab'), icon: Cpu, badge: '3x3 Gauss' },
+    { id: 'revision', name: t('revision', 'Cheat-Sheets'), icon: BookOpen, badge: 'Print PDF' },
   ];
 
   const visibleNavigationTabs =
@@ -503,17 +506,82 @@ function MainApp() {
         </div>
       )}
 
-      {/* Unified Sticky Header & Full Navigation (position: sticky; top: 0; z-index: 1000) */}
-      <Header
-        onOpenSearch={() => setIsSearchOpen(true)}
-        onOpenHistory={() => setIsHistoryOpen(true)}
-        activeTab={activeTab}
-        setActiveTab={navigateTab}
-        navigationTabs={navigationTabs}
-        visibleNavigationTabs={visibleNavigationTabs}
-        navGroup={navGroup}
-        setNavGroup={setNavGroup}
-      />
+      {/* Sticky Header + Sideways-Scrollable Navigation Ribbon */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 1000 }} className="sticky top-0 z-[1000] w-full">
+        <Header
+          onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenHistory={() => setIsHistoryOpen(true)}
+          activeTab={activeTab}
+          setActiveTab={navigateTab}
+        />
+
+        {/* Main Tab Navigation Ribbon */}
+        <div
+          className={`border-b shadow-xs transition-colors ${
+            isDark ? 'bg-[#0A0A0A] border-[#27272A]' : 'bg-white border-slate-200'
+          }`}
+        >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-1 pr-2 border-r border-slate-200 dark:border-[#27272A] shrink-0">
+            {(
+              [
+                { id: 'all', label: 'All' },
+                { id: 'studio', label: 'AI & 3D Studio' },
+                { id: 'core', label: 'Calc & Labs' },
+              ] as const
+            ).map((grp) => (
+              <button
+                key={grp.id}
+                type="button"
+                onClick={() => setNavGroup(grp.id)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap cursor-pointer transition-colors ${
+                  navGroup === grp.id
+                    ? 'bg-[#22C55E]/15 text-[#22C55E]'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {grp.label}
+              </button>
+            ))}
+          </div>
+          <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto py-2.5 scrollbar-none flex-1">
+            {visibleNavigationTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => navigateTab(tab.id)}
+                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                    isActive
+                      ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-md shadow-emerald-500/25 scale-[1.02]'
+                      : isDark
+                      ? 'text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#18181B]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.name}</span>
+                  {tab.badge && (
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
+                        isActive
+                          ? 'bg-black/25 text-[#FFFFFF]'
+                          : isDark
+                          ? 'bg-[#18181B] text-[#A1A1AA]'
+                          : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {tab.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+        </div>
+      </div>
 
       {/* Back Navigation Bar (shown when user navigated from another tab or feature) */}
       {tabHistory.length > 1 && (
