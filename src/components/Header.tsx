@@ -111,10 +111,10 @@ export const Header: React.FC<Props> = ({
   return (
     <>
       <header
-        className={`backdrop-blur-md border-b transition-colors ${
+        className={`border-b transform-gpu ${
           isDark
-            ? 'bg-[#0A0A0A]/95 text-white border-[#27272A]'
-            : 'bg-white/95 text-slate-900 border-slate-200 shadow-xs'
+            ? 'bg-[#0A0A0A] text-white border-[#27272A]'
+            : 'bg-white text-slate-900 border-slate-200 shadow-xs'
         }`}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">

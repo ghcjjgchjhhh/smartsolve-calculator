@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
 function resolveApiKey(req: any, body: any): string {
   const headerKey =
@@ -19,13 +19,47 @@ function resolveApiKey(req: any, body: any): string {
   );
 }
 
+function repairAndParseJson(rawText: string | undefined): any {
+  let txt = (rawText || '{}')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  const match = txt.match(/\{[\s\S]*\}/);
+  if (match) {
+    txt = match[0];
+  }
+
+  try {
+    return JSON.parse(txt);
+  } catch {
+    // Repair invalid backslash escapes (common in LaTeX like \frac, \boxed, \text, \Delta)
+    // and trailing commas before } or ]
+    const repaired = txt
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+    return JSON.parse(repaired);
+  }
+}
+
 async function generateWithModelFallback(
   ai: GoogleGenAI,
   contents: any[],
-  responseMimeType?: string,
-  timeoutMs: number = 30000
+  options: {
+    responseMimeType?: string;
+    timeoutMs?: number;
+    validateJson?: (parsed: any) => boolean;
+  } = {}
 ) {
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const {
+    responseMimeType,
+    timeoutMs = 35000,
+    validateJson,
+  } = options;
+
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
+
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {
@@ -35,10 +69,10 @@ async function generateWithModelFallback(
       if (responseMimeType) {
         config.responseMimeType = responseMimeType;
       }
-      if (model === 'gemini-3.8-flash') {
-        config.thinkingConfig = { thinkingLevel: 'LOW' };
+      if (model === 'gemini-4-hydrogen') {
+        config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
       } else if (model === 'gemini-3.1-flash-lite') {
-        config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+        config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
       }
 
       const generatePromise = ai.models.generateContent({
@@ -49,34 +83,42 @@ async function generateWithModelFallback(
 
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
-          () => reject(new Error(`Timeout: Model ${model} took longer than ${Math.round(timeoutMs / 1000)} seconds`)),
+          () =>
+            reject(
+              new Error(`Timeout: Model ${model} took longer than ${Math.round(timeoutMs / 1000)} seconds`)
+            ),
           timeoutMs
         )
       );
 
       const response = (await Promise.race([generatePromise, timeoutPromise])) as any;
-      return response;
+      const text = response?.text?.trim();
+      if (!text) {
+        throw new Error(`Model ${model} returned an empty response.`);
+      }
+
+      if (responseMimeType === 'application/json') {
+        const parsed = repairAndParseJson(text);
+        if (validateJson && !validateJson(parsed)) {
+          throw new Error(`Model ${model} returned incomplete structured data.`);
+        }
+        return { response, parsed };
+      }
+
+      return { response, parsed: null };
     } catch (err: any) {
       lastError = err;
       const msg = err?.message || String(err);
       if (i < candidateModels.length - 1) {
-        console.warn(`[SmartSolve Learn API] Model ${model} failed (${msg.slice(0, 90)}). Retrying with ${candidateModels[i + 1]}...`);
-        await new Promise((r) => setTimeout(r, 700));
+        console.warn(
+          `[SmartSolve Learn API] Model ${model} failed (${msg.slice(0, 100)}). Retrying with ${candidateModels[i + 1]}...`
+        );
+        await new Promise((r) => setTimeout(r, 350));
         continue;
       }
     }
   }
   throw lastError;
-}
-
-function parseJsonResponse(rawText: string | undefined): any {
-  const txt = (rawText || '{}')
-    .trim()
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```$/i, '')
-    .trim();
-  const match = txt.match(/\{[\s\S]*\}/);
-  return JSON.parse(match ? match[0] : txt);
 }
 
 function sendJsonResponse(res: any, statusCode: number, payload: any) {
@@ -158,7 +200,9 @@ TEACHING VOICE & RULES:
 - End with one quick, encouraging check-for-understanding question.
 `.trim();
 
-      const response = await generateWithModelFallback(ai, [{ text: followUpPrompt }], undefined, 30000);
+      const { response } = await generateWithModelFallback(ai, [{ text: followUpPrompt }], {
+        timeoutMs: 18000,
+      });
       return sendJsonResponse(res, 200, { success: true, reply: response.text?.trim() || '' });
     }
 
@@ -215,7 +259,8 @@ MATH & VERIFICATION RULES:
 - Verify every arithmetic calculation carefully. Never round mid-calculation carelessly.
 - Whenever a question yields a single numerical answer, include BOTH "expectedNumericValue" (clean JS float number in target unit) AND "evaluableExpression" (pure ASCII arithmetic expression evaluating to that number, e.g. "(20^2 * (0.5)^2) / (2 * 9.8)").
 - Escape % in LaTeX as \\%. Use $...$ and $$...$$ cleanly.
-- Include "whyThisFormula" explaining clearly why this formula is selected for that specific problem.
+- Include "whyThisFormula" (1 crisp sentence) explaining why this formula is selected.
+- Keep "steps" concise (3–4 short lines with clear arithmetic) and only include "options" & "correctOption" for Multiple-Choice / Formula Identification / Examination-Standard questions (omit "options" for open calculation questions) so all 12 questions generate quickly.
 
 Return ONLY valid JSON:
 {
@@ -230,8 +275,8 @@ Return ONLY valid JSON:
       "correctOption": "A",
       "hint": "Helpful conceptual nudge without spoiling final number",
       "formulaUsed": "${formulaLatex}",
-      "whyThisFormula": "1-2 sentences explaining why this formula applies here and what clues in the question point to it",
-      "steps": ["Given: ...", "Formula & Rearrangement: ...", "Substitution: ...", "Step-by-step calculation: ...", "Final answer with unit"],
+      "whyThisFormula": "1 sentence explaining why this formula applies here",
+      "steps": ["Given: ...", "Substitution: ...", "Result with unit"],
       "finalAnswer": "\\boxed{...}",
       "expectedNumericValue": 25.5,
       "unit": "m/s",
@@ -239,12 +284,15 @@ Return ONLY valid JSON:
     }
   ]
 }
-Note: Only populate "options" & "correctOption" for Multiple-Choice / Formula Identification / Examination-Standard questions (or omit "options" for open calculation questions). Ensure all 12 questions are present!
+Ensure all 12 questions are present!
 `.trim();
 
-      const response = await generateWithModelFallback(ai, [{ text: prompt }], 'application/json', 45000);
-      const parsed = parseJsonResponse(response.text);
-      const questions = Array.isArray(parsed.questions) ? parsed.questions : [];
+      const { parsed } = await generateWithModelFallback(ai, [{ text: prompt }], {
+        responseMimeType: 'application/json',
+        timeoutMs: 24000,
+        validateJson: (p) => Array.isArray(p?.questions) && p.questions.length > 0,
+      });
+      const questions = Array.isArray(parsed?.questions) ? parsed.questions : [];
       return sendJsonResponse(res, 200, { success: true, questions });
     }
 
@@ -280,8 +328,11 @@ Return ONLY valid JSON:
 }
 `.trim();
 
-      const response = await generateWithModelFallback(ai, [{ text: prompt }], 'application/json', 30000);
-      const simplified = parseJsonResponse(response.text);
+      const { parsed: simplified } = await generateWithModelFallback(ai, [{ text: prompt }], {
+        responseMimeType: 'application/json',
+        timeoutMs: 18000,
+        validateJson: (p) => Boolean(p && (p.title || p.encouragement)),
+      });
       return sendJsonResponse(res, 200, { success: true, adaptation: simplified });
     }
 
@@ -318,42 +369,36 @@ ${subjectRule}
 ${levelTone}
 
 TEACHING VOICE & PEDAGOGY:
-- Write like a beloved, inspiring human teacher—warm, conversational, clear, with engaging everyday examples and occasional gentle humor. Never use robotic phrases like "As an AI..." or "In this lesson we will explore...".
+- Write like a warm, inspiring human teacher—clear, concise, engaging everyday examples. Never use robotic phrases like "As an AI..." or "In this lesson we will explore...".
 - NEVER invent formulas, laws, or facts. Only teach verified scientific/academic formulas and principles.
 - Format all equations, fractions, exponents, and chemical formulas cleanly in LaTeX ($...$ and $$...$$). Never leave '%' unescaped in LaTeX (write \\%). Balance all \\left( and \\right).
+- KEEP EVERY FIELD CRISP AND HIGH-YIELD (1–2 sentences per description/explanation, 2–3 short calculation lines per worked example step) so the entire JSON lesson loads rapidly without bloat.
 
 MUST-INCLUDE LESSON SECTIONS:
 1. COMPLETE TOPIC EXPLANATION:
-   - "introduction": engaging human introduction
-   - "simpleDefinition": crisp 1-2 sentence beginner definition
-   - "detailedExplanation": 3 to 4 progressive paragraphs going from simple intuitive foundation → core mechanism/theory → advanced nuances
-   - "importantConcepts": 3–5 bullet takeaways
-   - "characteristicsAndProperties": 3–5 bullet characteristics/properties
-   - "typesAndClassifications": 2–4 classifications/types with description and example
-   - "everydayExamples": 3 concrete examples from daily life
-   - "realWorldAnalogy": vivid relatable mental model
-   - "commonExamQuestions": 3 typical questions examiners ask on this topic + key idea
-   - "importantNotes": key facts to remember & boundary rules
-   - "commonPitfalls": frequent student mistakes & traps
-   - "summary": crisp wrap-up of the topic
+   - "introduction": engaging 2-sentence human introduction
+   - "simpleDefinition": crisp 1-sentence beginner definition
+   - "detailedExplanation": 3 crisp progressive paragraphs (simple intuition → core mechanism → exam/university depth)
+   - "importantConcepts": 3 bullet takeaways
+   - "characteristicsAndProperties": 3 bullet characteristics/properties
+   - "typesAndClassifications": 2–3 classifications/types with short description and example
+   - "everydayExamples": 2–3 concrete examples from daily life
+   - "realWorldAnalogy": vivid 1-sentence relatable mental model
+   - "commonExamQuestions": 2–3 typical questions examiners ask + key idea
+   - "importantNotes": 2–3 key facts & boundary rules
+   - "commonPitfalls": 2–3 frequent student mistakes
+   - "summary": 1-sentence wrap-up of the topic
 
 2. FORMULAS OR NON-FORMULA PRINCIPLES:
-   - If the topic involves mathematical/scientific formulas: you MUST populate "formulas" as an array of 2 to 4 separate objects—one object for EACH core formula (for example, Projectile Motion MUST have separate objects for: 1) Time of Flight, 2) Maximum Height, 3) Horizontal Range; NEVER lump multiple formulas into one "General" entry!).
-   - For EACH formula include:
-     A. name (specific formula title)
-     B. latex (KaTeX)
-     C. symbols (each symbol, meaning, SI unit, optional standardValue)
-     E. whenToUse (how to recognize when it applies)
-     F. conditions (assumptions/validity limits, when NOT to use)
-     G/H/I. "workedExamplesByLevel" containing ONE "simple", ONE "intermediate", and ONE "difficult" worked example directly under that formula! Keep each example crisp (2–4 clear algebraic steps without skipping arithmetic, substitution, boxed finalAnswer with unit, and 1-sentence explanation).
-   - If the topic is non-mathematical (e.g., English grammar, Literature, descriptive Biology/Geography/History): leave "formulas" as [] and populate "principlesAndRules" with 3–5 core rules, principles, processes, or key relationships!
+   - If the topic involves mathematical/scientific formulas: populate "formulas" as an array of 2 to 3 separate objects—one object for EACH core formula (e.g., Projectile Motion: Time of Flight, Maximum Height, Horizontal Range).
+   - For EACH formula include: name, latex (KaTeX), symbols (symbol, meaning, siUnit), whenToUse (1 sentence), conditions (1 sentence), and "workedExamplesByLevel" with ONE "simple", ONE "intermediate", and ONE "difficult" worked example (each 2–3 crisp steps, substitution, boxed finalAnswer, 1-sentence explanation).
+   - If the topic is non-mathematical: leave "formulas" as [] and populate "principlesAndRules" with 3 core rules/principles.
 
 3. VISUAL TEACHING:
-   - Populate "visualConceptModel" whenever the topic involves a process, cycle, chemical reaction, biological pathway, or classification hierarchy so students see a structured visual diagram.
-   - Populate "tables" with 1–2 high-yield comparison/reference tables.
+   - Populate "visualConceptModel" (3–4 nodes) and "tables" (1 high-yield table).
 
-4. EXAMINATION MODE QUESTIONS (5–6 questions):
-   - Populate "examModeQuestions" covering JAMB, WAEC, and JUPEB across "Multiple-Choice", "Theory", "Calculation", "Conceptual", and "Application", with sourceType: "ai-generated".
+4. EXAMINATION MODE QUESTIONS (4 crisp questions):
+   - Populate "examModeQuestions" covering JAMB, WAEC, and JUPEB across Multiple-Choice, Theory, Calculation, and Application, with sourceType: "ai-generated".
 
 5. SMART TOPIC NAVIGATION:
    - Populate "topicNavigation" with prerequisites, relatedTopics, advancedTopics, keyFormulasToMaster, and recommendedNextStep.
@@ -539,8 +584,14 @@ Return ONLY a valid JSON object matching this exact schema:
 }
 `.trim();
 
-    const response = await generateWithModelFallback(ai, [{ text: learnPrompt }], 'application/json', 45000);
-    const parsedLesson = parseJsonResponse(response.text);
+    const { parsed: parsedLesson } = await generateWithModelFallback(ai, [{ text: learnPrompt }], {
+      responseMimeType: 'application/json',
+      timeoutMs: 25000,
+      validateJson: (p) => Boolean(p && typeof p === 'object' && (p.topic || p.introduction || p.summary)),
+    });
+    if (!parsedLesson.topic) parsedLesson.topic = topic;
+    if (!parsedLesson.subject) parsedLesson.subject = subjectInput === 'Auto-Detect' ? 'General STEM' : subjectInput;
+    if (!parsedLesson.targetExamLevel) parsedLesson.targetExamLevel = examLevel;
     parsedLesson.timestamp = Date.now();
 
     return sendJsonResponse(res, 200, { success: true, lesson: parsedLesson });

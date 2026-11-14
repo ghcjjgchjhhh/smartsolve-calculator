@@ -41,6 +41,7 @@ import {
   fetchTopicLesson,
   findVerifiedPastQuestions,
   getSavedLessons,
+  normalizeLesson,
   saveLessonToHistory,
 } from '../services/learnTopicService';
 import {
@@ -239,7 +240,7 @@ export const LearnAnyTopicView: React.FC = () => {
       loadQuestionsForFormula(lesson, 0, false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lesson?.topic]);
+  }, [lesson?.topic, lesson?.timestamp]);
 
   const handleTeachMe = async (customQuery?: string, subjectOverride?: string) => {
     const query = (customQuery ?? topicInput).trim();
@@ -446,7 +447,7 @@ ${lesson.summary}`;
         </div>
       </div>
       <div className="space-y-1 text-xs">
-        {ex.steps.map((st, idx) => (
+        {(ex.steps || []).map((st, idx) => (
           <div key={idx} className={isDark ? 'text-zinc-300' : 'text-slate-700'}>
             <MathRenderer content={st} />
           </div>
@@ -720,9 +721,11 @@ ${lesson.summary}`;
               value={topicInput}
               onChange={(e) => setTopicInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                if (e.key === 'Enter' && (!e.shiftKey || e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
-                  handleTeachMe();
+                  if (topicInput.trim() && !isLoading) {
+                    handleTeachMe();
+                  }
                 }
               }}
               rows={3}
@@ -734,7 +737,7 @@ ${lesson.summary}`;
 
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-700/20 px-1">
               <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-                <span>Press Ctrl+Enter to start lesson</span>
+                <span>Press Enter to start lesson (Shift+Enter for new line)</span>
                 {progressSummary.totalAnswered > 0 && (
                   <>
                     <span aria-hidden="true">·</span>
@@ -1273,7 +1276,7 @@ ${lesson.summary}`;
                             {lesson.visualConceptModel.title}
                           </span>
                           <span className="text-[11px] uppercase font-bold text-[#22C55E]">
-                            {lesson.visualConceptModel.kind.replace('_', ' ')}
+                            {(lesson.visualConceptModel.kind || 'process_flow').replace(/_/g, ' ')}
                           </span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -1795,6 +1798,40 @@ ${lesson.summary}`;
                       <Loader2 className="w-4 h-4 animate-spin text-[#22C55E]" />
                       <span>Generating fresh non-repetitive questions for {activePracticeFormula.name}...</span>
                     </div>
+                  ) : activePracticeFormula &&
+                    formulaErrorMap[
+                      activePracticeFormula.id || activePracticeFormula.name || `f_${practiceFormulaIdx}`
+                    ] ? (
+                    <div className="p-5 rounded-2xl border border-rose-500/40 bg-rose-500/10 text-xs text-rose-400 flex flex-wrap items-center justify-between gap-3">
+                      <span>
+                        {
+                          formulaErrorMap[
+                            activePracticeFormula.id || activePracticeFormula.name || `f_${practiceFormulaIdx}`
+                          ]
+                        }
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => loadQuestionsForFormula(lesson, practiceFormulaIdx, true)}
+                        className="px-3.5 py-1.5 rounded-xl bg-rose-500 text-white font-bold cursor-pointer"
+                      >
+                        Retry Questions
+                      </button>
+                    </div>
+                  ) : !activePracticeFormula?.questions || activePracticeFormula.questions.length === 0 ? (
+                    <div className="p-8 text-center space-y-3">
+                      <p className="text-xs text-zinc-400">
+                        No practice questions loaded yet for {activePracticeFormula?.name || 'this formula'}.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => loadQuestionsForFormula(lesson, practiceFormulaIdx, false)}
+                        className="px-4 py-2 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Load 12 Practice Questions</span>
+                      </button>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {(activePracticeFormula?.questions || [])
@@ -1923,7 +1960,7 @@ ${lesson.summary}`;
                           {lesson.visualConceptModel.title}
                         </h4>
                         <span className="text-[11px] uppercase font-bold text-[#22C55E]">
-                          {lesson.visualConceptModel.kind.replace('_', ' ')}
+                          {(lesson.visualConceptModel.kind || 'process_flow').replace(/_/g, ' ')}
                         </span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1960,15 +1997,15 @@ ${lesson.summary}`;
                           <table className="w-full text-left text-xs sm:text-sm border-collapse">
                             <thead>
                               <tr className={`border-b ${isDark ? 'border-[#27272A] bg-[#18181B]' : 'border-slate-200 bg-slate-100'}`}>
-                                {tbl.headers.map((h, i) => (
+                                {(tbl.headers || []).map((h, i) => (
                                   <th key={i} className="py-2 px-3 font-bold">{h}</th>
                                 ))}
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-700/20">
-                              {tbl.rows.map((row, rIdx) => (
+                              {(tbl.rows || []).map((row, rIdx) => (
                                 <tr key={rIdx}>
-                                  {row.map((cell, cIdx) => (
+                                  {(Array.isArray(row) ? row : []).map((cell, cIdx) => (
                                     <td key={cIdx} className="py-2 px-3">
                                       <MathRenderer content={cell} />
                                     </td>
@@ -2220,7 +2257,7 @@ ${lesson.summary}`;
                 key={idx}
                 type="button"
                 onClick={() => {
-                  setLesson(saved);
+                  setLesson(normalizeLesson(saved, saved.topic));
                   setTopicInput(saved.topic);
                   setActiveStudioTab('lesson');
                   setTimeout(() => {

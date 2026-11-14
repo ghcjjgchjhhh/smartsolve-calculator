@@ -152,7 +152,15 @@ function MainApp() {
     return 'scientific';
   });
 
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([activeTab]));
+
   useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
     try {
       localStorage.setItem('smartsolve_active_tab', activeTab);
     } catch {
@@ -423,6 +431,16 @@ function MainApp() {
   };
 
   const [navGroup, setNavGroup] = useState<'all' | 'core' | 'studio'>('all');
+  const navRibbonRef = useRef<HTMLElement | null>(null);
+  const activeTabBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const navEl = navRibbonRef.current;
+    const btnEl = activeTabBtnRef.current;
+    if (!navEl || !btnEl) return;
+    const targetLeft = btnEl.offsetLeft - navEl.clientWidth / 2 + btnEl.clientWidth / 2;
+    navEl.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+  }, [activeTab, navGroup]);
 
   const studioTabIds = new Set([
     'ai_whiteboard',
@@ -494,7 +512,7 @@ function MainApp() {
 
   return (
     <div
-      className={`min-h-screen w-full max-w-full overflow-x-clip flex flex-col font-sans transition-colors duration-200 ${
+      className={`min-h-screen w-full max-w-full overflow-x-clip flex flex-col font-sans ${
         isDark ? 'bg-[#000000] text-[#FFFFFF]' : 'bg-[#F8FAFC] text-[#0F172A]'
       }`}
     >
@@ -507,7 +525,10 @@ function MainApp() {
       )}
 
       {/* Sticky Header + Sideways-Scrollable Navigation Ribbon */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 1000 }} className="sticky top-0 z-[1000] w-full">
+      <div
+        style={{ position: 'sticky', top: 0, zIndex: 1000 }}
+        className="sticky top-0 z-[1000] w-full transform-gpu will-change-transform"
+      >
         <Header
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenHistory={() => setIsHistoryOpen(true)}
@@ -517,7 +538,7 @@ function MainApp() {
 
         {/* Main Tab Navigation Ribbon */}
         <div
-          className={`border-b shadow-xs transition-colors ${
+          className={`border-b shadow-xs ${
             isDark ? 'bg-[#0A0A0A] border-[#27272A]' : 'bg-white border-slate-200'
           }`}
         >
@@ -544,17 +565,21 @@ function MainApp() {
               </button>
             ))}
           </div>
-          <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto py-2.5 scrollbar-none flex-1">
+          <nav
+            ref={navRibbonRef}
+            className="flex space-x-1 sm:space-x-2 overflow-x-auto py-2.5 scrollbar-none flex-1 scroll-smooth"
+          >
             {visibleNavigationTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  ref={isActive ? activeTabBtnRef : null}
                   onClick={() => navigateTab(tab.id)}
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                     isActive
-                      ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-md shadow-emerald-500/25 scale-[1.02]'
+                      ? 'bg-[#22C55E] text-[#FFFFFF] font-bold shadow-md shadow-emerald-500/25'
                       : isDark
                       ? 'text-[#A1A1AA] hover:text-[#FFFFFF] hover:bg-[#18181B]'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -648,128 +673,178 @@ function MainApp() {
         </div>
       )}
 
-      {/* Main Content Area: Preserved tabs keep DOM state intact across navigation */}
+      {/* Main Content Area: Lazy-mounted on first visit and preserved across navigation */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
-        <div className={activeTab === 'scientific' ? 'block' : 'hidden'}>
-          <ScientificCalculator
-            onOpenHistory={() => setIsHistoryOpen(true)}
-            onOpenSearch={() => setIsSearchOpen(true)}
-            onNavigateTab={navigateTab}
-          />
-        </div>
-        <div className={activeTab === 'ai_chat' ? 'block' : 'hidden'}>
-          <AiChatAssistantView />
-        </div>
-        <div className={activeTab === 'ai_solver' ? 'block' : 'hidden'}>
-          <GeminiAiSolverView
-            initialPrompt={aiSolverInitialPrompt}
-            initialSubject={aiSolverInitialSubject}
-            onClearInitialPrompt={() => setAiSolverInitialPrompt('')}
-          />
-        </div>
-        <div className={activeTab === 'learn_topic' ? 'block' : 'hidden'}>
-          <LearnAnyTopicView />
-        </div>
-        <div className={activeTab === 'grapher' ? 'block' : 'hidden'}>
-          <FunctionGrapherView />
-        </div>
-        <div className={activeTab === 'periodic_table' ? 'block' : 'hidden'}>
-          <PeriodicTableView />
-        </div>
-        <div className={activeTab === 'physics_sim' ? 'block' : 'hidden'}>
-          <PhysicsSimulatorView />
-        </div>
-        <div className={activeTab === 'flashcards' ? 'block' : 'hidden'}>
-          <FlashcardsView />
-        </div>
-        <div className={activeTab === 'notebook' ? 'block' : 'hidden'}>
-          <CustomFormulaNotebookView />
-        </div>
-        <div className={activeTab === 'math' ? 'block' : 'hidden'}>
-          <MathHub />
-        </div>
-        <div className={activeTab === 'physics' ? 'block' : 'hidden'}>
-          <PhysicsHub />
-        </div>
-        <div className={activeTab === 'equation' ? 'block' : 'hidden'}>
-          <EquationSolverView />
-        </div>
-        <div className={activeTab === 'converter' ? 'block' : 'hidden'}>
-          <UnitConverterView />
-        </div>
-        <div className={activeTab === 'jamb' ? 'block' : 'hidden'}>
-          <JambPracticeView onOpenInGemini={handleOpenInGemini} />
-        </div>
-        <div className={activeTab === 'smart_input' ? 'block' : 'hidden'}>
-          <SmartInputView />
-        </div>
-        <div className={activeTab === 'vectors' ? 'block' : 'hidden'}>
-          <VectorLabView />
-        </div>
-        <div className={activeTab === 'circuits' ? 'block' : 'hidden'}>
-          <CircuitLabView />
-        </div>
-        <div className={activeTab === 'organic' ? 'block' : 'hidden'}>
-          <OrganicChemistryView />
-        </div>
-        <div className={activeTab === 'diagnostics' ? 'block' : 'hidden'}>
-          <ExamDiagnosticsView onNavigateTab={navigateTab} />
-        </div>
-        <div className={activeTab === 'optics' ? 'block' : 'hidden'}>
-          <OpticsLabView />
-        </div>
-        <div className={activeTab === 'gas_laws' ? 'block' : 'hidden'}>
-          <GasLawsLabView />
-        </div>
-        <div className={activeTab === 'titration' ? 'block' : 'hidden'}>
-          <TitrationLabView />
-        </div>
-        <div className={activeTab === 'chem_balancer' ? 'block' : 'hidden'}>
-          <ChemistrySolverView onOpenInGemini={handleOpenInGemini} />
-        </div>
-        <div className={activeTab === 'statistics' ? 'block' : 'hidden'}>
-          <StatisticsLabView />
-        </div>
-        <div className={activeTab === 'matrix' ? 'block' : 'hidden'}>
-          <MatrixLabView />
-        </div>
-        <div className={activeTab === 'revision' ? 'block' : 'hidden'}>
-          <RevisionSheetsView />
-        </div>
+        {visitedTabs.has('scientific') && (
+          <div className={activeTab === 'scientific' ? 'block animate-tabEnter' : 'hidden'}>
+            <ScientificCalculator
+              onOpenHistory={() => setIsHistoryOpen(true)}
+              onOpenSearch={() => setIsSearchOpen(true)}
+              onNavigateTab={navigateTab}
+            />
+          </div>
+        )}
+        {visitedTabs.has('ai_chat') && (
+          <div className={activeTab === 'ai_chat' ? 'block animate-tabEnter' : 'hidden'}>
+            <AiChatAssistantView />
+          </div>
+        )}
+        {visitedTabs.has('ai_solver') && (
+          <div className={activeTab === 'ai_solver' ? 'block animate-tabEnter' : 'hidden'}>
+            <GeminiAiSolverView
+              initialPrompt={aiSolverInitialPrompt}
+              initialSubject={aiSolverInitialSubject}
+              onClearInitialPrompt={() => setAiSolverInitialPrompt('')}
+            />
+          </div>
+        )}
+        {visitedTabs.has('learn_topic') && (
+          <div className={activeTab === 'learn_topic' ? 'block animate-tabEnter' : 'hidden'}>
+            <LearnAnyTopicView />
+          </div>
+        )}
+        {visitedTabs.has('grapher') && (
+          <div className={activeTab === 'grapher' ? 'block animate-tabEnter' : 'hidden'}>
+            <FunctionGrapherView />
+          </div>
+        )}
+        {visitedTabs.has('periodic_table') && (
+          <div className={activeTab === 'periodic_table' ? 'block animate-tabEnter' : 'hidden'}>
+            <PeriodicTableView />
+          </div>
+        )}
+        {visitedTabs.has('physics_sim') && (
+          <div className={activeTab === 'physics_sim' ? 'block animate-tabEnter' : 'hidden'}>
+            <PhysicsSimulatorView />
+          </div>
+        )}
+        {visitedTabs.has('flashcards') && (
+          <div className={activeTab === 'flashcards' ? 'block animate-tabEnter' : 'hidden'}>
+            <FlashcardsView />
+          </div>
+        )}
+        {visitedTabs.has('notebook') && (
+          <div className={activeTab === 'notebook' ? 'block animate-tabEnter' : 'hidden'}>
+            <CustomFormulaNotebookView />
+          </div>
+        )}
+        {visitedTabs.has('math') && (
+          <div className={activeTab === 'math' ? 'block animate-tabEnter' : 'hidden'}>
+            <MathHub />
+          </div>
+        )}
+        {visitedTabs.has('physics') && (
+          <div className={activeTab === 'physics' ? 'block animate-tabEnter' : 'hidden'}>
+            <PhysicsHub />
+          </div>
+        )}
+        {visitedTabs.has('equation') && (
+          <div className={activeTab === 'equation' ? 'block animate-tabEnter' : 'hidden'}>
+            <EquationSolverView />
+          </div>
+        )}
+        {visitedTabs.has('converter') && (
+          <div className={activeTab === 'converter' ? 'block animate-tabEnter' : 'hidden'}>
+            <UnitConverterView />
+          </div>
+        )}
+        {visitedTabs.has('jamb') && (
+          <div className={activeTab === 'jamb' ? 'block animate-tabEnter' : 'hidden'}>
+            <JambPracticeView onOpenInGemini={handleOpenInGemini} />
+          </div>
+        )}
+        {visitedTabs.has('smart_input') && (
+          <div className={activeTab === 'smart_input' ? 'block animate-tabEnter' : 'hidden'}>
+            <SmartInputView />
+          </div>
+        )}
+        {visitedTabs.has('vectors') && (
+          <div className={activeTab === 'vectors' ? 'block animate-tabEnter' : 'hidden'}>
+            <VectorLabView />
+          </div>
+        )}
+        {visitedTabs.has('circuits') && (
+          <div className={activeTab === 'circuits' ? 'block animate-tabEnter' : 'hidden'}>
+            <CircuitLabView />
+          </div>
+        )}
+        {visitedTabs.has('organic') && (
+          <div className={activeTab === 'organic' ? 'block animate-tabEnter' : 'hidden'}>
+            <OrganicChemistryView />
+          </div>
+        )}
+        {visitedTabs.has('diagnostics') && (
+          <div className={activeTab === 'diagnostics' ? 'block animate-tabEnter' : 'hidden'}>
+            <ExamDiagnosticsView onNavigateTab={navigateTab} />
+          </div>
+        )}
+        {visitedTabs.has('optics') && (
+          <div className={activeTab === 'optics' ? 'block animate-tabEnter' : 'hidden'}>
+            <OpticsLabView />
+          </div>
+        )}
+        {visitedTabs.has('gas_laws') && (
+          <div className={activeTab === 'gas_laws' ? 'block animate-tabEnter' : 'hidden'}>
+            <GasLawsLabView />
+          </div>
+        )}
+        {visitedTabs.has('titration') && (
+          <div className={activeTab === 'titration' ? 'block animate-tabEnter' : 'hidden'}>
+            <TitrationLabView />
+          </div>
+        )}
+        {visitedTabs.has('chem_balancer') && (
+          <div className={activeTab === 'chem_balancer' ? 'block animate-tabEnter' : 'hidden'}>
+            <ChemistrySolverView onOpenInGemini={handleOpenInGemini} />
+          </div>
+        )}
+        {visitedTabs.has('statistics') && (
+          <div className={activeTab === 'statistics' ? 'block animate-tabEnter' : 'hidden'}>
+            <StatisticsLabView />
+          </div>
+        )}
+        {visitedTabs.has('matrix') && (
+          <div className={activeTab === 'matrix' ? 'block animate-tabEnter' : 'hidden'}>
+            <MatrixLabView />
+          </div>
+        )}
+        {visitedTabs.has('revision') && (
+          <div className={activeTab === 'revision' ? 'block animate-tabEnter' : 'hidden'}>
+            <RevisionSheetsView />
+          </div>
+        )}
 
         {/* 12 Lazy-Loaded SmartSolve Studio Modules */}
         {studioTabIds.has(activeTab) && (
           <Suspense fallback={<ModuleLoader />}>
-            {activeTab === 'ai_whiteboard' && <AiWhiteboardView />}
-            {activeTab === 'physics_3d' && <ThreePhysicsLabView />}
-            {activeTab === 'voice_math' && <VoiceToMathView onOpenInGemini={handleOpenInGemini} />}
-            {activeTab === 'handwriting' && <HandwritingSolverView onOpenInGemini={handleOpenInGemini} />}
-            {activeTab === 'socratic_tutor' && <SocraticTutorView />}
-            {activeTab === 'scientific_research' && <ScientificResearchView />}
-            {activeTab === 'formula_explorer' && <FormulaExplorerView />}
-            {activeTab === 'document_tutor' && <DocumentTutorView />}
-            {activeTab === 'past_questions' && <PastQuestionSearchView />}
-            {activeTab === 'biology_lab' && <BiologyLabView />}
-            {activeTab === 'equation_editor' && <EquationEditorView onOpenInGemini={handleOpenInGemini} />}
-            {activeTab === 'study_rooms' && <CollaborativeStudyRoomView />}
+            <div key={activeTab} className="animate-tabEnter">
+              {activeTab === 'ai_whiteboard' && <AiWhiteboardView />}
+              {activeTab === 'physics_3d' && <ThreePhysicsLabView />}
+              {activeTab === 'voice_math' && <VoiceToMathView onOpenInGemini={handleOpenInGemini} />}
+              {activeTab === 'handwriting' && <HandwritingSolverView onOpenInGemini={handleOpenInGemini} />}
+              {activeTab === 'socratic_tutor' && <SocraticTutorView />}
+              {activeTab === 'scientific_research' && <ScientificResearchView />}
+              {activeTab === 'formula_explorer' && <FormulaExplorerView />}
+              {activeTab === 'document_tutor' && <DocumentTutorView />}
+              {activeTab === 'past_questions' && <PastQuestionSearchView />}
+              {activeTab === 'biology_lab' && <BiologyLabView />}
+              {activeTab === 'equation_editor' && <EquationEditorView onOpenInGemini={handleOpenInGemini} />}
+              {activeTab === 'study_rooms' && <CollaborativeStudyRoomView />}
+            </div>
           </Suspense>
         )}
       </main>
 
       {/* Floating Quick-Access AI Chat Assistant Button (visible across all tabs except ai_chat) */}
       {activeTab !== 'ai_chat' && (
-        <aside aria-label="AI Assistant" className="fixed bottom-6 right-5 z-40 animate-bounce-subtle">
+        <aside aria-label="AI Assistant" className="fixed bottom-6 right-5 z-40 transform-gpu">
           <button
             type="button"
             onClick={() => navigateTab('ai_chat')}
-            className="flex items-center space-x-2 bg-[#22C55E] hover:bg-[#16A34A] text-white px-4 py-3 rounded-2xl shadow-xl shadow-emerald-500/35 font-bold text-xs sm:text-sm cursor-pointer transition-all active:scale-95 border border-emerald-400/30 group"
+            className="flex items-center space-x-2 bg-[#22C55E] hover:bg-[#16A34A] text-white px-4 py-3 rounded-2xl shadow-xl shadow-emerald-500/35 font-bold text-xs sm:text-sm cursor-pointer transition-transform duration-150 hover:scale-105 active:scale-95 border border-emerald-400/30 group"
             title="Chat with AI Assistant (Voice, Vision & Text)"
           >
-            <div className="relative">
-              <MessageSquare className="w-4 h-4" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-white animate-ping" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-white" />
-            </div>
+            <MessageSquare className="w-4 h-4" />
             <span className="hidden xs:inline">AI Chat</span>
           </button>
         </aside>

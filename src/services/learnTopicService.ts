@@ -45,12 +45,35 @@ export interface AdaptiveExplanationResult {
   };
 }
 
+function toStringArray(val: any): string[] {
+  if (Array.isArray(val)) return val.map((v) => String(v ?? '')).filter(Boolean);
+  if (typeof val === 'string' && val.trim()) return [val.trim()];
+  return [];
+}
+
+function normalizeWorkedExample(ex: any): any {
+  if (!ex || typeof ex !== 'object') return undefined;
+  return {
+    ...ex,
+    title: String(ex.title || 'Worked Example'),
+    problemStatement: String(ex.problemStatement || ''),
+    givenValues: Array.isArray(ex.givenValues) ? ex.givenValues : [],
+    formulaUsed: String(ex.formulaUsed || ''),
+    substitution: String(ex.substitution || ''),
+    steps: toStringArray(ex.steps),
+    finalAnswer: String(ex.finalAnswer || ''),
+    explanation: String(ex.explanation || ''),
+  };
+}
+
 function enrichFormulaQuestionsDeterministically(questions: FormulaQuestion[]): FormulaQuestion[] {
   return questions.map((q, idx) => {
     const out: FormulaQuestion = {
       ...q,
       id: q.id || `fq_${Date.now()}_${idx + 1}`,
-      steps: Array.isArray(q.steps) ? q.steps : [],
+      difficulty: q.difficulty || 'Intermediate',
+      steps: toStringArray(q.steps),
+      finalAnswer: String(q.finalAnswer || ''),
     };
     if (out.evaluableExpression && out.evaluableExpression.trim()) {
       const det = computeDeterministically(out.evaluableExpression, 'deg');
@@ -66,27 +89,80 @@ function enrichFormulaQuestionsDeterministically(questions: FormulaQuestion[]): 
   });
 }
 
-function enrichLessonVisuals(lesson: LearnTopicLesson, originalTopic: string): LearnTopicLesson {
+export function normalizeLesson(lesson: LearnTopicLesson, originalTopic?: string): LearnTopicLesson {
+  const formulas: LearnTopicFormula[] = Array.isArray(lesson.formulas)
+    ? lesson.formulas.map((f, i) => ({
+        ...f,
+        id: f.id || `formula_${i + 1}`,
+        name: f.name || `Formula ${i + 1}`,
+        latex: f.latex || '',
+        whenToUse: f.whenToUse || '',
+        symbols: Array.isArray(f.symbols) ? f.symbols : [],
+        workedExamplesByLevel: f.workedExamplesByLevel
+          ? {
+              simple: normalizeWorkedExample(f.workedExamplesByLevel.simple),
+              intermediate: normalizeWorkedExample(f.workedExamplesByLevel.intermediate),
+              difficult: normalizeWorkedExample(f.workedExamplesByLevel.difficult),
+            }
+          : undefined,
+        questions: Array.isArray(f.questions)
+          ? enrichFormulaQuestionsDeterministically(f.questions)
+          : undefined,
+      }))
+    : [];
+
   const enriched: LearnTopicLesson = {
     ...lesson,
-    formulas: Array.isArray(lesson.formulas)
-      ? lesson.formulas.map((f, i) => ({
-          ...f,
-          id: f.id || `formula_${i + 1}`,
-          symbols: Array.isArray(f.symbols) ? f.symbols : [],
-          questions: Array.isArray(f.questions)
-            ? enrichFormulaQuestionsDeterministically(f.questions)
-            : undefined,
+    topic: String(lesson.topic || originalTopic || 'Topic Lesson'),
+    subject: String(lesson.subject || 'General STEM'),
+    targetExamLevel: String(lesson.targetExamLevel || 'JUPEB, JAMB, WAEC & University'),
+    summary: String(lesson.summary || ''),
+    simpleDefinition: lesson.simpleDefinition ? String(lesson.simpleDefinition) : undefined,
+    introduction: String(lesson.introduction || ''),
+    realWorldAnalogy: String(lesson.realWorldAnalogy || ''),
+    detailedExplanation: toStringArray(lesson.detailedExplanation),
+    importantConcepts: toStringArray(lesson.importantConcepts),
+    characteristicsAndProperties: toStringArray(lesson.characteristicsAndProperties),
+    typesAndClassifications: Array.isArray(lesson.typesAndClassifications) ? lesson.typesAndClassifications : [],
+    everydayExamples: toStringArray(lesson.everydayExamples),
+    commonExamQuestions: Array.isArray(lesson.commonExamQuestions) ? lesson.commonExamQuestions : [],
+    formulas,
+    principlesAndRules: Array.isArray(lesson.principlesAndRules) ? lesson.principlesAndRules : [],
+    visualConceptModel: lesson.visualConceptModel && typeof lesson.visualConceptModel === 'object'
+      ? {
+          ...lesson.visualConceptModel,
+          kind: String(lesson.visualConceptModel.kind || 'process_flow'),
+          title: String(lesson.visualConceptModel.title || 'Concept Model'),
+          nodes: Array.isArray(lesson.visualConceptModel.nodes) ? lesson.visualConceptModel.nodes : [],
+        }
+      : undefined,
+    tables: Array.isArray(lesson.tables)
+      ? lesson.tables.map((t) => ({
+          title: String(t?.title || 'Reference Table'),
+          headers: Array.isArray(t?.headers) ? t.headers : [],
+          rows: Array.isArray(t?.rows) ? t.rows.filter((r) => Array.isArray(r)) : [],
         }))
       : [],
-    workedExamples: Array.isArray(lesson.workedExamples) ? lesson.workedExamples : [],
-    importantNotes: Array.isArray(lesson.importantNotes) ? lesson.importantNotes : [],
-    commonPitfalls: Array.isArray(lesson.commonPitfalls) ? lesson.commonPitfalls : [],
+    workedExamples: Array.isArray(lesson.workedExamples)
+      ? lesson.workedExamples.map(normalizeWorkedExample).filter(Boolean)
+      : [],
+    importantNotes: toStringArray(lesson.importantNotes),
+    commonPitfalls: toStringArray(lesson.commonPitfalls),
     practiceQuestions: Array.isArray(lesson.practiceQuestions) ? lesson.practiceQuestions : [],
-    suggestedFollowUps: Array.isArray(lesson.suggestedFollowUps) ? lesson.suggestedFollowUps : [],
+    examModeQuestions: Array.isArray(lesson.examModeQuestions)
+      ? lesson.examModeQuestions.map((eq, i) => ({
+          ...eq,
+          id: eq.id || `em_${i + 1}`,
+          difficulty: eq.difficulty || 'Intermediate',
+          steps: toStringArray(eq.steps),
+          finalAnswer: String(eq.finalAnswer || ''),
+        }))
+      : [],
+    suggestedFollowUps: toStringArray(lesson.suggestedFollowUps),
   };
 
   try {
+    const topicHint = originalTopic || enriched.topic;
     const mockSolution: any = {
       title: enriched.topic,
       category: enriched.subject,
@@ -101,14 +177,14 @@ function enrichLessonVisuals(lesson: LearnTopicLesson, originalTopic: string): L
     };
 
     if (!enriched.diagram) {
-      const diag = detectAndGenerateDiagram(mockSolution, originalTopic);
+      const diag = detectAndGenerateDiagram(mockSolution, topicHint);
       if (diag) {
         enriched.diagram = diag;
       }
     }
 
     if (!enriched.graphs || enriched.graphs.length === 0) {
-      const enhancedGraphs = detectAndEnhanceGraphs(mockSolution, originalTopic);
+      const enhancedGraphs = detectAndEnhanceGraphs(mockSolution, topicHint);
       if (enhancedGraphs && enhancedGraphs.length > 0 && !enriched.diagram) {
         enriched.graphs = enhancedGraphs;
       }
@@ -117,6 +193,10 @@ function enrichLessonVisuals(lesson: LearnTopicLesson, originalTopic: string): L
     // ignore enrichment errors
   }
   return enriched;
+}
+
+function enrichLessonVisuals(lesson: LearnTopicLesson, originalTopic: string): LearnTopicLesson {
+  return normalizeLesson(lesson, originalTopic);
 }
 
 /**
@@ -181,7 +261,10 @@ export function saveLessonToHistory(lesson: LearnTopicLesson): void {
 export function getSavedLessons(): LearnTopicLesson[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed)
+      ? parsed.map((item) => normalizeLesson(item, item?.topic))
+      : [];
   } catch {
     return [];
   }
