@@ -36,27 +36,39 @@ function parseBody(req: any): any {
   return {};
 }
 
-async function generateJson(contents: any[], timeoutMs = 35000) {
+function repairAndParseJson(rawText: string | undefined): any {
+  let txt = (rawText || '{}')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const match = txt.match(/\{[\s\S]*\}/);
+  if (match) txt = match[0];
+  try {
+    return JSON.parse(txt);
+  } catch {
+    return JSON.parse(txt.replace(/,\s*([}\]])/g, '$1').replace(/\\(?!["\\/bfnrtu])/g, '\\\\'));
+  }
+}
+
+async function generateJson(contents: any[], timeoutMs = 25000) {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || '';
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
     throw new Error('Server AI configuration missing (GEMINI_API_KEY).');
   }
   const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { 'User-Agent': 'aistudio-build' } } });
-  const models = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen', 'gemini-3.8-flash'];
+  const models = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
   let lastError: any = null;
   for (const model of models) {
     try {
       const config: any = { responseMimeType: 'application/json' };
       if (model === 'gemini-3.1-flash-lite') config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
       else if (model === 'gemini-4-hydrogen') config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
-      else config.thinkingConfig = { thinkingLevel: 'LOW' };
       const response = (await Promise.race([
         ai.models.generateContent({ model, contents, config }),
         new Promise((_, rej) => setTimeout(() => rej(new Error(`Timeout waiting for ${model}`)), timeoutMs)),
       ])) as any;
-      const txt = (response.text || '{}').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-      const match = txt.match(/\{[\s\S]*\}/);
-      return JSON.parse(match ? match[0] : txt);
+      return repairAndParseJson(response.text);
     } catch (err) {
       lastError = err;
     }

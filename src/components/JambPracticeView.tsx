@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { JAMB_QUESTIONS } from '../data/jambQuestions';
 import { JambQuestion } from '../types';
 import { MathRenderer } from './MathRenderer';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import {
   GraduationCap,
   CheckCircle2,
@@ -805,18 +805,18 @@ Respond with ONLY a valid JSON object matching this exact structure:
 }
 `.trim();
 
-            const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+            const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
             for (let i = 0; i < candidateModels.length; i++) {
               const model = candidateModels[i];
               try {
                 const config: any = {
                   responseMimeType: 'application/json',
                 };
-                if (model === 'gemini-3.8-flash') {
-                  config.thinkingConfig = { thinkingLevel: 'LOW' };
-                } else if (model === 'gemini-3.1-flash-lite') {
-                  config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+                if (model === 'gemini-3.1-flash-lite') {
+                  config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
                   config.temperature = 0.85;
+                } else if (model === 'gemini-4-hydrogen') {
+                  config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
                 }
                 const generatePromise = ai.models.generateContent({
                   model,

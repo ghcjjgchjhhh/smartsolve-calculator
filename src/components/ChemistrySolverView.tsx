@@ -27,7 +27,7 @@ import {
   MicOff,
   Table,
 } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { MathRenderer } from './MathRenderer';
 import { useVoiceInput } from '../hooks/useVoiceInput';
 import {
@@ -244,7 +244,7 @@ Respond strictly in valid JSON format adhering to:
 
     contents.push({ text: `Question to solve:\n"${promptText}"` });
 
-    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
     let lastErr = null;
 
     for (const model of candidateModels) {
@@ -253,10 +253,10 @@ Respond strictly in valid JSON format adhering to:
           responseMimeType: 'application/json',
           systemInstruction,
         };
-        if (model === 'gemini-3.8-flash') {
-          config.thinkingConfig = { thinkingLevel: 'LOW' };
-        } else if (model === 'gemini-3.1-flash-lite') {
-          config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+        if (model === 'gemini-3.1-flash-lite') {
+          config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
+        } else if (model === 'gemini-4-hydrogen') {
+          config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
         }
 
         const response = await ai.models.generateContent({

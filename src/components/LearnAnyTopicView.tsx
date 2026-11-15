@@ -21,8 +21,10 @@ import {
   RotateCcw,
   Send,
   Sparkles,
+  Square,
   Target,
   TrendingUp,
+  Volume2,
 } from 'lucide-react';
 import {
   FormulaQuestion,
@@ -123,6 +125,98 @@ const SUGGESTED_TOPICS = [
 
 type StudioSectionTab = 'lesson' | 'formulas' | 'formula_practice' | 'exam_mode' | 'visuals_tutor';
 
+function latexToSpokenText(raw: string): string {
+  if (!raw) return '';
+  let text = raw
+    .replace(/\$\$/g, ' ')
+    .replace(/\$/g, ' ')
+    .replace(/\\boxed\{([^}]*)\}/g, '$1')
+    .replace(/\\text\{([^}]*)\}/g, '$1')
+    .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '$1 over $2')
+    .replace(/\\sqrt\{([^}]*)\}/g, 'square root of $1')
+    .replace(/\^2\b/g, ' squared')
+    .replace(/\^3\b/g, ' cubed')
+    .replace(/\^\{([^}]*)\}/g, ' to the power of $1')
+    .replace(/\\times/g, ' times ')
+    .replace(/\\cdot/g, ' times ')
+    .replace(/\\div/g, ' divided by ')
+    .replace(/\\pm/g, ' plus or minus ')
+    .replace(/\\approx/g, ' approximately equals ')
+    .replace(/\\neq/g, ' does not equal ')
+    .replace(/\\leq/g, ' is less than or equal to ')
+    .replace(/\\geq/g, ' is greater than or equal to ')
+    .replace(/\\rightarrow|\\to/g, ' approaches ')
+    .replace(/\\Delta/g, ' delta ')
+    .replace(/\\theta/g, ' theta ')
+    .replace(/\\alpha/g, ' alpha ')
+    .replace(/\\beta/g, ' beta ')
+    .replace(/\\gamma/g, ' gamma ')
+    .replace(/\\lambda/g, ' lambda ')
+    .replace(/\\omega/g, ' omega ')
+    .replace(/\\mu/g, ' mu ')
+    .replace(/\\rho/g, ' rho ')
+    .replace(/\\sigma/g, ' sigma ')
+    .replace(/\\pi/g, ' pi ')
+    .replace(/\\infty/g, ' infinity ')
+    .replace(/\\%/g, ' percent')
+    .replace(/\\[a-zA-Z]+/g, ' ')
+    .replace(/[{}]/g, ' ')
+    .replace(/[_]/g, ' sub ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text;
+}
+
+function buildSpokenLessonChunks(lesson: LearnTopicLesson): string[] {
+  const sections: string[] = [];
+  sections.push(`${lesson.topic}. Subject: ${lesson.subject}.`);
+  if (lesson.summary) {
+    sections.push(`Summary: ${latexToSpokenText(lesson.summary)}`);
+  }
+  if (lesson.simpleDefinition) {
+    sections.push(`Simple definition: ${latexToSpokenText(lesson.simpleDefinition)}`);
+  }
+  if (lesson.introduction) {
+    sections.push(`Overview: ${latexToSpokenText(lesson.introduction)}`);
+  }
+  if (lesson.realWorldAnalogy) {
+    sections.push(`Real-world analogy: ${latexToSpokenText(lesson.realWorldAnalogy)}`);
+  }
+  if (lesson.detailedExplanation && lesson.detailedExplanation.length > 0) {
+    sections.push(
+      `Key points: ${lesson.detailedExplanation
+        .slice(0, 3)
+        .map((p) => latexToSpokenText(p))
+        .join('. ')}`
+    );
+  }
+  if (lesson.formulas && lesson.formulas.length > 0) {
+    const formulaText = lesson.formulas
+      .slice(0, 6)
+      .map((f, i) => `Formula ${i + 1}: ${f.name}. ${latexToSpokenText(f.latex)}. Used when: ${latexToSpokenText(f.whenToUse || '')}.`)
+      .join(' ');
+    sections.push(`Key formulas. ${formulaText}`);
+  }
+
+  const fullText = sections.join(' ').replace(/\s+/g, ' ').trim();
+  // Split into ~220 char sentence chunks so SpeechSynthesis never times out silently on long lessons
+  const sentences = fullText.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [fullText];
+  const chunks: string[] = [];
+  let current = '';
+  for (const s of sentences) {
+    const trimmed = s.trim();
+    if (!trimmed) continue;
+    if ((current + ' ' + trimmed).length > 220 && current) {
+      chunks.push(current.trim());
+      current = trimmed;
+    } else {
+      current = current ? `${current} ${trimmed}` : trimmed;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks;
+}
+
 export const LearnAnyTopicView: React.FC = () => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -167,10 +261,13 @@ export const LearnAnyTopicView: React.FC = () => {
   const [showProgressPanel, setShowProgressPanel] = useState(false);
   const [savedLessons, setSavedLessons] = useState<LearnTopicLesson[]>(() => getSavedLessons());
   const [copied, setCopied] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechSupported] = useState(() => typeof window !== 'undefined' && 'speechSynthesis' in window);
 
   const lessonTopRef = useRef<HTMLDivElement | null>(null);
   const followUpBottomRef = useRef<HTMLDivElement | null>(null);
   const lastAttemptRef = useRef<{ query: string; subject?: string } | null>(null);
+  const speechSessionRef = useRef<number>(0);
 
   const adaptiveProfile = useMemo(() => getAdaptiveDifficultyProfile(progress), [progress]);
   const progressSummary = useMemo(() => getProgressSummary(progress), [progress]);
@@ -230,8 +327,35 @@ export const LearnAnyTopicView: React.FC = () => {
     }
   };
 
+  // Stop active voice playback cleanly on unmount or when switching lessons
+  const stopSpeaking = () => {
+    speechSessionRef.current += 1;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore speech cleanup errors
+      }
+    }
+    setIsSpeaking(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      speechSessionRef.current += 1;
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
   // Automatically trigger progressive background generation of Formula #1's 12 questions right after a lesson loads
   useEffect(() => {
+    stopSpeaking();
     if (!lesson || !lesson.formulas || lesson.formulas.length === 0) return;
     const f0 = lesson.formulas[0];
     const fKey = f0.id || f0.name || 'f_0';
@@ -397,6 +521,47 @@ ${lesson.summary}`;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleToggleSpeak = () => {
+    if (!lesson || !speechSupported) return;
+    if (isSpeaking) {
+      stopSpeaking();
+      return;
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+      const chunks = buildSpokenLessonChunks(lesson);
+      if (chunks.length === 0) return;
+
+      const sessionId = speechSessionRef.current + 1;
+      speechSessionRef.current = sessionId;
+      setIsSpeaking(true);
+
+      const speakChunk = (idx: number) => {
+        if (speechSessionRef.current !== sessionId || idx >= chunks.length) {
+          if (speechSessionRef.current === sessionId) {
+            setIsSpeaking(false);
+          }
+          return;
+        }
+        const utterance = new SpeechSynthesisUtterance(chunks[idx]);
+        utterance.rate = 0.98;
+        utterance.pitch = 1.0;
+        utterance.onend = () => speakChunk(idx + 1);
+        utterance.onerror = () => {
+          if (speechSessionRef.current === sessionId) {
+            setIsSpeaking(false);
+          }
+        };
+        window.speechSynthesis.speak(utterance);
+      };
+
+      speakChunk(0);
+    } catch {
+      setIsSpeaking(false);
+    }
   };
 
   const mapFormulaQuestion = (fq: FormulaQuestion): UnifiedTutorQuestion => ({
@@ -877,7 +1042,23 @@ ${lesson.summary}`;
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {speechSupported && (
+                  <button
+                    type="button"
+                    onClick={handleToggleSpeak}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      isSpeaking
+                        ? 'bg-[#22C55E] text-white border-[#22C55E] shadow-sm'
+                        : isDark
+                        ? 'bg-[#18181B] text-zinc-200 border-[#27272A] hover:border-[#22C55E]'
+                        : 'bg-slate-100 text-slate-700 border-slate-200 hover:border-emerald-600'
+                    }`}
+                  >
+                    {isSpeaking ? <Square className="w-3.5 h-3.5 fill-current" /> : <Volume2 className="w-3.5 h-3.5" />}
+                    <span>{isSpeaking ? 'Stop Audio' : 'Listen'}</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleCopySummary}

@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import dotenv from 'dotenv';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 import { detectAndGenerateDiagram } from './src/services/aiDiagramDetector';
 import whiteboardHandler from './api/whiteboard';
 import voiceMathHandler from './api/voice-math';
@@ -49,7 +49,7 @@ app.get('/api/ai/status', (_req: Request, res: Response) => {
   res.json({
     ok: true,
     hasApiKey: Boolean(apiKey && apiKey !== 'MY_GEMINI_API_KEY'),
-    models: ['gemini-3.8-flash', 'gemini-3.8-flash-lite'],
+    models: ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'],
   });
 });
 
@@ -145,18 +145,37 @@ Rules for your solution:
 7. Provide a concise, clear conceptual explanation of the physical/mathematical principle behind the answer.
 8. Include an expert tip or common exam pitfall to avoid.`;
 
+function repairAndParseJson(rawText: string | undefined): any {
+  let txt = (rawText || '{}')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const match = txt.match(/\{[\s\S]*\}/);
+  if (match) txt = match[0];
+  try {
+    return JSON.parse(txt);
+  } catch {
+    return JSON.parse(
+      txt
+        .replace(/,\s*([}\]])/g, '$1')
+        .replace(/\\(?!["\\/bfnrtu])/g, '\\\\')
+    );
+  }
+}
+
 // Resilient model fallback across modern @google/genai supported models
 async function generateWithModelFallback(
   ai: GoogleGenAI,
   contents: any[],
-  timeoutMs: number = 45000,
+  timeoutMs: number = 30000,
   temperature?: number,
   useThinking: boolean = false,
   responseMimeType?: string,
   systemInstruction?: string
 ) {
-  // Candidate models: prioritize gemini-3.1-flash-lite for lightning-fast sub-2s responses, fallback to gemini-3.8-flash
-  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+  // Prioritize gemini-3.1-flash-lite for fast response, fallback to gemini-4-hydrogen
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {
@@ -170,20 +189,17 @@ async function generateWithModelFallback(
         config.systemInstruction = systemInstruction;
       }
 
-      // Configure thinking per model strictly according to @google/genai requirements:
-      // - gemini-3.8-flash: use thinkingLevel 'LOW' or 'MEDIUM' (never set thinkingBudget)
-      // - gemini-3.1-flash-lite: use thinkingLevel 'MINIMAL'
-      if (model === 'gemini-3.8-flash') {
+      if (model === 'gemini-3.1-flash-lite') {
         config.thinkingConfig = {
-          thinkingLevel: useThinking ? 'MEDIUM' : 'LOW',
-        };
-      } else if (model === 'gemini-3.1-flash-lite') {
-        config.thinkingConfig = {
-          thinkingLevel: 'MINIMAL',
+          thinkingLevel: ThinkingLevel.MINIMAL,
         };
         if (typeof temperature === 'number') {
           config.temperature = temperature;
         }
+      } else if (model === 'gemini-4-hydrogen') {
+        config.thinkingConfig = {
+          thinkingLevel: useThinking ? ThinkingLevel.MEDIUM : ThinkingLevel.LOW,
+        };
       }
 
       const generatePromise = ai.models.generateContent({
@@ -205,11 +221,7 @@ async function generateWithModelFallback(
 
       const response = (await Promise.race([generatePromise, timeoutPromise])) as any;
       if (responseMimeType === 'application/json') {
-        const txt = response.text?.trim() || '{}';
-        let cleanJson = txt.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-        const match = cleanJson.match(/\{[\s\S]*\}/);
-        if (match) cleanJson = match[0];
-        JSON.parse(cleanJson);
+        repairAndParseJson(response.text);
       }
       return response;
     } catch (err: any) {
@@ -343,12 +355,8 @@ Respond with ONLY a valid JSON object matching this exact structure:
 `.trim();
 
         try {
-          const response = await generateWithModelFallback(activeAi, [{ text: promptText }], 25000, 0.85, false);
-          const resultText = response.text?.trim() || '{}';
-          let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-          const match = cleanJson.match(/\{[\s\S]*\}/);
-          if (match) cleanJson = match[0];
-          const parsed = JSON.parse(cleanJson);
+          const response = await generateWithModelFallback(activeAi, [{ text: promptText }], 25000, 0.85, false, 'application/json');
+          const parsed = repairAndParseJson(response.text);
           return Array.isArray(parsed.questions) ? parsed.questions : [];
         } catch (err) {
           console.warn(`[SmartSolve Server] Batch ${idx + 1} failed:`, err);
@@ -509,16 +517,9 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
       'application/json'
     );
 
-    const resultJson = response.text?.trim() || '{}';
-    let cleanJson = resultJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      cleanJson = jsonMatch[0];
-    }
-
     let parsedSolution: any;
     try {
-      parsedSolution = JSON.parse(cleanJson);
+      parsedSolution = repairAndParseJson(response.text);
     } catch {
       throw new Error('AI engine returned an invalid response structure. Please try again.');
     }
@@ -741,11 +742,7 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
 
       try {
         const streamClient = activeAi;
-        const hasMedia = Boolean(imageData || audioData || (attachments && attachments.length > 0));
-        // Prefer ultra-fast gemini-3.1-flash-lite for text-only, gemini-3.8-flash for rich multimodal
-        const candidateModels = hasMedia
-          ? ['gemini-3.8-flash', 'gemini-3.1-flash-lite']
-          : ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+        const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
         let streamSuccess = false;
 
         for (const model of candidateModels) {
@@ -753,11 +750,11 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
             const streamConfig: any = {
               systemInstruction: systemPrompt,
             };
-            if (model === 'gemini-3.8-flash') {
-              streamConfig.thinkingConfig = { thinkingLevel: 'LOW' };
-            } else if (model === 'gemini-3.1-flash-lite') {
-              streamConfig.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+            if (model === 'gemini-3.1-flash-lite') {
+              streamConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
               streamConfig.temperature = 0.7;
+            } else if (model === 'gemini-4-hydrogen') {
+              streamConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
             }
             const stream = await streamClient.models.generateContentStream({
               model,

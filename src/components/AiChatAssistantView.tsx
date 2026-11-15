@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { ChatMessage, ChatAttachment, ChatSession } from '../types';
 import {
   loadChatSessions,
@@ -868,18 +868,18 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
     currentParts.push({ text: textPrompt });
     chatContents.push({ role: 'user', parts: currentParts });
 
-    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
     let lastErr: any = null;
     for (const model of candidateModels) {
       try {
         const config: any = {
           systemInstruction: systemPrompt,
         };
-        if (model === 'gemini-3.8-flash') {
-          config.thinkingConfig = { thinkingLevel: 'LOW' };
-        } else if (model === 'gemini-3.1-flash-lite') {
-          config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+        if (model === 'gemini-3.1-flash-lite') {
+          config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
           config.temperature = 0.75;
+        } else if (model === 'gemini-4-hydrogen') {
+          config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
         }
         const resp = await ai.models.generateContent({
           model,

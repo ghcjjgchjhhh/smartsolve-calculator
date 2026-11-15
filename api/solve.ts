@@ -1,4 +1,23 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+
+function repairAndParseJson(rawText: string | undefined): any {
+  let txt = (rawText || '{}')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const match = txt.match(/\{[\s\S]*\}/);
+  if (match) txt = match[0];
+  try {
+    return JSON.parse(txt);
+  } catch {
+    return JSON.parse(
+      txt
+        .replace(/,\s*([}\]])/g, '$1')
+        .replace(/\\(?!["\\/bfnrtu])/g, '\\\\')
+    );
+  }
+}
 
 async function generateWithModelFallback(
   ai: GoogleGenAI,
@@ -6,8 +25,7 @@ async function generateWithModelFallback(
   timeoutMs: number = 22000,
   requireValidJson: boolean = false
 ) {
-  // Candidate models: prioritize gemini-3.1-flash-lite for instant speed, fallback to gemini-3.8-flash
-  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {
@@ -16,10 +34,10 @@ async function generateWithModelFallback(
       const config: any = {
         responseMimeType: 'application/json',
       };
-      if (model === 'gemini-3.8-flash') {
-        config.thinkingConfig = { thinkingLevel: 'LOW' };
-      } else if (model === 'gemini-3.1-flash-lite') {
-        config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+      if (model === 'gemini-3.1-flash-lite') {
+        config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
+      } else if (model === 'gemini-4-hydrogen') {
+        config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
       }
 
       const generatePromise = ai.models.generateContent({
@@ -34,11 +52,7 @@ async function generateWithModelFallback(
 
       const response = (await Promise.race([generatePromise, timeoutPromise])) as any;
       if (requireValidJson) {
-        const resultText = response.text?.trim() || '{}';
-        let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-        const match = cleanJson.match(/\{[\s\S]*\}/);
-        if (match) cleanJson = match[0];
-        JSON.parse(cleanJson);
+        repairAndParseJson(response.text);
       }
       return response;
     } catch (err: any) {
@@ -184,12 +198,8 @@ Respond with ONLY a valid JSON object matching this exact structure:
 `.trim();
 
         try {
-          const response = await generateWithModelFallback(ai, [{ text: promptText }], 14000);
-          const resultText = response.text?.trim() || '{}';
-          let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-          const match = cleanJson.match(/\{[\s\S]*\}/);
-          if (match) cleanJson = match[0];
-          const parsed = JSON.parse(cleanJson);
+          const response = await generateWithModelFallback(ai, [{ text: promptText }], 20000);
+          const parsed = repairAndParseJson(response.text);
           return Array.isArray(parsed.questions) ? parsed.questions : [];
         } catch (err) {
           console.warn(`[SmartSolve AI] Batch ${idx + 1} failed:`, err);
@@ -324,14 +334,9 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
     const response = await generateWithModelFallback(ai, contents, 22000, true);
 
-    const resultText = response.text?.trim() || '{}';
-    let cleanJson = resultText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-    const match = cleanJson.match(/\{[\s\S]*\}/);
-    if (match) cleanJson = match[0];
-
     let parsedSolution: any;
     try {
-      parsedSolution = JSON.parse(cleanJson);
+      parsedSolution = repairAndParseJson(response.text);
     } catch {
       throw new Error('AI engine returned an invalid response structure. Please try again.');
     }

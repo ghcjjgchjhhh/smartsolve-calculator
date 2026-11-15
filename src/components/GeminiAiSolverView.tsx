@@ -33,7 +33,7 @@ import {
   Mic,
   MicOff,
 } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { useAppLanguage } from '../contexts/LanguageContext';
 import { InteractiveSolverGraph } from './InteractiveSolverGraph';
 import { detectAndEnhanceGraphs } from '../services/aiGraphDetector';
@@ -498,7 +498,7 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
     contents.push({ text: promptText });
 
-    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
     let lastError: any = null;
 
     for (let i = 0; i < candidateModels.length; i++) {
@@ -507,10 +507,10 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         const config: any = {
           responseMimeType: 'application/json',
         };
-        if (model === 'gemini-3.8-flash') {
-          config.thinkingConfig = { thinkingLevel: 'LOW' };
-        } else if (model === 'gemini-3.1-flash-lite') {
-          config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+        if (model === 'gemini-3.1-flash-lite') {
+          config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
+        } else if (model === 'gemini-4-hydrogen') {
+          config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
         }
 
         const response = await ai.models.generateContent({

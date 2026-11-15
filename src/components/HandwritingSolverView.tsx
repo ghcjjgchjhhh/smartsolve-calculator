@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   ArrowRight,
   Image as ImageIcon,
+  Camera,
+  RefreshCw,
 } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 import { computeDeterministically } from '../services/deterministicSolver';
@@ -31,10 +33,16 @@ interface Props {
 }
 
 export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
-  const [inputMode, setInputMode] = useState<'draw' | 'upload'>('draw');
+  const [inputMode, setInputMode] = useState<'draw' | 'upload' | 'camera'>('draw');
   const padRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef<boolean>(false);
   const [padTool, setPadTool] = useState<'pen' | 'eraser'>('pen');
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [cameraLoading, setCameraLoading] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string>('');
 
   const [uploadedPreview, setUploadedPreview] = useState<string>('');
   const [uploadedMime, setUploadedMime] = useState<string>('image/png');
@@ -43,6 +51,79 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
   const [error, setError] = useState<string>('');
   const [result, setResult] = useState<HandwritingResult | null>(null);
   const [editableLatex, setEditableLatex] = useState<string>('');
+
+  const stopCamera = () => {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+    setCameraLoading(false);
+  };
+
+  const startCamera = async () => {
+    setCameraError('');
+    setError('');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError('Live webcam is not available in this browser. Use "Take Photo with Device Camera" below.');
+      return;
+    }
+    stopCamera();
+    setCameraLoading(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+      cameraStreamRef.current = stream;
+      setCameraActive(true);
+      requestAnimationFrame(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+      });
+    } catch (err: any) {
+      const msg =
+        err?.name === 'NotAllowedError'
+          ? 'Camera permission was denied. Allow camera access or use "Take Photo with Device Camera" below.'
+          : 'Could not open live camera. Use "Take Photo with Device Camera" or Upload Image.';
+      setCameraError(msg);
+      stopCamera();
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+
+  const captureCameraFrame = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setCameraError('Camera stream is not ready yet. Please wait a second and try again.');
+      return;
+    }
+    const maxDim = 1280;
+    const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
+    const w = Math.max(1, Math.round(video.videoWidth * scale));
+    const h = Math.max(1, Math.round(video.videoHeight * scale));
+    const off = document.createElement('canvas');
+    off.width = w;
+    off.height = h;
+    const ctx = off.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, w, h);
+    const dataUrl = off.toDataURL('image/jpeg', 0.86);
+    setUploadedPreview(dataUrl);
+    setUploadedMime('image/jpeg');
+    setError('');
+    stopCamera();
+  };
 
   const clearPad = () => {
     const c = padRef.current;
@@ -64,9 +145,18 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
 
   useEffect(() => {
     if (inputMode === 'draw') {
+      stopCamera();
       clearPad();
+    } else if (inputMode === 'upload') {
+      stopCamera();
     }
   }, [inputMode]);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   const getCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const c = padRef.current!;
@@ -164,7 +254,11 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
       mimeType = 'image/jpeg';
     } else {
       if (!uploadedPreview) {
-        setError('Please upload a handwritten mathematics image first.');
+        setError(
+          inputMode === 'camera'
+            ? 'Please snap or take a photo of your math problem first.'
+            : 'Please upload a handwritten mathematics image first.'
+        );
         return;
       }
       const compressed = await compressImageDataUrl(uploadedPreview);
@@ -232,7 +326,7 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
               Write fractions, roots, powers, integrals, or scientific notation by hand—or upload a notebook photo—and verify the solution.
             </p>
           </div>
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#18181B]">
+          <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#18181B]">
             <button
               type="button"
               onClick={() => setInputMode('draw')}
@@ -250,6 +344,16 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
               }`}
             >
               Upload Image
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputMode('camera')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${
+                inputMode === 'camera' ? 'bg-white dark:bg-[#0A0A0A] text-slate-900 dark:text-white shadow-xs' : 'text-slate-500'
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5 text-[#22C55E]" />
+              <span>Camera Snap</span>
             </button>
           </div>
         </div>
@@ -300,6 +404,105 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
                 className="w-full h-auto block touch-none cursor-crosshair"
               />
             </div>
+          </div>
+        ) : inputMode === 'camera' ? (
+          <div className="space-y-3">
+            {cameraActive ? (
+              <div className="rounded-xl border border-[#22C55E]/40 bg-black overflow-hidden space-y-2 p-2">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full max-h-[380px] rounded-lg object-contain mx-auto bg-black"
+                />
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1 pb-1">
+                  <button
+                    type="button"
+                    onClick={captureCameraFrame}
+                    className="px-4 py-2 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Capture Photo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    className="px-3.5 py-2 rounded-xl border border-zinc-700 text-zinc-300 hover:text-white text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel Camera
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border-2 border-dashed border-slate-300 dark:border-[#27272A] p-6 sm:p-8 text-center space-y-4">
+                <Camera className="w-8 h-8 text-[#22C55E] mx-auto" />
+                <div>
+                  <div className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+                    Snap a notebook or textbook equation
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-[#A1A1AA] mt-1">
+                    Use your webcam directly or open your device camera for instant OCR &amp; solving.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    disabled={cameraLoading}
+                    className="px-4 py-2 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] disabled:opacity-60 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {cameraLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                    <span>{cameraLoading ? 'Opening Camera...' : 'Open Live Camera'}</span>
+                  </button>
+
+                  <label className="px-4 py-2 rounded-xl border border-slate-300 dark:border-[#27272A] bg-slate-50 dark:bg-[#18181B] hover:border-[#22C55E] text-xs font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5 cursor-pointer">
+                    <Upload className="w-4 h-4 text-[#22C55E]" />
+                    <span>Take Photo with Device Camera</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {cameraError && (
+              <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-500 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{cameraError}</span>
+              </div>
+            )}
+
+            {uploadedPreview && !cameraActive && (
+              <div className="rounded-xl border border-slate-200 dark:border-[#27272A] p-3 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <ImageIcon className="w-5 h-5 text-[#22C55E] shrink-0" />
+                  <img src={uploadedPreview} alt="Captured equation preview" className="max-h-56 rounded-lg object-contain" />
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="text-xs font-semibold text-[#22C55E] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Retake</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUploadedPreview('')}
+                    className="text-xs font-semibold text-rose-500 hover:underline cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

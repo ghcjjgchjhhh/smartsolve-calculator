@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
 async function generateWithModelFallback(
   ai: GoogleGenAI,
@@ -6,18 +6,18 @@ async function generateWithModelFallback(
   systemInstruction?: string,
   timeoutMs: number = 25000
 ) {
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
   let lastError: any = null;
 
   for (let i = 0; i < candidateModels.length; i++) {
     const model = candidateModels[i];
     try {
       const config: any = {};
-      if (model === 'gemini-3.8-flash') {
-        config.thinkingConfig = { thinkingLevel: 'LOW' };
-      } else if (model === 'gemini-3.1-flash-lite') {
-        config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+      if (model === 'gemini-3.1-flash-lite') {
+        config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
         config.temperature = 0.7;
+      } else if (model === 'gemini-4-hydrogen') {
+        config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
       }
       if (systemInstruction) {
         config.systemInstruction = systemInstruction;
@@ -251,7 +251,7 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
         res.flushHeaders();
       }
 
-      const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+      const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
       let streamSuccess = false;
 
       for (const model of candidateModels) {
@@ -259,11 +259,11 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
           const streamConfig: any = {
             systemInstruction: systemPrompt,
           };
-          if (model === 'gemini-3.8-flash') {
-            streamConfig.thinkingConfig = { thinkingLevel: 'LOW' };
-          } else if (model === 'gemini-3.1-flash-lite') {
-            streamConfig.thinkingConfig = { thinkingLevel: 'MINIMAL' };
+          if (model === 'gemini-3.1-flash-lite') {
+            streamConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
             streamConfig.temperature = 0.7;
+          } else if (model === 'gemini-4-hydrogen') {
+            streamConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
           }
           const stream = await ai.models.generateContentStream({
             model,
