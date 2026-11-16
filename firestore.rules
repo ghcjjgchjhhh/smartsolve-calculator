@@ -127,6 +127,60 @@ service cloud.firestore {
         && data.createdAt is timestamp;
     }
 
+    function isValidRoomQuiz(data, roomId, quizId) {
+      return data.keys().hasAll([
+          'id', 'roomId', 'authorId', 'authorName', 'subject', 'topic',
+          'status', 'questions', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'roomId', 'authorId', 'authorName', 'subject', 'topic',
+          'status', 'questions', 'createdAt', 'updatedAt'
+        ])
+        && data.id == quizId
+        && data.roomId == roomId
+        && data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 100
+        && data.subject is string && data.subject.size() >= 2 && data.subject.size() <= 60
+        && data.topic is string && data.topic.size() >= 2 && data.topic.size() <= 120
+        && data.status in ['active', 'finished']
+        && data.questions is list && data.questions.size() >= 1 && data.questions.size() <= 10
+        && data.questions[0] is map
+        && 'question' in data.questions[0] && data.questions[0].question is string && data.questions[0].question.size() <= 800
+        && 'correctAnswer' in data.questions[0] && data.questions[0].correctAnswer is string && data.questions[0].correctAnswer.size() == 1
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidQuizSubmission(data, submissionId) {
+      return data.keys().hasAll(['uid', 'displayName', 'score', 'totalQuestions', 'timeTakenSec', 'answers', 'submittedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'score', 'totalQuestions', 'timeTakenSec', 'answers', 'submittedAt'])
+        && data.uid == submissionId
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.score is number && data.score >= 0 && data.score <= 10
+        && data.totalQuestions is number && data.totalQuestions >= 1 && data.totalQuestions <= 10
+        && data.timeTakenSec is number && data.timeTakenSec >= 0 && data.timeTakenSec <= 7200
+        && data.answers is list && data.answers.size() >= 1 && data.answers.size() <= 10
+        && data.answers[0] is string && data.answers[0].size() <= 4
+        && data.submittedAt is timestamp;
+    }
+
+    function isValidUserWorkspace(data, userId) {
+      return data.keys().hasAll(['ownerId', 'displayName', 'pinnedFormulas', 'examGoals', 'recentHistory', 'tutorStats', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'displayName', 'pinnedFormulas', 'examGoals', 'recentHistory', 'tutorStats', 'createdAt', 'updatedAt'])
+        && data.ownerId == userId
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.pinnedFormulas is list && data.pinnedFormulas.size() <= 40
+        && (data.pinnedFormulas.size() == 0 || data.pinnedFormulas[0] is map)
+        && data.examGoals is list && data.examGoals.size() <= 10
+        && (data.examGoals.size() == 0 || data.examGoals[0] is map)
+        && data.recentHistory is list && data.recentHistory.size() <= 50
+        && (data.recentHistory.size() == 0 || data.recentHistory[0] is map)
+        && data.tutorStats is map
+        && data.tutorStats.keys().hasOnly(['topicsCompleted', 'formulasPracticed', 'totalAnswered', 'overallAccuracyPct', 'streak'])
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     // 4. Collection Rules
     match /room_invites/{inviteCode} {
       allow get: if isSignedIn() && inviteCode is string && inviteCode.size() >= 4 && inviteCode.size() <= 20 && inviteCode.matches('^[A-Z0-9]+$');
@@ -141,6 +195,28 @@ service cloud.firestore {
         && getAfter(roomPath(incoming().roomId)).data.roomCode == inviteCode;
       allow update: if false;
       allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    match /user_workspaces/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && userId == request.auth.uid;
+      allow list: if false;
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidUserWorkspace(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidUserWorkspace(incoming(), userId)
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'pinnedFormulas', 'examGoals', 'recentHistory', 'tutorStats', 'updatedAt'
+        ]);
+      allow delete: if isSignedIn() && isValidId(userId) && userId == request.auth.uid;
     }
 
     match /study_rooms/{roomId} {
@@ -249,6 +325,55 @@ service cloud.firestore {
         allow delete: if isSignedIn() && isValidId(roomId) && isValidId(strokeId) && (
           existing().authorId == request.auth.uid || isRoomMod(roomId)
         );
+      }
+
+      match /quizzes/{quizId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(quizId) && (isRoomOwner(roomId) || isRoomMember(roomId));
+        allow list: if isSignedIn() && (isRoomOwner(roomId) || isRoomMember(roomId));
+        allow create: if isSignedIn()
+          && isValidId(roomId)
+          && isValidId(quizId)
+          && isValidRoomQuiz(incoming(), roomId, quizId)
+          && incoming().authorId == request.auth.uid
+          && incoming().status == 'active'
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(roomPath(roomId))
+          && get(roomPath(roomId)).data.status == 'active'
+          && isRoomMod(roomId);
+        allow update: if isSignedIn()
+          && isValidId(roomId)
+          && isValidId(quizId)
+          && isValidRoomQuiz(incoming(), roomId, quizId)
+          && incoming().id == existing().id
+          && incoming().roomId == existing().roomId
+          && incoming().authorId == existing().authorId
+          && incoming().createdAt == existing().createdAt
+          && incoming().questions == existing().questions
+          && incoming().updatedAt == request.time
+          && isRoomMod(roomId)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+        allow delete: if isSignedIn() && isValidId(roomId) && isValidId(quizId) && isRoomMod(roomId);
+
+        match /submissions/{submissionId} {
+          allow get: if isSignedIn() && isValidId(roomId) && isValidId(quizId) && isValidId(submissionId) && (isRoomOwner(roomId) || isRoomMember(roomId));
+          allow list: if isSignedIn() && (isRoomOwner(roomId) || isRoomMember(roomId));
+          allow create: if isSignedIn()
+            && isValidId(roomId)
+            && isValidId(quizId)
+            && isValidId(submissionId)
+            && submissionId == request.auth.uid
+            && isValidQuizSubmission(incoming(), submissionId)
+            && incoming().submittedAt == request.time
+            && exists(roomPath(roomId))
+            && get(roomPath(roomId)).data.status == 'active'
+            && (isRoomOwner(roomId) || isRoomMember(roomId))
+            && isMemberUnmuted(roomId);
+          allow update: if false;
+          allow delete: if isSignedIn() && isValidId(roomId) && isValidId(quizId) && isValidId(submissionId) && (
+            submissionId == request.auth.uid || isRoomMod(roomId)
+          );
+        }
       }
     }
 

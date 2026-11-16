@@ -14,9 +14,11 @@ import {
   Check,
   X,
   Globe,
+  Cloud,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { InstallAppModal } from './InstallAppModal';
+import { CloudSyncModal } from './CloudSyncModal';
 import { useTheme, ThemePreference } from '../contexts/ThemeContext';
 import { useAppLanguage } from '../contexts/LanguageContext';
 import { getHistory } from '../services/historyStorage';
@@ -39,6 +41,7 @@ export const Header: React.FC<Props> = ({
   const { isInstalled, canInstall, triggerInstall } = usePWAInstall();
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isCloudSyncOpen, setIsCloudSyncOpen] = useState(false);
   const { currentLanguage, setIsLanguageModalOpen, t } = useAppLanguage();
   const [historyCount, setHistoryCount] = useState<number>(() => {
     try {
@@ -251,6 +254,20 @@ export const Header: React.FC<Props> = ({
                 )}
               </button>
 
+              {/* Cloud Sync, Pinned Formulas & Exam Countdowns */}
+              <button
+                onClick={() => setIsCloudSyncOpen(true)}
+                title="Cloud Workspace Sync, Pinned Formulas & Exam Countdowns"
+                className={`flex items-center space-x-1.5 p-2 sm:px-2.5 sm:py-2 rounded-xl transition-all border cursor-pointer shadow-xs active:scale-95 shrink-0 ${
+                  isDark
+                    ? 'bg-[#18181B] hover:bg-[#27272A] text-white border-[#27272A]'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-200'
+                }`}
+              >
+                <Cloud className="w-4 h-4 text-[#22C55E]" />
+                <span className="text-xs font-bold hidden lg:inline">Cloud Sync</span>
+              </button>
+
               {/* Appearance / Theme Setting Modal Trigger */}
               <button
                 onClick={() => setIsThemeModalOpen(true)}
@@ -425,6 +442,12 @@ export const Header: React.FC<Props> = ({
       <InstallAppModal
         isOpen={isInstallModalOpen}
         onClose={() => setIsInstallModalOpen(false)}
+      />
+
+      {/* Cloud Workspace Sync & Exam Countdowns Modal */}
+      <CloudSyncModal
+        isOpen={isCloudSyncOpen}
+        onClose={() => setIsCloudSyncOpen(false)}
       />
     </>
   );

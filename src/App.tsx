@@ -86,6 +86,7 @@ const PastQuestionSearchView = lazy(() => import('./components/PastQuestionSearc
 const BiologyLabView = lazy(() => import('./components/BiologyLabView').then((m) => ({ default: m.BiologyLabView })));
 const EquationEditorView = lazy(() => import('./components/EquationEditorView').then((m) => ({ default: m.EquationEditorView })));
 const CollaborativeStudyRoomView = lazy(() => import('./components/CollaborativeStudyRoomView').then((m) => ({ default: m.CollaborativeStudyRoomView })));
+const CalculusLabView = lazy(() => import('./components/CalculusLabView').then((m) => ({ default: m.CalculusLabView })));
 
 const ModuleLoader = () => (
   <div className="rounded-2xl border border-slate-200 dark:border-[#27272A] bg-white dark:bg-[#0A0A0A] p-12 flex items-center justify-center gap-2 text-xs sm:text-sm text-slate-500">
@@ -138,6 +139,7 @@ function MainApp() {
         'biology_lab',
         'equation_editor',
         'study_rooms',
+        'calculus_lab',
       ];
       if (tabParam && validTabs.includes(tabParam)) {
         return tabParam;
@@ -455,6 +457,7 @@ function MainApp() {
     'biology_lab',
     'equation_editor',
     'study_rooms',
+    'calculus_lab',
   ]);
 
   const navigationTabs = [
@@ -471,9 +474,10 @@ function MainApp() {
     { id: 'formula_explorer', name: 'Formula Explorer', icon: SlidersHorizontal, badge: 'Sliders' },
     { id: 'document_tutor', name: 'Document Tutor', icon: FileText, badge: 'PDF Q&A' },
     { id: 'past_questions', name: 'Past Questions', icon: Search, badge: 'Verified' },
-    { id: 'biology_lab', name: 'Biology Lab', icon: Dna, badge: 'Anatomy' },
+    { id: 'biology_lab', name: 'Biology Lab', icon: Dna, badge: '3D Anatomy' },
+    { id: 'calculus_lab', name: 'Calculus Lab', icon: TrendingUp, badge: 'Symbolic + Area' },
     { id: 'equation_editor', name: 'Equation Editor', icon: Sigma, badge: 'LaTeX' },
-    { id: 'study_rooms', name: 'Study Rooms', icon: Users, badge: 'Live Sync' },
+    { id: 'study_rooms', name: 'Study Rooms', icon: Users, badge: 'Quiz + Sync' },
     { id: 'grapher', name: t('grapher', '2D Grapher'), icon: TrendingUp, badge: 'Canvas' },
     { id: 'periodic_table', name: t('periodic_table', 'Periodic Table'), icon: FlaskConical, badge: 'Chemistry' },
     { id: 'physics_sim', name: t('physics_sim', 'Physics Lab'), icon: Activity, badge: 'Simulations' },
@@ -828,6 +832,7 @@ function MainApp() {
               {activeTab === 'document_tutor' && <DocumentTutorView />}
               {activeTab === 'past_questions' && <PastQuestionSearchView />}
               {activeTab === 'biology_lab' && <BiologyLabView />}
+              {activeTab === 'calculus_lab' && <CalculusLabView />}
               {activeTab === 'equation_editor' && <EquationEditorView onOpenInGemini={handleOpenInGemini} />}
               {activeTab === 'study_rooms' && <CollaborativeStudyRoomView />}
             </div>
