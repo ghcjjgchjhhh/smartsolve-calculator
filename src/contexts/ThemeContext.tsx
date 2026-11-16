@@ -2,6 +2,138 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export type ThemePreference = 'system' | 'dark' | 'light';
 export type ResolvedTheme = 'dark' | 'light';
+export type AccentColorId =
+  | 'emerald'
+  | 'violet'
+  | 'amber'
+  | 'orange'
+  | 'rose'
+  | 'lime'
+  | 'cyan';
+
+export interface AccentPalette {
+  id: AccentColorId;
+  name: string;
+  tagline: string;
+  primary: string;
+  primaryLightMode: string;
+  hover: string;
+  light: string;
+  rgb: string;
+  onSolid: string;
+  softLight: string;
+  softBorderLight: string;
+  textOnLightSoft: string;
+  softDark: string;
+}
+
+export const ACCENT_PALETTES: AccentPalette[] = [
+  {
+    id: 'emerald',
+    name: 'Emerald',
+    tagline: 'Precision STEM',
+    primary: '#22C55E',
+    primaryLightMode: '#16A34A',
+    hover: '#16A34A',
+    light: '#4ADE80',
+    rgb: '34, 197, 94',
+    onSolid: '#FFFFFF',
+    softLight: '#ECFDF5',
+    softBorderLight: '#6EE7B7',
+    textOnLightSoft: '#065F46',
+    softDark: '#052E16',
+  },
+  {
+    id: 'violet',
+    name: 'Violet',
+    tagline: 'AI Studio',
+    primary: '#8B5CF6',
+    primaryLightMode: '#7C3AED',
+    hover: '#7C3AED',
+    light: '#A78BFA',
+    rgb: '139, 92, 246',
+    onSolid: '#FFFFFF',
+    softLight: '#F5F3FF',
+    softBorderLight: '#C4B5FD',
+    textOnLightSoft: '#5B21B6',
+    softDark: '#1E103C',
+  },
+  {
+    id: 'amber',
+    name: 'Amber',
+    tagline: 'Lab Gold',
+    primary: '#F59E0B',
+    primaryLightMode: '#B45309',
+    hover: '#D97706',
+    light: '#FBBF24',
+    rgb: '245, 158, 11',
+    onSolid: '#09090B',
+    softLight: '#FFFBEB',
+    softBorderLight: '#FCD34D',
+    textOnLightSoft: '#92400E',
+    softDark: '#2E1A04',
+  },
+  {
+    id: 'orange',
+    name: 'Orange',
+    tagline: 'Solar Action',
+    primary: '#F97316',
+    primaryLightMode: '#C2410C',
+    hover: '#EA580C',
+    light: '#FB923C',
+    rgb: '249, 115, 22',
+    onSolid: '#FFFFFF',
+    softLight: '#FFF7ED',
+    softBorderLight: '#FDBA74',
+    textOnLightSoft: '#9A3412',
+    softDark: '#2F1205',
+  },
+  {
+    id: 'rose',
+    name: 'Rose',
+    tagline: 'Bio Crimson',
+    primary: '#F43F5E',
+    primaryLightMode: '#BE123C',
+    hover: '#E11D48',
+    light: '#FB7185',
+    rgb: '244, 63, 94',
+    onSolid: '#FFFFFF',
+    softLight: '#FFF1F2',
+    softBorderLight: '#FDA4AF',
+    textOnLightSoft: '#9F1239',
+    softDark: '#2F0814',
+  },
+  {
+    id: 'lime',
+    name: 'Lime',
+    tagline: 'Tactical Pro',
+    primary: '#84CC16',
+    primaryLightMode: '#4D7C0F',
+    hover: '#65A30D',
+    light: '#A3E635',
+    rgb: '132, 204, 22',
+    onSolid: '#09090B',
+    softLight: '#F7FEE7',
+    softBorderLight: '#BEF264',
+    textOnLightSoft: '#3F6212',
+    softDark: '#172604',
+  },
+  {
+    id: 'cyan',
+    name: 'Cyan',
+    tagline: 'Instrument',
+    primary: '#06B6D4',
+    primaryLightMode: '#0E7490',
+    hover: '#0891B2',
+    light: '#22D3EE',
+    rgb: '6, 182, 212',
+    onSolid: '#FFFFFF',
+    softLight: '#ECFEFF',
+    softBorderLight: '#67E8F9',
+    textOnLightSoft: '#155E75',
+    softDark: '#06262E',
+  },
+];
 
 interface ThemeContextType {
   themePreference: ThemePreference;
@@ -9,11 +141,15 @@ interface ThemeContextType {
   isDark: boolean;
   setThemePreference: (pref: ThemePreference) => void;
   cycleTheme: () => void;
+  accentColor: AccentColorId;
+  accentPalette: AccentPalette;
+  setAccentColor: (accent: AccentColorId) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'smartsolve_theme_preference';
+const ACCENT_STORAGE_KEY = 'smartsolve_accent_color';
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => {
@@ -26,7 +162,20 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {
       // fallback
     }
-    return 'system'; // Default to system to seamlessly follow phone OS appearance!
+    return 'system';
+  });
+
+  const [accentColor, setAccentColorState] = useState<AccentColorId>(() => {
+    if (typeof window === 'undefined') return 'emerald';
+    try {
+      const saved = localStorage.getItem(ACCENT_STORAGE_KEY) as AccentColorId | null;
+      if (saved && ACCENT_PALETTES.some((p) => p.id === saved)) {
+        return saved;
+      }
+    } catch {
+      // fallback
+    }
+    return 'emerald';
   });
 
   const [systemIsDark, setSystemIsDark] = useState<boolean>(() => {
@@ -38,7 +187,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
-  // Listen to OS system color scheme changes with support for modern and legacy Safari
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -62,13 +210,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  // Compute resolved theme
   const resolvedTheme: ResolvedTheme =
     themePreference === 'system' ? (systemIsDark ? 'dark' : 'light') : themePreference;
 
   const isDark = resolvedTheme === 'dark';
+  const accentPalette = ACCENT_PALETTES.find((p) => p.id === accentColor) || ACCENT_PALETTES[0];
 
-  // Apply theme to document root, body, and mobile meta tags
+  // Apply theme + accent palette to document root, body, and mobile meta tags
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
@@ -99,16 +247,38 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
 
-    // Broadcast theme update event
+    // Apply accent CSS custom properties and attribute
+    root.setAttribute('data-accent', accentPalette.id);
+    if (body) body.setAttribute('data-accent', accentPalette.id);
+
+    root.style.setProperty('--accent-primary', accentPalette.primary);
+    root.style.setProperty(
+      '--accent-text',
+      isDark ? accentPalette.primary : accentPalette.primaryLightMode
+    );
+    root.style.setProperty('--accent-hover', accentPalette.hover);
+    root.style.setProperty('--accent-light', accentPalette.light);
+    root.style.setProperty('--accent-rgb', accentPalette.rgb);
+    root.style.setProperty('--accent-on-solid', accentPalette.onSolid);
+    root.style.setProperty('--accent-soft-light', accentPalette.softLight);
+    root.style.setProperty('--accent-soft-border-light', accentPalette.softBorderLight);
+    root.style.setProperty('--accent-text-on-light-soft', accentPalette.textOnLightSoft);
+    root.style.setProperty('--accent-soft-dark', accentPalette.softDark);
+
     try {
       window.dispatchEvent(
         new CustomEvent('smartsolve_theme_changed', {
-          detail: { isDark, resolvedTheme, themePreference },
+          detail: {
+            isDark,
+            resolvedTheme,
+            themePreference,
+            accentColor: accentPalette.id,
+            accentPalette,
+          },
         })
       );
     } catch {}
 
-    // Update mobile theme-color and status-bar
     try {
       let metaTheme = document.querySelector('meta[name="theme-color"]');
       if (!metaTheme) {
@@ -128,12 +298,21 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {
       // ignore
     }
-  }, [isDark]);
+  }, [isDark, resolvedTheme, themePreference, accentPalette]);
 
   const setThemePreference = (pref: ThemePreference) => {
     setThemePreferenceState(pref);
     try {
       localStorage.setItem(STORAGE_KEY, pref);
+    } catch {
+      // ignore
+    }
+  };
+
+  const setAccentColor = (accent: AccentColorId) => {
+    setAccentColorState(accent);
+    try {
+      localStorage.setItem(ACCENT_STORAGE_KEY, accent);
     } catch {
       // ignore
     }
@@ -157,6 +336,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isDark,
         setThemePreference,
         cycleTheme,
+        accentColor,
+        accentPalette,
+        setAccentColor,
       }}
     >
       {children}

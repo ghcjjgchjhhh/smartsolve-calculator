@@ -15,13 +15,29 @@ import {
   X,
   Globe,
   Cloud,
+  Palette,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { InstallAppModal } from './InstallAppModal';
 import { CloudSyncModal } from './CloudSyncModal';
-import { useTheme, ThemePreference } from '../contexts/ThemeContext';
+import {
+  useTheme,
+  ThemePreference,
+  ACCENT_PALETTES,
+  AccentColorId,
+} from '../contexts/ThemeContext';
 import { useAppLanguage } from '../contexts/LanguageContext';
 import { getHistory } from '../services/historyStorage';
+
+const ACCENT_SWATCH_CLASSES: Record<AccentColorId, string> = {
+  emerald: 'bg-green-500',
+  violet: 'bg-violet-500',
+  amber: 'bg-amber-500',
+  orange: 'bg-orange-500',
+  rose: 'bg-rose-500',
+  lime: 'bg-lime-500',
+  cyan: 'bg-cyan-500',
+};
 
 interface Props {
   darkMode?: boolean;
@@ -41,7 +57,9 @@ export const Header: React.FC<Props> = ({
   const { isInstalled, canInstall, triggerInstall } = usePWAInstall();
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isAccentMenuOpen, setIsAccentMenuOpen] = useState(false);
   const [isCloudSyncOpen, setIsCloudSyncOpen] = useState(false);
+  const accentMenuRef = React.useRef<HTMLDivElement | null>(null);
   const { currentLanguage, setIsLanguageModalOpen, t } = useAppLanguage();
   const [historyCount, setHistoryCount] = useState<number>(() => {
     try {
@@ -51,7 +69,14 @@ export const Header: React.FC<Props> = ({
     }
   });
 
-  const { themePreference, resolvedTheme, setThemePreference } = useTheme();
+  const {
+    themePreference,
+    resolvedTheme,
+    setThemePreference,
+    accentColor,
+    accentPalette,
+    setAccentColor,
+  } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
   useEffect(() => {
@@ -68,9 +93,22 @@ export const Header: React.FC<Props> = ({
     const handleOpenTheme = () => setIsThemeModalOpen(true);
     window.addEventListener('smartsolve_open_theme_modal', handleOpenTheme);
 
+    const handleDocClick = (e: MouseEvent) => {
+      if (accentMenuRef.current && !accentMenuRef.current.contains(e.target as Node)) {
+        setIsAccentMenuOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsAccentMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleDocClick);
+    document.addEventListener('keydown', handleEsc);
+
     return () => {
       window.removeEventListener('smartsolve_history_changed', updateCount);
       window.removeEventListener('smartsolve_open_theme_modal', handleOpenTheme);
+      document.removeEventListener('mousedown', handleDocClick);
+      document.removeEventListener('keydown', handleEsc);
     };
   }, []);
 
@@ -268,6 +306,84 @@ export const Header: React.FC<Props> = ({
                 <span className="text-xs font-bold hidden lg:inline">Cloud Sync</span>
               </button>
 
+              {/* 1-Click Accent Color Picker */}
+              <div ref={accentMenuRef} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsAccentMenuOpen((v) => !v)}
+                  title={`Accent Color: ${accentPalette.name} (${accentPalette.tagline})`}
+                  aria-label={`Choose accent color (current: ${accentPalette.name})`}
+                  className={`flex items-center space-x-1.5 p-2 sm:px-2.5 sm:py-2 rounded-xl transition-colors border cursor-pointer shrink-0 ${
+                    isDark
+                      ? 'bg-[#18181B] hover:bg-[#27272A] text-white border-[#27272A]'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-200'
+                  }`}
+                >
+                  <span
+                    className={`w-3.5 h-3.5 rounded-full ring-2 ring-white/25 ${ACCENT_SWATCH_CLASSES[accentColor]}`}
+                  />
+                  <Palette className="w-3.5 h-3.5 hidden sm:block text-[#22C55E]" />
+                </button>
+
+                {isAccentMenuOpen && (
+                  <div
+                    className={`absolute right-0 mt-2 w-60 rounded-2xl border p-3 shadow-2xl z-[900] space-y-2.5 ${
+                      isDark
+                        ? 'bg-[#121216] border-[#27272A] text-white'
+                        : 'bg-white border-slate-200 text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold">Accent Color</span>
+                      <span className="text-[10px] font-semibold text-[#22C55E]">
+                        {accentPalette.name}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1.5">
+                      {ACCENT_PALETTES.map((pal) => {
+                        const selected = pal.id === accentColor;
+                        return (
+                          <button
+                            key={pal.id}
+                            type="button"
+                            onClick={() => {
+                              setAccentColor(pal.id);
+                              setIsAccentMenuOpen(false);
+                            }}
+                            title={`${pal.name} · ${pal.tagline}`}
+                            aria-label={`${pal.name} accent color`}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110 ${
+                              ACCENT_SWATCH_CLASSES[pal.id]
+                            } ${
+                              selected
+                                ? isDark
+                                  ? 'ring-2 ring-white ring-offset-2 ring-offset-[#121216] scale-110'
+                                  : 'ring-2 ring-slate-900 ring-offset-2 ring-offset-white scale-110'
+                                : 'opacity-85 hover:opacity-100'
+                            }`}
+                          >
+                            {selected && (
+                              <Check
+                                className={`w-3.5 h-3.5 ${
+                                  pal.onSolid === '#09090B' ? 'text-slate-950' : 'text-white'
+                                }`}
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p
+                      className={`text-[10px] ${
+                        isDark ? 'text-zinc-400' : 'text-slate-500'
+                      }`}
+                    >
+                      {accentPalette.tagline} · Saved automatically
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Appearance / Theme Setting Modal Trigger */}
               <button
                 onClick={() => setIsThemeModalOpen(true)}
@@ -425,6 +541,53 @@ export const Header: React.FC<Props> = ({
                   </button>
                 );
               })}
+            </div>
+
+            {/* 1-Click Accent Color Picker Section inside Modal */}
+            <div
+              className={`pt-2 border-t space-y-2.5 ${
+                isDark ? 'border-[#27272A]' : 'border-slate-200'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Accent Color
+                </span>
+                <span className="text-[11px] font-semibold text-[#22C55E]">
+                  {accentPalette.name} · {accentPalette.tagline}
+                </span>
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {ACCENT_PALETTES.map((pal) => {
+                  const selected = pal.id === accentColor;
+                  return (
+                    <button
+                      key={pal.id}
+                      type="button"
+                      onClick={() => setAccentColor(pal.id)}
+                      title={`${pal.name} (${pal.tagline})`}
+                      aria-label={`Select ${pal.name} accent color`}
+                      className={`h-8 rounded-xl flex items-center justify-center cursor-pointer transition-transform hover:scale-105 ${
+                        ACCENT_SWATCH_CLASSES[pal.id]
+                      } ${
+                        selected
+                          ? isDark
+                            ? 'ring-2 ring-white ring-offset-2 ring-offset-[#121216] scale-105'
+                            : 'ring-2 ring-slate-900 ring-offset-2 ring-offset-white scale-105'
+                          : 'opacity-85 hover:opacity-100'
+                      }`}
+                    >
+                      {selected && (
+                        <Check
+                          className={`w-4 h-4 ${
+                            pal.onSolid === '#09090B' ? 'text-slate-950' : 'text-white'
+                          }`}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <button

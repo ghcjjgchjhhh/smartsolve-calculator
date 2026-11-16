@@ -14,6 +14,16 @@
     --app-input-bg: #FFFFFF;
     --app-calc-display: #F1F5F9;
     --app-katex-text: #0F172A;
+    --accent-primary: #22C55E;
+    --accent-text: #16A34A;
+    --accent-hover: #16A34A;
+    --accent-light: #4ADE80;
+    --accent-rgb: 34, 197, 94;
+    --accent-on-solid: #FFFFFF;
+    --accent-soft-light: #ECFDF5;
+    --accent-soft-border-light: #6EE7B7;
+    --accent-text-on-light-soft: #065F46;
+    --accent-soft-dark: #052E16;
   }
 
   html.dark, :root[data-theme="dark"] {
@@ -26,6 +36,7 @@
     --app-input-bg: #18181D;
     --app-calc-display: #0A0A0A;
     --app-katex-text: #FFFFFF;
+    --accent-text: var(--accent-primary, #22C55E);
   }
 
   html {
@@ -162,7 +173,7 @@ button, a, input, select, textarea, label, [role="button"] {
   overscroll-behavior-x: contain;
   max-width: 100%;
   scrollbar-width: thin;
-  scrollbar-color: rgba(34, 197, 94, 0.4) transparent;
+  scrollbar-color: rgba(var(--accent-rgb, 34, 197, 94), 0.45) transparent;
 }
 
 .katex-display::-webkit-scrollbar {
@@ -175,7 +186,7 @@ button, a, input, select, textarea, label, [role="button"] {
 }
 
 .katex-display::-webkit-scrollbar-thumb {
-  background: rgba(34, 197, 94, 0.5);
+  background: rgba(var(--accent-rgb, 34, 197, 94), 0.55);
   border-radius: 9999px;
 }
 
@@ -212,7 +223,7 @@ button, a, input, select, textarea, label, [role="button"] {
   overscroll-behavior-x: contain;
   scroll-behavior: smooth;
   scrollbar-width: thin;
-  scrollbar-color: rgba(34, 197, 94, 0.4) transparent;
+  scrollbar-color: rgba(var(--accent-rgb, 34, 197, 94), 0.45) transparent;
 }
 
 .formula-scroll-container::-webkit-scrollbar {
@@ -225,12 +236,12 @@ button, a, input, select, textarea, label, [role="button"] {
 }
 
 .formula-scroll-container::-webkit-scrollbar-thumb {
-  background: rgba(34, 197, 94, 0.5);
+  background: rgba(var(--accent-rgb, 34, 197, 94), 0.55);
   border-radius: 9999px;
 }
 
 .formula-scroll-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(34, 197, 94, 0.8);
+  background: rgba(var(--accent-rgb, 34, 197, 94), 0.85);
 }
 
 .math-rendered-block {
@@ -381,43 +392,49 @@ html:not(.dark) .text-zinc-500,
   color: #64748B !important;
 }
 
-/* Preserve White Text on Solid Emerald & Action Buttons */
+/* Preserve Contrast Text on Solid Accent & Danger Buttons */
 html.light .bg-\[\#22C55E\],
 html:not(.dark) .bg-\[\#22C55E\],
 [data-theme="light"] .bg-\[\#22C55E\],
 html.light .bg-\[\#16A34A\],
 html:not(.dark) .bg-\[\#16A34A\],
 [data-theme="light"] .bg-\[\#16A34A\],
-html.light .bg-\[\#EF4444\],
-html:not(.dark) .bg-\[\#EF4444\],
-[data-theme="light"] .bg-\[\#EF4444\],
-html.light .bg-\[\#DC2626\],
-html:not(.dark) .bg-\[\#DC2626\],
-[data-theme="light"] .bg-\[\#DC2626\],
 html.light .bg-emerald-500,
 html:not(.dark) .bg-emerald-500,
 [data-theme="light"] .bg-emerald-500,
 html.light .bg-emerald-600,
 html:not(.dark) .bg-emerald-600,
 [data-theme="light"] .bg-emerald-600,
-html.light .bg-rose-500,
-html:not(.dark) .bg-rose-500,
-[data-theme="light"] .bg-rose-500,
-html.light .bg-rose-600,
-html:not(.dark) .bg-rose-600,
-[data-theme="light"] .bg-rose-600,
 html.light button.bg-\[\#22C55E\],
 html:not(.dark) button.bg-\[\#22C55E\],
 [data-theme="light"] button.bg-\[\#22C55E\],
-html.light button.bg-\[\#EF4444\],
-html:not(.dark) button.bg-\[\#EF4444\],
-[data-theme="light"] button.bg-\[\#EF4444\],
 html.light .bg-\[\#22C55E\] span,
 html:not(.dark) .bg-\[\#22C55E\] span,
 [data-theme="light"] .bg-\[\#22C55E\] span,
 html.light .bg-\[\#22C55E\] p,
 html:not(.dark) .bg-\[\#22C55E\] p,
 [data-theme="light"] .bg-\[\#22C55E\] p,
+html.light .bg-\[\#22C55E\] svg,
+html:not(.dark) .bg-\[\#22C55E\] svg,
+[data-theme="light"] .bg-\[\#22C55E\] svg {
+  color: var(--accent-on-solid, #FFFFFF) !important;
+}
+
+html.light .bg-\[\#EF4444\],
+html:not(.dark) .bg-\[\#EF4444\],
+[data-theme="light"] .bg-\[\#EF4444\],
+html.light .bg-\[\#DC2626\],
+html:not(.dark) .bg-\[\#DC2626\],
+[data-theme="light"] .bg-\[\#DC2626\],
+html.light .bg-rose-500,
+html:not(.dark) .bg-rose-500,
+[data-theme="light"] .bg-rose-500,
+html.light .bg-rose-600,
+html:not(.dark) .bg-rose-600,
+[data-theme="light"] .bg-rose-600,
+html.light button.bg-\[\#EF4444\],
+html:not(.dark) button.bg-\[\#EF4444\],
+[data-theme="light"] button.bg-\[\#EF4444\],
 html.light .bg-\[\#EF4444\] span,
 html:not(.dark) .bg-\[\#EF4444\] span,
 [data-theme="light"] .bg-\[\#EF4444\] span,
@@ -463,3 +480,177 @@ html:not(.dark) .katex .fbox,
 [data-theme="light"] .katex .fbox {
   border-color: #0F172A !important;
 }
+
+/* ========================================================
+   DYNAMIC ACCENT COLOR PALETTE OVERRIDES
+   (Violet, Amber, Orange, Rose, Lime, Cyan)
+   ======================================================== */
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\],
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-400 {
+  background-color: var(--accent-primary) !important;
+  color: var(--accent-on-solid) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\] *,
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#16A34A\] *,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500 *,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-600 * {
+  color: var(--accent-on-solid) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#16A34A\],
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-600,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:bg-\[\#16A34A\]:hover,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:bg-\[\#22C55E\]:hover,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:bg-emerald-600:hover,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:bg-emerald-500:hover,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:bg-emerald-400:hover {
+  background-color: var(--accent-hover) !important;
+  color: var(--accent-on-solid) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\]\/10,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500\/10,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500\/5 {
+  background-color: rgba(var(--accent-rgb), 0.12) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\]\/15,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500\/15 {
+  background-color: rgba(var(--accent-rgb), 0.16) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\]\/20,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500\/20 {
+  background-color: rgba(var(--accent-rgb), 0.2) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\]\/25,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500\/25,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:bg-\[\#22C55E\]\/25:hover {
+  background-color: rgba(var(--accent-rgb), 0.25) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\]\/30,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500\/30,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:bg-\[\#22C55E\]\/30:hover,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:bg-emerald-500\/30:hover {
+  background-color: rgba(var(--accent-rgb), 0.3) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-50,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-50\/40,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-100 {
+  background-color: var(--accent-soft-light) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-950,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-950\/40 {
+  background-color: var(--accent-soft-dark) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .text-\[\#22C55E\],
+:root[data-accent]:not([data-accent="emerald"]) .text-emerald-500,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:text-\[\#22C55E\]:hover,
+:root[data-accent]:not([data-accent="emerald"]) .group:hover .group-hover\:text-\[\#22C55E\] {
+  color: var(--accent-text) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .text-\[\#4ADE80\],
+:root[data-accent]:not([data-accent="emerald"]) .text-emerald-400,
+:root[data-accent]:not([data-accent="emerald"]) .text-emerald-300,
+:root[data-accent]:not([data-accent="emerald"]) .text-emerald-200,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:text-\[\#4ADE80\]:hover {
+  color: var(--accent-light) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .text-emerald-900,
+:root[data-accent]:not([data-accent="emerald"]) .text-emerald-950 {
+  color: var(--accent-text-on-light-soft) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .border-\[\#22C55E\],
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-500,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-600,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-400,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:border-\[\#22C55E\]:hover,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:border-emerald-500:hover,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:border-emerald-400:hover,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:border-emerald-600:hover,
+:root[data-accent]:not([data-accent="emerald"]) .focus\:border-\[\#22C55E\]:focus,
+:root[data-accent]:not([data-accent="emerald"]) .focus\:border-emerald-500:focus,
+:root[data-accent]:not([data-accent="emerald"]) .focus\:border-emerald-600:focus,
+:root[data-accent]:not([data-accent="emerald"]) .focus-within\:border-\[\#22C55E\]:focus-within,
+:root[data-accent]:not([data-accent="emerald"]) .focus-within\:border-emerald-600:focus-within {
+  border-color: var(--accent-primary) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .border-\[\#22C55E\]\/20,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-500\/20,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-500\/25 {
+  border-color: rgba(var(--accent-rgb), 0.24) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .border-\[\#22C55E\]\/30,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-500\/30,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-500\/35,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-400\/30 {
+  border-color: rgba(var(--accent-rgb), 0.34) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .border-\[\#22C55E\]\/40,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-500\/40,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-400\/40 {
+  border-color: rgba(var(--accent-rgb), 0.44) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .border-\[\#22C55E\]\/50,
+:root[data-accent]:not([data-accent="emerald"]) .border-\[\#22C55E\]\/60,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-500\/50,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-500\/60 {
+  border-color: rgba(var(--accent-rgb), 0.56) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-200,
+:root[data-accent]:not([data-accent="emerald"]) .border-emerald-300 {
+  border-color: var(--accent-soft-border-light) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .ring-\[\#22C55E\],
+:root[data-accent]:not([data-accent="emerald"]) .ring-emerald-500,
+:root[data-accent]:not([data-accent="emerald"]) .focus\:ring-\[\#22C55E\]:focus,
+:root[data-accent]:not([data-accent="emerald"]) .focus\:ring-emerald-500:focus {
+  --tw-ring-color: var(--accent-primary) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .accent-\[\#22C55E\],
+:root[data-accent]:not([data-accent="emerald"]) .accent-emerald-500 {
+  accent-color: var(--accent-primary) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .from-\[\#22C55E\],
+:root[data-accent]:not([data-accent="emerald"]) .from-\[\#16A34A\],
+:root[data-accent]:not([data-accent="emerald"]) .hover\:from-\[\#16A34A\]:hover {
+  --tw-gradient-from: var(--accent-primary) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .from-\[\#22C55E\]\/15,
+:root[data-accent]:not([data-accent="emerald"]) .from-\[\#22C55E\]\/25,
+:root[data-accent]:not([data-accent="emerald"]) .from-emerald-600\/20,
+:root[data-accent]:not([data-accent="emerald"]) .from-emerald-600\/25,
+:root[data-accent]:not([data-accent="emerald"]) .from-emerald-600\/30,
+:root[data-accent]:not([data-accent="emerald"]) .from-emerald-600\/35 {
+  --tw-gradient-from: rgba(var(--accent-rgb), 0.25) !important;
+}
+
+:root[data-accent]:not([data-accent="emerald"]) .shadow-emerald-500\/10,
+:root[data-accent]:not([data-accent="emerald"]) .shadow-emerald-500\/15,
+:root[data-accent]:not([data-accent="emerald"]) .shadow-emerald-500\/20,
+:root[data-accent]:not([data-accent="emerald"]) .shadow-emerald-500\/25,
+:root[data-accent]:not([data-accent="emerald"]) .shadow-emerald-500\/35,
+:root[data-accent]:not([data-accent="emerald"]) .shadow-emerald-600\/10,
+:root[data-accent]:not([data-accent="emerald"]) .shadow-\[\#22C55E\]\/10 {
+  --tw-shadow-color: rgba(var(--accent-rgb), 0.22) !important;
+}
+
