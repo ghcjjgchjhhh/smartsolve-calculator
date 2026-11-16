@@ -32,7 +32,7 @@ export const ScientificCalculator: React.FC<Props> = ({
   onOpenSearch,
   onNavigateTab,
 }) => {
-  const { t, setIsLanguageModalOpen } = useAppLanguage();
+  const { t } = useAppLanguage();
   const { resolvedTheme } = useTheme();
 
   const [expression, setExpression] = useState<string>('');
@@ -555,12 +555,14 @@ export const ScientificCalculator: React.FC<Props> = ({
             <Sigma className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-300" />
           </button>
 
-          {/* 5. Settings Gear Icon (Language & Writing Settings) */}
+          {/* 5. Settings Gear Icon (Settings Room) */}
           <button
             type="button"
-            onClick={() => setIsLanguageModalOpen(true)}
+            onClick={() => {
+              window.dispatchEvent(new Event('smartsolve_open_settings_modal'));
+            }}
             className="w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full bg-[#1E2228] hover:bg-[#2A2E35] border border-[#333842] flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
-            title="App Language & Writing Settings"
+            title="Open Settings Room"
           >
             <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-300" />
           </button>
