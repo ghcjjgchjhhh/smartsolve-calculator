@@ -478,6 +478,7 @@ export const BiologyLabView: React.FC = () => {
   const [modelId, setModelId] = useState<string>(BIOLOGY_MODELS[0].id);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d');
   const [selectedPartId, setSelectedPartId] = useState<string>(BIOLOGY_MODELS[0].parts[0].id);
+  const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
   const [quizTargetId, setQuizTargetId] = useState<string | null>(null);
   const [quizFeedback, setQuizFeedback] = useState<string>('');
 
@@ -498,6 +499,9 @@ export const BiologyLabView: React.FC = () => {
   const activeModel = BIOLOGY_MODELS.find((m) => m.id === modelId) || BIOLOGY_MODELS[0];
   const selectedPart =
     activeModel.parts.find((p) => p.id === selectedPartId) || activeModel.parts[0];
+  const hoveredPart = hoveredPartId
+    ? activeModel.parts.find((p) => p.id === hoveredPartId) || null
+    : null;
 
   // Refs synced cleanly inside Three.js animation + click handler
   const runtimeRef = useRef<Bio3DRuntime | null>(null);
@@ -513,6 +517,8 @@ export const BiologyLabView: React.FC = () => {
   quizTargetRef.current = quizTargetId;
   const activeModelRef = useRef(activeModel);
   activeModelRef.current = activeModel;
+  const hoveredPartIdRef = useRef<string | null>(hoveredPartId);
+  hoveredPartIdRef.current = hoveredPartId;
 
   const handleSelectCategory = (cat: BioCategory) => {
     setCategoryFilter(cat);
@@ -529,6 +535,7 @@ export const BiologyLabView: React.FC = () => {
     const next = BIOLOGY_MODELS.find((m) => m.id === id) || BIOLOGY_MODELS[0];
     setModelId(next.id);
     setSelectedPartId(next.parts[0].id);
+    setHoveredPartId(null);
     setQuizTargetId(null);
     setQuizFeedback('');
     setExplodeAmount(0);
@@ -554,12 +561,12 @@ export const BiologyLabView: React.FC = () => {
     }
   };
 
-  // Sync highlight + explode smoothly whenever selectedPartId or explodeAmount updates
+  // Sync highlight (selected + hover) + explode smoothly whenever state updates
   useEffect(() => {
     if (runtimeRef.current) {
-      applyBio3DState(runtimeRef.current, selectedPartId, explodeAmount);
+      applyBio3DState(runtimeRef.current, selectedPartId, explodeAmount, hoveredPartId);
     }
-  }, [selectedPartId, explodeAmount, modelId, viewMode]);
+  }, [selectedPartId, hoveredPartId, explodeAmount, modelId, viewMode]);
 
   // WebGL Interactive 3D Specimen Lifecycle
   useEffect(() => {
@@ -632,8 +639,8 @@ export const BiologyLabView: React.FC = () => {
     controls.maxDistance = 14.5;
     controls.target.set(0, 0.1, 0);
 
-    // Three-point clinical studio lighting
-    const hemi = new THREE.HemisphereLight(0xe0f2fe, 0x0f172a, 0.65);
+    // Multi-point medical-atlas studio lighting with soft anatomical under-fill
+    const hemi = new THREE.HemisphereLight(0xe0f2fe, 0x1e293b, 0.72);
     scene.add(hemi);
 
     const keyLight = new THREE.DirectionalLight(0xfff7ed, 2.25);
@@ -647,7 +654,15 @@ export const BiologyLabView: React.FC = () => {
     rimLight.position.set(-6, 4, -5);
     scene.add(rimLight);
 
-    // Grounded specimen pedestal disc + clinical grid
+    const underFillLight = new THREE.DirectionalLight(0xfde68a, 0.72);
+    underFillLight.position.set(-2, -5, 5);
+    scene.add(underFillLight);
+
+    const warmFill = new THREE.DirectionalLight(0xfed7aa, 0.55);
+    warmFill.position.set(-5, 2, 4);
+    scene.add(warmFill);
+
+    // Grounded specimen pedestal disc + clinical rim
     const stageGeo = new THREE.CylinderGeometry(3.2, 3.4, 0.14, 48);
     const stageMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.72, metalness: 0.25 });
     const stageMesh = new THREE.Mesh(stageGeo, stageMat);
@@ -667,20 +682,52 @@ export const BiologyLabView: React.FC = () => {
 
     const builtRuntime = buildBiology3DModel(modelId, specimenGroup, isSoftwareGl);
     runtimeRef.current = builtRuntime;
-    applyBio3DState(builtRuntime, selectedPartId, explodeRef.current);
+    applyBio3DState(builtRuntime, selectedPartId, explodeRef.current, hoveredPartIdRef.current);
 
-    // Raycast click-to-inspect (distinguish clean clicks from camera drags)
+    // Raycast hover + click-to-inspect (distinguish clean clicks from camera drags)
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     let downX = 0;
     let downY = 0;
+    let isPointerDown = false;
+    let lastHoverCheck = 0;
 
     const handlePointerDown = (ev: PointerEvent) => {
+      isPointerDown = true;
       downX = ev.clientX;
       downY = ev.clientY;
     };
 
+    const handlePointerMove = (ev: PointerEvent) => {
+      if (isPointerDown) return;
+      const now = performance.now();
+      if (now - lastHoverCheck < 45) return;
+      lastHoverCheck = now;
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      ndc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObjects(specimenGroup.children, true);
+      const matched = hits.find((h) => typeof h.object.userData?.bioPartId === 'string');
+      const hitId = matched ? (matched.object.userData.bioPartId as string) : null;
+      renderer.domElement.style.cursor = hitId ? 'pointer' : 'grab';
+      if (hitId !== hoveredPartIdRef.current) {
+        setHoveredPartId(hitId);
+      }
+    };
+
+    const handlePointerLeave = () => {
+      isPointerDown = false;
+      renderer.domElement.style.cursor = 'grab';
+      if (hoveredPartIdRef.current !== null) {
+        setHoveredPartId(null);
+      }
+    };
+
     const handlePointerUp = (ev: PointerEvent) => {
+      isPointerDown = false;
       const dist = Math.hypot(ev.clientX - downX, ev.clientY - downY);
       if (dist > 6) return; // ignore orbit drag
       const rect = renderer.domElement.getBoundingClientRect();
@@ -699,6 +746,8 @@ export const BiologyLabView: React.FC = () => {
     };
 
     renderer.domElement.addEventListener('pointerdown', handlePointerDown);
+    renderer.domElement.addEventListener('pointermove', handlePointerMove);
+    renderer.domElement.addEventListener('pointerleave', handlePointerLeave);
     renderer.domElement.addEventListener('pointerup', handlePointerUp);
 
     let rafId = 0;
@@ -750,6 +799,8 @@ export const BiologyLabView: React.FC = () => {
       cancelAnimationFrame(rafId);
       ro.disconnect();
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
+      renderer.domElement.removeEventListener('pointermove', handlePointerMove);
+      renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
       renderer.domElement.removeEventListener('pointerup', handlePointerUp);
       renderer.domElement.removeEventListener('webglcontextlost', onLost);
       renderer.domElement.removeEventListener('webglcontextrestored', onRestored);
@@ -761,6 +812,7 @@ export const BiologyLabView: React.FC = () => {
           else obj.material.dispose();
         }
       });
+      builtRuntime.textures.forEach((t) => t.dispose());
       stageGeo.dispose();
       stageMat.dispose();
       ringGeo.dispose();
@@ -881,8 +933,12 @@ export const BiologyLabView: React.FC = () => {
           {viewMode === '3d' ? (
             <div className="rounded-xl border border-slate-200 dark:border-[#27272A] bg-[#090D14] overflow-hidden">
               <div className="px-3.5 py-2 bg-[#0D131D] border-b border-white/10 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-300">
-                <span>Drag to rotate 360° · Scroll to zoom · Click any 3D part to inspect</span>
-                <span className="font-semibold text-[#22C55E]">{selectedPart.name}</span>
+                <span>Drag to rotate 360° · Scroll to zoom · Click any 3D structure to inspect</span>
+                <span className={`font-semibold ${hoveredPart && hoveredPart.id !== selectedPart.id ? 'text-sky-400' : 'text-[#22C55E]'}`}>
+                  {hoveredPart && hoveredPart.id !== selectedPart.id
+                    ? `Hovering: ${hoveredPart.name}`
+                    : selectedPart.name}
+                </span>
               </div>
 
               {contextLost ? (
@@ -897,7 +953,7 @@ export const BiologyLabView: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <div ref={mountRef} className="w-full h-[360px] sm:h-[430px] cursor-grab active:cursor-grabbing" />
+                <div ref={mountRef} className="w-full h-[360px] sm:h-[430px]" />
               )}
 
               {/* Compact Bottom 3D Control Dock */}
@@ -966,29 +1022,98 @@ export const BiologyLabView: React.FC = () => {
             </div>
           ) : (
             <svg viewBox="0 0 540 320" className="w-full h-auto rounded-xl border border-slate-200 dark:border-[#27272A] bg-[#0B1117]">
-              {/* NEW 1: Skeletal Long Bone */}
+              <defs>
+                <radialGradient id="bioStageBg" cx="50%" cy="45%" r="65%">
+                  <stop offset="0%" stopColor="#131D2B" />
+                  <stop offset="100%" stopColor="#090D14" />
+                </radialGradient>
+                <linearGradient id="boneShaftGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#D6C8AF" />
+                  <stop offset="35%" stopColor="#F8F3E8" />
+                  <stop offset="75%" stopColor="#EDE2CD" />
+                  <stop offset="100%" stopColor="#B8A990" />
+                </linearGradient>
+                <radialGradient id="spongyBoneGrad" cx="45%" cy="45%" r="60%">
+                  <stop offset="0%" stopColor="#E11D48" />
+                  <stop offset="65%" stopColor="#9F1239" />
+                  <stop offset="100%" stopColor="#640E27" />
+                </radialGradient>
+                <linearGradient id="marrowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#EAB308" />
+                  <stop offset="50%" stopColor="#FEF08A" />
+                  <stop offset="100%" stopColor="#CA8A04" />
+                </linearGradient>
+                <linearGradient id="muscleBellyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#7F1D1D" />
+                  <stop offset="42%" stopColor="#DC2626" />
+                  <stop offset="100%" stopColor="#6B1414" />
+                </linearGradient>
+                <radialGradient id="lungLobeGrad" cx="40%" cy="35%" r="65%">
+                  <stop offset="0%" stopColor="#FB7185" stopOpacity="0.88" />
+                  <stop offset="65%" stopColor="#BE185D" stopOpacity="0.82" />
+                  <stop offset="100%" stopColor="#701A3B" stopOpacity="0.85" />
+                </radialGradient>
+                <radialGradient id="brainCortexGrad" cx="40%" cy="35%" r="65%">
+                  <stop offset="0%" stopColor="#FECDD3" />
+                  <stop offset="65%" stopColor="#FB7185" />
+                  <stop offset="100%" stopColor="#BE123C" />
+                </radialGradient>
+                <radialGradient id="liverGrad" cx="35%" cy="35%" r="70%">
+                  <stop offset="0%" stopColor="#991B1B" />
+                  <stop offset="75%" stopColor="#5C1313" />
+                  <stop offset="100%" stopColor="#3B0B0B" />
+                </radialGradient>
+                <radialGradient id="stomachGrad" cx="35%" cy="35%" r="70%">
+                  <stop offset="0%" stopColor="#FDA4AF" />
+                  <stop offset="60%" stopColor="#E11D48" />
+                  <stop offset="100%" stopColor="#9F1239" />
+                </radialGradient>
+                <linearGradient id="petalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#FB7185" />
+                  <stop offset="60%" stopColor="#E11D48" />
+                  <stop offset="100%" stopColor="#881337" />
+                </linearGradient>
+                <radialGradient id="heartGrad" cx="40%" cy="35%" r="65%">
+                  <stop offset="0%" stopColor="#DC2626" />
+                  <stop offset="65%" stopColor="#991B1B" />
+                  <stop offset="100%" stopColor="#450A0A" />
+                </radialGradient>
+                <radialGradient id="cytoplasmGrad" cx="50%" cy="50%" r="60%">
+                  <stop offset="0%" stopColor="#1E3A5F" />
+                  <stop offset="100%" stopColor="#0F1F33" />
+                </radialGradient>
+              </defs>
+              <rect x="0" y="0" width="540" height="320" fill="url(#bioStageBg)" />
+
+              {/* 1: Skeletal Long Bone */}
               {activeModel.id === 'skeletal_bone' && (
                 <g>
-                  <ellipse cx="225" cy="52" rx="48" ry="22" fill="#DBEAFE" stroke="#60A5FA" strokeWidth="2.5" />
-                  <ellipse cx="270" cy="95" rx="68" ry="38" fill="#BE123C" stroke="#FB7185" strokeWidth="2.5" />
+                  <ellipse cx="225" cy="52" rx="50" ry="23" fill="#DBEAFE" stroke="#93C5FD" strokeWidth="2.5" />
+                  <ellipse cx="270" cy="95" rx="70" ry="39" fill="url(#spongyBoneGrad)" stroke="#FB7185" strokeWidth="2.5" />
+                  {/* Trabecular lattice hint */}
+                  <path d="M 225 88 Q 250 75 275 95 T 315 88 M 235 106 Q 268 118 308 104" fill="none" stroke="#FECDD3" strokeOpacity="0.45" strokeWidth="1.5" />
                   <rect x="202" y="128" width="136" height="9" rx="4" fill="#38BDF8" />
-                  <rect x="200" y="138" width="140" height="125" rx="14" fill="#F1F5F9" stroke="#CBD5E1" strokeWidth="3" />
-                  <rect x="234" y="142" width="72" height="115" rx="10" fill="#FACC15" opacity="0.9" />
-                  <line x1="270" y1="145" x2="270" y2="255" stroke="#EF4444" strokeWidth="3.5" />
-                  <rect x="336" y="170" width="9" height="86" rx="4" fill="#FB923C" />
-                  <ellipse cx="270" cy="278" rx="62" ry="26" fill="#E2E8F0" stroke="#94A3B8" strokeWidth="2.5" />
+                  <rect x="200" y="138" width="140" height="125" rx="14" fill="url(#boneShaftGrad)" stroke="#CBD5E1" strokeWidth="3" />
+                  <rect x="234" y="142" width="72" height="115" rx="10" fill="url(#marrowGrad)" opacity="0.94" />
+                  <line x1="270" y1="145" x2="270" y2="255" stroke="#DC2626" strokeWidth="3.5" />
+                  <line x1="276" y1="148" x2="276" y2="252" stroke="#2563EB" strokeWidth="2.5" />
+                  <rect x="336" y="170" width="10" height="86" rx="4" fill="#FB923C" />
+                  <ellipse cx="270" cy="278" rx="64" ry="26" fill="url(#boneShaftGrad)" stroke="#94A3B8" strokeWidth="2.5" />
+                  <ellipse cx="242" cy="296" rx="22" ry="9" fill="#DBEAFE" opacity="0.85" />
+                  <ellipse cx="298" cy="296" rx="22" ry="9" fill="#DBEAFE" opacity="0.85" />
                 </g>
               )}
 
-              {/* NEW 2: Muscle Anatomy & Sarcomere */}
+              {/* 2: Muscle Anatomy & Sarcomere */}
               {activeModel.id === 'muscular_anatomy' && (
                 <g>
-                  <rect x="115" y="42" width="32" height="175" rx="12" fill="#F1F5F9" />
-                  <path d="M 115 215 L 250 235 L 250 255 L 115 235 Z" fill="#E2E8F0" />
-                  <ellipse cx="165" cy="120" rx="32" ry="62" fill="#DC2626" stroke="#FCA5A5" strokeWidth="2" />
-                  <ellipse cx="92" cy="128" rx="22" ry="56" fill="#991B1B" stroke="#F87171" strokeWidth="2" />
+                  <rect x="115" y="42" width="32" height="175" rx="12" fill="url(#boneShaftGrad)" />
+                  <path d="M 115 215 L 250 235 L 250 255 L 115 235 Z" fill="url(#boneShaftGrad)" />
+                  <ellipse cx="165" cy="120" rx="34" ry="64" fill="url(#muscleBellyGrad)" stroke="#FCA5A5" strokeWidth="2" />
+                  <path d="M 152 68 Q 145 120 152 172 M 165 60 Q 165 120 165 180 M 178 68 Q 185 120 178 172" fill="none" stroke="#FECACA" strokeOpacity="0.4" strokeWidth="1.5" />
+                  <ellipse cx="92" cy="128" rx="23" ry="56" fill="#7F1D1D" stroke="#F87171" strokeWidth="2" />
                   {/* Sarcomere inset */}
-                  <rect x="295" y="45" width="195" height="130" rx="12" fill="#111827" stroke="#334155" strokeWidth="2" />
+                  <rect x="295" y="45" width="195" height="130" rx="12" fill="#0F172A" stroke="#334155" strokeWidth="2" />
                   <line x1="315" y1="62" x2="315" y2="160" stroke="#38BDF8" strokeWidth="5" />
                   <line x1="465" y1="62" x2="465" y2="160" stroke="#38BDF8" strokeWidth="5" />
                   {[82, 110, 138].map((sy) => (
@@ -998,13 +1123,13 @@ export const BiologyLabView: React.FC = () => {
                       <line x1="350" y1={sy + 12} x2="430" y2={sy + 12} stroke="#F43F5E" strokeWidth="6" strokeLinecap="round" />
                     </g>
                   ))}
-                  <circle cx="385" cy="235" r="36" fill="#B91C1C" stroke="#FCA5A5" strokeWidth="3" />
-                  <circle cx="375" cy="226" r="10" fill="#EF4444" />
-                  <circle cx="398" cy="240" r="11" fill="#EF4444" />
+                  <circle cx="385" cy="235" r="37" fill="url(#muscleBellyGrad)" stroke="#FCA5A5" strokeWidth="3" />
+                  <circle cx="375" cy="226" r="10" fill="#EF4444" stroke="#FECACA" strokeWidth="1" />
+                  <circle cx="398" cy="240" r="11" fill="#EF4444" stroke="#FECACA" strokeWidth="1" />
                 </g>
               )}
 
-              {/* NEW 3: Human Respiratory & Alveoli */}
+              {/* 3: Human Respiratory & Alveoli */}
               {activeModel.id === 'respiratory_system' && (
                 <g>
                   <rect x="200" y="34" width="30" height="82" rx="6" fill="#FDA4AF" stroke="#E2E8F0" strokeWidth="2.5" />
@@ -1012,25 +1137,29 @@ export const BiologyLabView: React.FC = () => {
                     <line key={ry} x1="199" y1={ry} x2="231" y2={ry} stroke="#F1F5F9" strokeWidth="3.5" />
                   ))}
                   <path d="M 215 114 L 155 155 M 215 114 L 275 155" stroke="#FB7185" strokeWidth="14" strokeLinecap="round" />
-                  <ellipse cx="135" cy="175" rx="62" ry="72" fill="#BE185D" opacity="0.65" stroke="#F472B6" strokeWidth="2.5" />
-                  <ellipse cx="295" cy="175" rx="60" ry="70" fill="#BE185D" opacity="0.65" stroke="#F472B6" strokeWidth="2.5" />
-                  <path d="M 85 268 Q 215 230 345 268" fill="none" stroke="#DC2626" strokeWidth="12" strokeLinecap="round" />
-                  {/* Alveoli */}
-                  <circle cx="418" cy="172" r="44" fill="#1E293B" stroke="#38BDF8" strokeWidth="2" />
-                  <circle cx="406" cy="160" r="14" fill="#FECDD3" />
-                  <circle cx="430" cy="162" r="14" fill="#FECDD3" />
-                  <circle cx="418" cy="184" r="15" fill="#FECDD3" />
+                  <ellipse cx="135" cy="175" rx="64" ry="74" fill="url(#lungLobeGrad)" stroke="#F472B6" strokeWidth="2.5" />
+                  <line x1="76" y1="158" x2="190" y2="165" stroke="#FDA4AF" strokeOpacity="0.45" strokeWidth="1.5" />
+                  <line x1="79" y1="200" x2="188" y2="195" stroke="#FDA4AF" strokeOpacity="0.45" strokeWidth="1.5" />
+                  <ellipse cx="295" cy="175" rx="61" ry="71" fill="url(#lungLobeGrad)" stroke="#F472B6" strokeWidth="2.5" />
+                  <line x1="240" y1="175" x2="352" y2="182" stroke="#FDA4AF" strokeOpacity="0.45" strokeWidth="1.5" />
+                  <path d="M 85 268 Q 215 230 345 268" fill="none" stroke="url(#muscleBellyGrad)" strokeWidth="14" strokeLinecap="round" />
+                  {/* Alveoli inset */}
+                  <circle cx="418" cy="172" r="45" fill="#0F172A" stroke="#38BDF8" strokeWidth="2" />
+                  <circle cx="406" cy="160" r="14" fill="#FECDD3" stroke="#FB7185" strokeWidth="1.5" />
+                  <circle cx="430" cy="162" r="14" fill="#FECDD3" stroke="#FB7185" strokeWidth="1.5" />
+                  <circle cx="418" cy="184" r="15" fill="#FECDD3" stroke="#FB7185" strokeWidth="1.5" />
                 </g>
               )}
 
-              {/* NEW 4: Brain & Myelinated Motor Neuron */}
+              {/* 4: Brain & Myelinated Motor Neuron */}
               {activeModel.id === 'nervous_neuron' && (
                 <g>
-                  <ellipse cx="105" cy="78" rx="52" ry="34" fill="#FDA4AF" stroke="#F43F5E" strokeWidth="2.5" />
-                  <circle cx="74" cy="104" r="16" fill="#E11D48" />
+                  <ellipse cx="105" cy="78" rx="54" ry="35" fill="url(#brainCortexGrad)" stroke="#F43F5E" strokeWidth="2.5" />
+                  <path d="M 65 72 Q 85 58 105 72 T 145 72 M 70 90 Q 95 78 118 90 T 142 86" fill="none" stroke="#9F1239" strokeOpacity="0.55" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="74" cy="104" r="16" fill="#E11D48" stroke="#FDA4AF" strokeWidth="1.5" />
                   {/* Soma & Dendrites */}
                   <path d="M 162 192 L 75 155 M 162 192 L 68 192 M 162 192 L 78 232 M 162 192 L 105 250" stroke="#818CF8" strokeWidth="4" strokeLinecap="round" />
-                  <circle cx="162" cy="192" r="32" fill="#4F46E5" stroke="#A5B4FC" strokeWidth="2.5" />
+                  <circle cx="162" cy="192" r="32" fill="#4338CA" stroke="#A5B4FC" strokeWidth="2.5" />
                   <circle cx="162" cy="192" r="12" fill="#FACC15" />
                   {/* Axon + Myelin */}
                   <line x1="194" y1="192" x2="435" y2="192" stroke="#38BDF8" strokeWidth="6" />
@@ -1045,20 +1174,20 @@ export const BiologyLabView: React.FC = () => {
                 </g>
               )}
 
-              {/* NEW 5: Human Digestive System */}
+              {/* 5: Human Digestive System */}
               {activeModel.id === 'digestive_system' && (
                 <g>
                   <line x1="265" y1="24" x2="265" y2="95" stroke="#FB7185" strokeWidth="14" strokeLinecap="round" />
-                  <polygon points="150,92 248,92 175,152" fill="#7F1D1D" stroke="#B91C1C" strokeWidth="2" />
-                  <circle cx="195" cy="142" r="10" fill="#16A34A" />
-                  <path d="M 265 92 C 345 92 365 155 295 162 C 255 165 245 140 265 115" fill="#F43F5E" stroke="#FDA4AF" strokeWidth="2.5" />
-                  <rect x="230" y="152" width="76" height="18" rx="9" fill="#FACC15" />
-                  <rect x="160" y="178" width="210" height="104" rx="22" fill="none" stroke="#C2410C" strokeWidth="20" />
+                  <polygon points="150,92 248,92 175,152" fill="url(#liverGrad)" stroke="#B91C1C" strokeWidth="2" />
+                  <circle cx="195" cy="142" r="10" fill="#16A34A" stroke="#86EFAC" strokeWidth="1.5" />
+                  <path d="M 265 92 C 345 92 365 155 295 162 C 255 165 245 140 265 115" fill="url(#stomachGrad)" stroke="#FDA4AF" strokeWidth="2.5" />
+                  <rect x="230" y="152" width="76" height="18" rx="9" fill="#FACC15" stroke="#CA8A04" strokeWidth="1.5" />
+                  <rect x="160" y="178" width="210" height="104" rx="22" fill="none" stroke="#B45309" strokeWidth="22" />
                   <path d="M 205 202 Q 265 188 315 205 Q 205 225 320 238 Q 210 255 310 262" fill="none" stroke="#FDA4AF" strokeWidth="12" strokeLinecap="round" />
                 </g>
               )}
 
-              {/* NEW 6: Insect-Pollinated Flower */}
+              {/* 6: Insect-Pollinated Flower */}
               {activeModel.id === 'flower_reproduction' && (
                 <g>
                   {[0, 1, 2, 3, 4].map((i) => {
@@ -1068,11 +1197,11 @@ export const BiologyLabView: React.FC = () => {
                         key={i}
                         cx={270 + Math.sin(ang) * 105}
                         cy={140 - Math.cos(ang) * 40}
-                        rx="45"
+                        rx="46"
                         ry="78"
                         transform={`rotate(${ang * 38} ${270 + Math.sin(ang) * 105} ${140 - Math.cos(ang) * 40})`}
-                        fill="#F43F5E"
-                        opacity="0.88"
+                        fill="url(#petalGrad)"
+                        opacity="0.92"
                         stroke="#FDA4AF"
                         strokeWidth="2"
                       />
@@ -1091,11 +1220,11 @@ export const BiologyLabView: React.FC = () => {
                 </g>
               )}
 
-              {/* Existing 5 SVG Models */}
+              {/* 7: Animal Cell */}
               {activeModel.id === 'animal_cell' && (
                 <g>
-                  <ellipse cx="270" cy="165" rx="215" ry="125" fill="#13222F" stroke="#22C55E" strokeWidth="4" />
-                  <ellipse cx="270" cy="165" rx="205" ry="116" fill="#172A3A" stroke="#38BDF8" strokeDasharray="6 4" strokeWidth="1.5" />
+                  <ellipse cx="270" cy="165" rx="215" ry="125" fill="url(#cytoplasmGrad)" stroke="#22C55E" strokeWidth="4" />
+                  <ellipse cx="270" cy="165" rx="205" ry="116" fill="none" stroke="#38BDF8" strokeDasharray="6 4" strokeWidth="1.5" />
                   <circle cx="240" cy="165" r="46" fill="#312E81" stroke="#818CF8" strokeWidth="3" />
                   <circle cx="245" cy="160" r="14" fill="#6366F1" />
                   <path d="M 190 120 Q 150 110 140 140 Q 170 148 188 135 Z" fill="#0E7490" stroke="#22D3EE" strokeWidth="1.5" />
@@ -1105,11 +1234,12 @@ export const BiologyLabView: React.FC = () => {
                 </g>
               )}
 
+              {/* 8: Plant Cell */}
               {activeModel.id === 'plant_cell' && (
                 <g>
                   <polygon points="85,45 455,45 495,160 455,275 85,275 45,160" fill="#14532D" stroke="#22C55E" strokeWidth="6" />
                   <polygon points="96,57 444,57 480,160 444,263 96,263 60,160" fill="#166534" stroke="#86EFAC" strokeWidth="2" />
-                  <ellipse cx="265" cy="185" rx="115" ry="62" fill="#0369A1" stroke="#38BDF8" strokeWidth="2.5" opacity="0.85" />
+                  <ellipse cx="265" cy="185" rx="115" ry="62" fill="#0369A1" stroke="#38BDF8" strokeWidth="2.5" opacity="0.88" />
                   <ellipse cx="150" cy="115" rx="30" ry="15" fill="#15803D" stroke="#4ADE80" strokeWidth="2" />
                   <ellipse cx="360" cy="105" rx="28" ry="14" fill="#15803D" stroke="#4ADE80" strokeWidth="2" />
                   <circle cx="385" cy="245" r="28" fill="#4338CA" stroke="#A5B4FC" strokeWidth="2.5" />
@@ -1117,22 +1247,24 @@ export const BiologyLabView: React.FC = () => {
                 </g>
               )}
 
+              {/* 9: Human Heart */}
               {activeModel.id === 'human_heart' && (
                 <g>
-                  <path d="M 270 285 C 165 250 115 180 135 120 C 155 75 220 80 265 115 C 300 75 375 75 395 125 C 415 185 355 255 270 285 Z" fill="#7F1D1D" stroke="#F87171" strokeWidth="3" />
+                  <path d="M 270 285 C 165 250 115 180 135 120 C 155 75 220 80 265 115 C 300 75 375 75 395 125 C 415 185 355 255 270 285 Z" fill="url(#heartGrad)" stroke="#F87171" strokeWidth="3" />
                   <line x1="255" y1="120" x2="268" y2="278" stroke="#FCA5A5" strokeWidth="5" strokeLinecap="round" />
-                  <ellipse cx="178" cy="140" rx="36" ry="26" fill="#1D4ED8" opacity="0.7" />
-                  <ellipse cx="192" cy="222" rx="42" ry="38" fill="#1E40AF" opacity="0.75" />
-                  <ellipse cx="325" cy="135" rx="36" ry="26" fill="#DC2626" opacity="0.8" />
-                  <ellipse cx="315" cy="230" rx="44" ry="42" fill="#B91C1C" opacity="0.85" />
+                  <ellipse cx="178" cy="140" rx="36" ry="26" fill="#1D4ED8" opacity="0.72" />
+                  <ellipse cx="192" cy="222" rx="42" ry="38" fill="#1E40AF" opacity="0.78" />
+                  <ellipse cx="325" cy="135" rx="36" ry="26" fill="#DC2626" opacity="0.82" />
+                  <ellipse cx="315" cy="230" rx="44" ry="42" fill="#B91C1C" opacity="0.86" />
                   <path d="M 275 125 C 275 50 220 55 220 100" fill="none" stroke="#EF4444" strokeWidth="18" strokeLinecap="round" />
                 </g>
               )}
 
+              {/* 10: Mammalian Nephron */}
               {activeModel.id === 'nephron' && (
                 <g>
                   <circle cx="115" cy="115" r="34" fill="#1E293B" stroke="#FACC15" strokeWidth="4" />
-                  <circle cx="115" cy="115" r="18" fill="#DC2626" opacity="0.85" />
+                  <circle cx="115" cy="115" r="18" fill="#DC2626" opacity="0.88" />
                   <path
                     d="M 149 115 Q 185 80 215 105 Q 245 130 245 255 Q 270 290 295 255 L 295 140 Q 335 110 385 135 L 395 275"
                     fill="none"
@@ -1145,9 +1277,10 @@ export const BiologyLabView: React.FC = () => {
                 </g>
               )}
 
+              {/* 11: Dicot Leaf Cross-Section */}
               {activeModel.id === 'leaf_flower' && (
                 <g>
-                  <rect x="65" y="55" width="410" height="24" rx="4" fill="#86EFAC" opacity="0.8" />
+                  <rect x="65" y="55" width="410" height="24" rx="4" fill="#86EFAC" opacity="0.85" />
                   {[90, 145, 200, 255, 310].map((px) => (
                     <rect key={px} x={px} y="82" width="42" height="72" rx="6" fill="#16A34A" stroke="#4ADE80" strokeWidth="2" />
                   ))}
@@ -1157,8 +1290,8 @@ export const BiologyLabView: React.FC = () => {
                   {[110, 165, 225, 420].map((sx, idx) => (
                     <circle key={sx} cx={sx} cy={idx % 2 === 0 ? 195 : 210} r="22" fill="#15803D" stroke="#4ADE80" strokeWidth="2" />
                   ))}
-                  <rect x="65" y="246" width="165" height="22" rx="4" fill="#86EFAC" opacity="0.8" />
-                  <rect x="280" y="246" width="195" height="22" rx="4" fill="#86EFAC" opacity="0.8" />
+                  <rect x="65" y="246" width="165" height="22" rx="4" fill="#86EFAC" opacity="0.85" />
+                  <rect x="280" y="246" width="195" height="22" rx="4" fill="#86EFAC" opacity="0.85" />
                   <ellipse cx="255" cy="257" rx="18" ry="10" fill="#22C55E" stroke="#FFFFFF" strokeWidth="1.5" />
                 </g>
               )}
