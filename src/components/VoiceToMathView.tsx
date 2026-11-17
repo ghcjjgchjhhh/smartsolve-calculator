@@ -138,7 +138,17 @@ export const VoiceToMathView: React.FC<Props> = ({ onOpenInGemini }) => {
           audioMimeType: audioMimeType ? normalizeAudioMimeType(audioMimeType) : undefined,
         }),
       });
-      const data = await resp.json();
+      const rawText = await resp.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        throw new Error(
+          rawText && rawText.length < 200
+            ? rawText
+            : `Voice processing server returned HTTP ${resp.status}. Please try again.`
+        );
+      }
       if (!resp.ok || !data?.result) {
         throw new Error(data?.error || 'Could not convert spoken math.');
       }

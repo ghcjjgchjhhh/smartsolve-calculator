@@ -1,9 +1,54 @@
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
-import { applyCorsHeaders } from './_cors';
-import { transcribeAudioWithGemini } from './transcribe';
 
 function applyCors(req: any, res: any): boolean {
-  return applyCorsHeaders(req, res);
+  const origin = typeof req?.headers?.origin === 'string' ? req.headers.origin : '';
+  const allowedStatic = new Set([
+    'https://smart-solve-40fb3.web.app',
+    'https://smart-solve-40fb3.firebaseapp.com',
+  ]);
+  let allowed = false;
+  if (origin) {
+    if (allowedStatic.has(origin)) allowed = true;
+    else {
+      try {
+        const parsed = new URL(origin);
+        const host = parsed.hostname.toLowerCase();
+        if (host === 'localhost' || host === '127.0.0.1') allowed = true;
+        else if (
+          parsed.protocol === 'https:' &&
+          (host.endsWith('.vercel.app') ||
+            host.endsWith('.run.app') ||
+            ((host.endsWith('.web.app') || host.endsWith('.firebaseapp.com')) &&
+              host.startsWith('smart-solve-40fb3')))
+        ) {
+          allowed = true;
+        }
+      } catch {
+        allowed = false;
+      }
+    }
+  }
+
+  res.setHeader('Vary', 'Origin');
+  if (origin && allowed) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    res.setHeader('Access-Control-Allow-Origin', 'https://smart-solve-40fb3.web.app');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-gemini-key');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  if (req?.method === 'OPTIONS') {
+    if (typeof res.sendStatus === 'function') {
+      res.sendStatus(200);
+    } else {
+      res.statusCode = 200;
+      res.end();
+    }
+    return true;
+  }
+  return false;
 }
 
 function sendJson(res: any, status: number, payload: any) {
@@ -70,6 +115,49 @@ function resolveApiKey(req: any): string {
   return serverKey;
 }
 
+async function transcribeAudioForMath(
+  apiKey: string,
+  cleanAudioData: string,
+  mimeType: string
+): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { 'User-Agent': 'aistudio-build' } } });
+  const audioPart = { inlineData: { mimeType, data: cleanAudioData } };
+  const textPrompt =
+    'Transcribe this speech recording accurately verbatim into clean text. Preserve all spoken numbers, variables (x, y, z, theta, pi), fractions, exponents, square roots, integrals, derivatives, chemical formulas, and physics units accurately. If there is no intelligible speech, output exactly "[NO_SPEECH]". Output ONLY the transcription text.';
+
+  const models = ['gemini-3.5-transcribe', 'gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
+  for (const model of models) {
+    try {
+      const config: any = {};
+      if (model === 'gemini-3.1-flash-lite') config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
+      else if (model === 'gemini-4-hydrogen') config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
+
+      const response = (await Promise.race([
+        ai.models.generateContent({
+          model,
+          contents: { parts: [audioPart, { text: textPrompt }] },
+          ...(Object.keys(config).length > 0 ? { config } : {}),
+        }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error(`Timeout on ${model}`)), 20000)),
+      ])) as any;
+
+      const text = String(response?.text || '').trim();
+      if (!text) continue;
+      if (
+        text === '[NO_SPEECH]' ||
+        /^\[?no[_\s-]?speech\]?$/i.test(text) ||
+        /^(\d{1,2}:)?\d{1,2}:\d{2}(\.\d+)?$/.test(text)
+      ) {
+        return '';
+      }
+      return text.replace(/^["“]|["”]$/g, '').trim();
+    } catch {
+      // try fallback model
+    }
+  }
+  return '';
+}
+
 async function generateJson(apiKey: string, contents: any[], timeoutMs = 25000) {
   const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { 'User-Agent': 'aistudio-build' } } });
   const models = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
@@ -118,21 +206,10 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 400, { error: 'The voice recording was too short or empty. Please speak clearly and try again.' });
     }
 
-    // Two-stage high-accuracy speech transcription first when audio is present
     if (cleanAudioData && !transcript) {
-      try {
-        const heard = await transcribeAudioWithGemini(apiKey, cleanAudioData, audioMimeType, {
-          mode: 'math',
-        });
-        if (!heard) {
-          return sendJson(res, 400, {
-            error: 'No clear speech was detected in your recording. Please hold your mic closer and speak clearly.',
-          });
-        }
+      const heard = await transcribeAudioForMath(apiKey, cleanAudioData, audioMimeType);
+      if (heard) {
         transcript = heard;
-      } catch (transcribeErr: any) {
-        console.warn('[api/voice-math] Direct transcribe fallback warning:', transcribeErr?.message);
-        // Continue so multimodal solve model still inspects the audio directly
       }
     }
 

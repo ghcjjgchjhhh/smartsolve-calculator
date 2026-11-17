@@ -1,5 +1,55 @@
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
-import { applyCorsHeaders } from './_cors';
+
+function applyCorsHeaders(req: any, res: any): boolean {
+  const origin = typeof req?.headers?.origin === 'string' ? req.headers.origin : '';
+  const allowedStatic = new Set([
+    'https://smart-solve-40fb3.web.app',
+    'https://smart-solve-40fb3.firebaseapp.com',
+  ]);
+  let allowed = false;
+  if (origin) {
+    if (allowedStatic.has(origin)) allowed = true;
+    else {
+      try {
+        const parsed = new URL(origin);
+        const host = parsed.hostname.toLowerCase();
+        if (host === 'localhost' || host === '127.0.0.1') allowed = true;
+        else if (
+          parsed.protocol === 'https:' &&
+          (host.endsWith('.vercel.app') ||
+            host.endsWith('.run.app') ||
+            ((host.endsWith('.web.app') || host.endsWith('.firebaseapp.com')) &&
+              host.startsWith('smart-solve-40fb3')))
+        ) {
+          allowed = true;
+        }
+      } catch {
+        allowed = false;
+      }
+    }
+  }
+
+  res.setHeader('Vary', 'Origin');
+  if (origin && allowed) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    res.setHeader('Access-Control-Allow-Origin', 'https://smart-solve-40fb3.web.app');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-gemini-key');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  if (req?.method === 'OPTIONS') {
+    if (typeof res.sendStatus === 'function') {
+      res.sendStatus(200);
+    } else {
+      res.statusCode = 200;
+      res.end();
+    }
+    return true;
+  }
+  return false;
+}
 
 function sendJson(res: any, status: number, payload: any) {
   if (typeof res.status === 'function' && typeof res.json === 'function') {
@@ -116,7 +166,11 @@ export async function transcribeAudioWithGemini(
       if (!transcript) {
         continue;
       }
-      if (transcript === '[NO_SPEECH]' || /^\[?no[_\s-]?speech\]?$/i.test(transcript)) {
+      if (
+        transcript === '[NO_SPEECH]' ||
+        /^\[?no[_\s-]?speech\]?$/i.test(transcript) ||
+        /^(\d{1,2}:)?\d{1,2}:\d{2}(\.\d+)?$/.test(transcript)
+      ) {
         return '';
       }
       // Strip accidental surrounding quotes added by fallback chat models

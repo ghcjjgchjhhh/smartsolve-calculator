@@ -21,6 +21,10 @@
       "destination": "/api/learn"
     },
     {
+      "source": "/api/ai/transcribe",
+      "destination": "/api/transcribe"
+    },
+    {
       "source": "/api/learn/follow-up",
       "destination": "/api/learn?action=follow_up"
     },
