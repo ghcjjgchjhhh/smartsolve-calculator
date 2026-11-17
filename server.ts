@@ -11,6 +11,7 @@ import socraticHandler from './api/socratic';
 import researchHandler from './api/research';
 import documentTutorHandler from './api/document-tutor';
 import learnHandler from './api/learn';
+import transcribeHandler from './api/transcribe';
 
 dotenv.config();
 
@@ -852,6 +853,8 @@ app.post('/api/handwriting', (req, res) => handwritingHandler(req, res));
 app.post('/api/socratic', (req, res) => socraticHandler(req, res));
 app.post('/api/research', (req, res) => researchHandler(req, res));
 app.post('/api/document-tutor', (req, res) => documentTutorHandler(req, res));
+app.post('/api/transcribe', (req, res) => transcribeHandler(req, res));
+app.post('/api/ai/transcribe', (req, res) => transcribeHandler(req, res));
 
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';

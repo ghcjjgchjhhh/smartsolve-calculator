@@ -1,18 +1,8 @@
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { applyCorsHeaders } from './_cors';
 
 function applyCors(req: any, res: any): boolean {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') {
-    if (typeof res.sendStatus === 'function') res.sendStatus(200);
-    else {
-      res.statusCode = 200;
-      res.end();
-    }
-    return true;
-  }
-  return false;
+  return applyCorsHeaders(req, res);
 }
 
 function sendJson(res: any, status: number, payload: any) {

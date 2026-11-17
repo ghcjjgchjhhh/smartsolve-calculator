@@ -41,6 +41,7 @@ export interface AccentPalette {
   swatchClass: string;
   primary: string;
   primaryLightMode: string;
+  darkText?: string;
   hover: string;
   light: string;
   rgb: string;
@@ -112,6 +113,7 @@ export const ACCENT_PALETTES: AccentPalette[] = [
     swatchClass: 'bg-green-700',
     primary: '#16A34A',
     primaryLightMode: '#166534',
+    darkText: '#4ADE80',
     hover: '#15803D',
     light: '#22C55E',
     rgb: '22, 163, 74',
@@ -129,6 +131,7 @@ export const ACCENT_PALETTES: AccentPalette[] = [
     swatchClass: 'bg-green-600',
     primary: '#059669',
     primaryLightMode: '#065F46',
+    darkText: '#34D399',
     hover: '#047857',
     light: '#10B981',
     rgb: '5, 150, 105',
@@ -180,11 +183,12 @@ export const ACCENT_PALETTES: AccentPalette[] = [
     tagline: 'Lab Instrument',
     category: 'blues',
     swatchClass: 'bg-cyan-500',
-    primary: '#06B6D4',
+    primary: '#0891B2',
     primaryLightMode: '#0E7490',
-    hover: '#0891B2',
+    darkText: '#22D3EE',
+    hover: '#0E7490',
     light: '#22D3EE',
-    rgb: '6, 182, 212',
+    rgb: '8, 145, 178',
     onSolid: '#FFFFFF',
     softLight: '#ECFEFF',
     softBorderLight: '#67E8F9',
@@ -250,8 +254,9 @@ export const ACCENT_PALETTES: AccentPalette[] = [
     swatchClass: 'bg-blue-600',
     primary: '#2563EB',
     primaryLightMode: '#1E40AF',
+    darkText: '#60A5FA',
     hover: '#1D4ED8',
-    light: '#3B82F6',
+    light: '#60A5FA',
     rgb: '37, 99, 235',
     onSolid: '#FFFFFF',
     softLight: '#EFF6FF',
@@ -267,6 +272,7 @@ export const ACCENT_PALETTES: AccentPalette[] = [
     swatchClass: 'bg-blue-700',
     primary: '#1D4ED8',
     primaryLightMode: '#1E3A8A',
+    darkText: '#60A5FA',
     hover: '#1E40AF',
     light: '#60A5FA',
     rgb: '29, 78, 216',
@@ -286,6 +292,7 @@ export const ACCENT_PALETTES: AccentPalette[] = [
     swatchClass: 'bg-indigo-500',
     primary: '#6366F1',
     primaryLightMode: '#4338CA',
+    darkText: '#818CF8',
     hover: '#4F46E5',
     light: '#818CF8',
     rgb: '99, 102, 241',
@@ -337,6 +344,7 @@ export const ACCENT_PALETTES: AccentPalette[] = [
     swatchClass: 'bg-purple-700',
     primary: '#9333EA',
     primaryLightMode: '#6B21A8',
+    darkText: '#C084FC',
     hover: '#7E22CE',
     light: '#C084FC',
     rgb: '147, 51, 234',
@@ -407,6 +415,7 @@ export const ACCENT_PALETTES: AccentPalette[] = [
     swatchClass: 'bg-rose-600',
     primary: '#E11D48',
     primaryLightMode: '#9F1239',
+    darkText: '#FB7185',
     hover: '#BE123C',
     light: '#FB7185',
     rgb: '225, 29, 72',
@@ -475,6 +484,7 @@ export const ACCENT_PALETTES: AccentPalette[] = [
     swatchClass: 'bg-orange-600',
     primary: '#EA580C',
     primaryLightMode: '#9A3412',
+    darkText: '#FB923C',
     hover: '#C2410C',
     light: '#FB923C',
     rgb: '234, 88, 12',
@@ -526,10 +536,11 @@ export const ACCENT_PALETTES: AccentPalette[] = [
     tagline: 'Monochrome Pro',
     category: 'neutrals',
     swatchClass: 'bg-slate-500',
-    primary: '#64748B',
+    primary: '#475569',
     primaryLightMode: '#334155',
-    hover: '#475569',
-    light: '#94A3B8',
+    darkText: '#94A3B8',
+    hover: '#334155',
+    light: '#CBD5E1',
     rgb: '100, 116, 139',
     onSolid: '#FFFFFF',
     softLight: '#F1F5F9',
@@ -658,7 +669,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     root.style.setProperty('--accent-primary', accentPalette.primary);
     root.style.setProperty(
       '--accent-text',
-      isDark ? accentPalette.primary : accentPalette.primaryLightMode
+      isDark ? (accentPalette.darkText || accentPalette.primary) : accentPalette.primaryLightMode
     );
     root.style.setProperty('--accent-hover', accentPalette.hover);
     root.style.setProperty('--accent-light', accentPalette.light);

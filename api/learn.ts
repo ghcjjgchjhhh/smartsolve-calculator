@@ -1,4 +1,5 @@
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { applyCorsHeaders } from './_cors';
 
 function resolveApiKey(req: any, body: any): string {
   const headerKey =
@@ -129,13 +130,8 @@ function sendJsonResponse(res: any, statusCode: number, payload: any) {
 
 export default async function handler(req: any, res: any) {
   try {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-
-    if (req.method === 'OPTIONS') {
-      res.statusCode = 200;
-      return res.end();
+    if (applyCorsHeaders(req, res)) {
+      return;
     }
 
     if (req.method !== 'POST') {

@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../lib/apiClient';
 import {
   ExamModeQuestion,
   FormulaQuestion,
@@ -319,14 +320,14 @@ export async function fetchTopicLesson(params: LearnTopicParams): Promise<LearnT
   let response: Response;
 
   try {
-    response = await fetch('/api/learn', {
+    response = await fetch(buildApiUrl('/api/learn'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
     if (response.status === 404) {
-      response = await fetch('/api/ai/learn', {
+      response = await fetch(buildApiUrl('/api/ai/learn'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -334,7 +335,7 @@ export async function fetchTopicLesson(params: LearnTopicParams): Promise<LearnT
     }
 
     if (response.status === 404) {
-      response = await fetch('/api/solve', {
+      response = await fetch(buildApiUrl('/api/solve'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'learn_topic', ...payload }),
@@ -408,14 +409,14 @@ export async function fetchFormulaQuestions(params: FormulaQuestionsParams): Pro
     nonce: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
   };
 
-  let response = await fetch('/api/learn/formula-questions', {
+  let response = await fetch(buildApiUrl('/api/learn/formula-questions'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 
   if (response.status === 404) {
-    response = await fetch('/api/learn', {
+    response = await fetch(buildApiUrl('/api/learn'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -447,7 +448,7 @@ export async function fetchAdaptiveExplanation(params: {
   strugglingPoint?: string;
   mode: 'simplify' | 'challenge';
 }): Promise<AdaptiveExplanationResult> {
-  const response = await fetch('/api/learn', {
+  const response = await fetch(buildApiUrl('/api/learn'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -479,14 +480,14 @@ export async function askTopicFollowUp(
 ): Promise<string> {
   const payload = { topic, question, lessonSummary, adaptiveMode };
 
-  let response = await fetch('/api/learn/follow-up', {
+  let response = await fetch(buildApiUrl('/api/learn/follow-up'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 
   if (response.status === 404) {
-    response = await fetch('/api/learn', {
+    response = await fetch(buildApiUrl('/api/learn'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'follow_up', ...payload }),
@@ -494,7 +495,7 @@ export async function askTopicFollowUp(
   }
 
   if (response.status === 404) {
-    const chatRes = await fetch('/api/chat', {
+    const chatRes = await fetch(buildApiUrl('/api/chat'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

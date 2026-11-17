@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { buildApiUrl } from '../lib/apiClient';
 import { JAMB_QUESTIONS } from '../data/jambQuestions';
 import { JambQuestion } from '../types';
 import { MathRenderer } from './MathRenderer';
@@ -897,7 +898,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
         reqHeaders['x-gemini-key'] = storedKey;
       }
 
-      let response = await fetch('/api/solve', {
+      let response = await fetch(buildApiUrl('/api/solve'), {
         method: 'POST',
         headers: reqHeaders,
         body: JSON.stringify({
@@ -915,7 +916,7 @@ Respond with ONLY a valid JSON object matching this exact structure:
       });
 
       if (response.status === 404) {
-        response = await fetch('/api/ai/solve', {
+        response = await fetch(buildApiUrl('/api/ai/solve'), {
           method: 'POST',
           headers: reqHeaders,
           body: JSON.stringify({

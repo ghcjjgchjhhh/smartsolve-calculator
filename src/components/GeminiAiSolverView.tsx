@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StepSolution } from '../types';
+import { buildApiUrl } from '../lib/apiClient';
 import { StepSolutionCard } from './StepSolutionCard';
 import { MathRenderer } from './MathRenderer';
 import { saveToHistory } from '../services/historyStorage';
@@ -157,9 +158,20 @@ export const GeminiAiSolverView: React.FC<GeminiAiSolverViewProps> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const solutionRef = useRef<HTMLDivElement>(null);
 
-  const { isListening, toggleListening } = useVoiceInput((transcript) => {
-    setPrompt((prev) => (prev ? `${prev} ${transcript}` : transcript));
-  });
+  const {
+    isListening,
+    isTranscribing,
+    recordingSeconds: voiceRecordingSeconds,
+    interimTranscript,
+    recorderMode,
+    voiceError,
+    toggleListening,
+  } = useVoiceInput(
+    (transcript) => {
+      setPrompt((prev) => (prev ? `${prev.trim()} ${transcript}` : transcript));
+    },
+    { language: currentLanguage?.voiceCode, mode: 'math' }
+  );
 
   const realProblemSamples = [
     {
@@ -598,7 +610,11 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
         language: currentLanguage.name,
       });
 
-      const endpoints = ['/api/solve', '/api/ai/solve', '/api/solve'];
+      const endpoints = [
+        buildApiUrl('/api/solve'),
+        buildApiUrl('/api/ai/solve'),
+        buildApiUrl('/api/solve'),
+      ];
       let data: any = null;
       let lastServerError = 'Unable to solve this problem right now. Please tap Retry in a moment.';
 
@@ -957,17 +973,27 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
               <button
                 type="button"
                 onClick={toggleListening}
-                className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer active:scale-95 shadow-sm ${
+                disabled={isTranscribing}
+                className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer active:scale-95 shadow-sm disabled:opacity-60 ${
                   isListening
                     ? 'bg-rose-500/20 text-rose-400 border-rose-500 animate-pulse'
                     : 'bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FFFFFF] border-white/5'
                 }`}
                 title="Dictate your physics, chemistry, or math question with your voice"
               >
-                {isListening ? (
+                {isTranscribing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
+                    <span>Transcribing...</span>
+                  </>
+                ) : isListening ? (
                   <>
                     <MicOff className="w-4 h-4 text-rose-400" />
-                    <span>Listening... (Tap to Stop)</span>
+                    <span>
+                      {recorderMode === 'ai-audio'
+                        ? `Recording ${Math.floor(voiceRecordingSeconds / 60)}:${String(voiceRecordingSeconds % 60).padStart(2, '0')} (Tap to Transcribe)`
+                        : 'Listening... (Tap to Stop)'}
+                    </span>
                   </>
                 ) : (
                   <>
@@ -1006,6 +1032,23 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
               )}
             </button>
           </div>
+
+          {(interimTranscript || voiceError) && (
+            <div
+              className={`px-3.5 py-2 rounded-xl text-xs flex items-center space-x-2 border ${
+                voiceError
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                  : 'bg-[#000000] border-[#22C55E]/30 text-[#22C55E]'
+              }`}
+            >
+              {voiceError ? (
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              ) : (
+                <Mic className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+              )}
+              <span>{voiceError || `Hearing: "${interimTranscript}"`}</span>
+            </div>
+          )}
         </div>
 
         {/* Fullscreen Photo Lightbox Modal */}

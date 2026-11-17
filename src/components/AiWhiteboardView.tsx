@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { buildApiUrl } from '../lib/apiClient';
 import {
   PenTool,
   Eraser,
@@ -446,7 +447,7 @@ export const AiWhiteboardView: React.FC = () => {
     setIsAutoPlaying(false);
 
     try {
-      const resp = await fetch('/api/whiteboard', {
+      const resp = await fetch(buildApiUrl('/api/whiteboard'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic: promptInput.trim() }),

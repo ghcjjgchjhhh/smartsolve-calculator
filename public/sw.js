@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smartsolve-v6-stable';
+const CACHE_NAME = 'smartsolve-v7-firebase-auth';
 const ASSETS = [
   '/',
   '/manifest.json',

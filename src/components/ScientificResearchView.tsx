@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { buildApiUrl } from '../lib/apiClient';
 import {
   Microscope,
   CheckCircle2,
@@ -46,7 +47,7 @@ export const ScientificResearchView: React.FC = () => {
     setIsLoading(true);
     setError('');
     try {
-      const resp = await fetch('/api/research', {
+      const resp = await fetch(buildApiUrl('/api/research'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: targetQuery.trim(), discipline: targetDiscipline }),

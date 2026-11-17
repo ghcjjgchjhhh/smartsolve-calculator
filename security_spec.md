@@ -9,6 +9,7 @@
 6. Once a room status becomes `closed`, messages, whiteboard strokes, quiz battles, and room edits are locked against further updates.
 7. Quiz battles can only be launched and closed by the room owner or moderator, and each participant can submit only their own keyed submission (`/submissions/{uid}` matching `request.auth.uid`).
 8. User Workspace Cloud Sync documents (`/user_workspaces/{userId}`) are strictly private per authenticated owner (`userId == request.auth.uid`), with `allow list: if false` preventing any cross-user enumeration.
+9. Student Profiles (`/user_profiles/{userId}`) and Private Study Vault items (`/user_profiles/{userId}/vault_items/{itemId}`) are strictly isolated to their verified Google Auth owner (`userId == request.auth.uid` and `ownerId == request.auth.uid`), with `allow list: if false` on `/user_profiles` preventing user enumeration.
 
 ## 2. Adversarial Payloads Guarded Against
 1. Unauthenticated read/write attempt -> Rejected (`isSignedIn()`).

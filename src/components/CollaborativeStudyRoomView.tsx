@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { buildApiUrl } from '../lib/apiClient';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import {
   collection,
@@ -757,7 +758,7 @@ export const CollaborativeStudyRoomView: React.FC = () => {
     let normalizedQuestions: RoomQuizQuestion[] = [];
 
     try {
-      const resp = await fetch('/api/solve', {
+      const resp = await fetch(buildApiUrl('/api/solve'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

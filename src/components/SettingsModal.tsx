@@ -13,6 +13,9 @@ import {
   RotateCcw,
   Sparkles,
   CheckCircle2,
+  UserCheck,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import {
   useTheme,
@@ -21,11 +24,13 @@ import {
   AccentCategory,
 } from '../contexts/ThemeContext';
 import { useAppLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenCloudSync: () => void;
+  onOpenProfile?: () => void;
   isInstalled: boolean;
   onTriggerInstall: () => void;
 }
@@ -43,6 +48,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   onOpenCloudSync,
+  onOpenProfile,
   isInstalled,
   onTriggerInstall,
 }) => {
@@ -56,6 +62,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setAccentColor,
   } = useTheme();
   const { currentLanguage, setIsLanguageModalOpen } = useAppLanguage();
+  const { user, profile, openAuthModal, signOut } = useAuth();
   const [colorCategory, setColorCategory] = useState<'all' | AccentCategory>('all');
 
   useEffect(() => {
@@ -432,6 +439,62 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="text-xs font-bold">Install SmartSolve App</div>
                     <div className={`text-[11px] truncate ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
                       Use offline on phone or desktop
+                    </div>
+                  </div>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (user) {
+                    onOpenProfile?.();
+                  } else {
+                    openAuthModal('profile');
+                  }
+                }}
+                className={`p-3.5 rounded-2xl border text-left flex items-center gap-3 cursor-pointer transition-colors ${
+                  isDark
+                    ? 'bg-[#15151A] border-[#27272A] hover:bg-[#1C1C22]'
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <div className="p-2.5 rounded-xl bg-[#22C55E]/15 text-[#22C55E] shrink-0">
+                  {user ? <UserCheck className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold">
+                    {user ? 'Student Profile & Vault' : 'Sign In with Google'}
+                  </div>
+                  <div className={`text-[11px] truncate ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                    {user
+                      ? `${profile?.fullName || user.displayName || user.email || 'Active session'}`
+                      : 'Google Sign-In, Profile & Cloud Vault'}
+                  </div>
+                </div>
+              </button>
+
+              {user && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await signOut();
+                    onClose();
+                  }}
+                  className={`p-3.5 rounded-2xl border text-left flex items-center gap-3 cursor-pointer transition-colors ${
+                    isDark
+                      ? 'bg-[#15151A] border-red-500/25 hover:bg-red-500/10'
+                      : 'bg-red-50/60 border-red-200 hover:bg-red-50'
+                  }`}
+                >
+                  <div className="p-2.5 rounded-xl bg-red-500/15 text-red-500 shrink-0">
+                    <LogOut className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-red-500">Sign Out</div>
+                    <div className={`text-[11px] truncate ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                      End current authenticated session
                     </div>
                   </div>
                 </button>

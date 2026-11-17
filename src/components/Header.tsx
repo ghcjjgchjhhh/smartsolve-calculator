@@ -10,6 +10,7 @@ import {
   Globe,
   Cloud,
   Settings,
+  LogIn,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { InstallAppModal } from './InstallAppModal';
@@ -17,6 +18,7 @@ import { CloudSyncModal } from './CloudSyncModal';
 import { SettingsModal } from './SettingsModal';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import { getHistory } from '../services/historyStorage';
 
 interface Props {
@@ -39,6 +41,7 @@ export const Header: React.FC<Props> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCloudSyncOpen, setIsCloudSyncOpen] = useState(false);
   const { currentLanguage, setIsLanguageModalOpen, t } = useAppLanguage();
+  const { user, profile, openAuthModal } = useAuth();
   const [historyCount, setHistoryCount] = useState<number>(() => {
     try {
       return getHistory().length;
@@ -49,6 +52,18 @@ export const Header: React.FC<Props> = ({
 
   const { themePreference, resolvedTheme, accentPalette } = useTheme();
   const isDark = resolvedTheme === 'dark';
+
+  const accountDisplayName =
+    profile?.fullName?.trim() ||
+    user?.displayName?.trim() ||
+    user?.email?.split('@')[0] ||
+    'Profile';
+  const accountAvatarUrl = profile?.photoUrl || user?.photoURL || '';
+  const accountInitials = accountDisplayName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('') || 'U';
 
   useEffect(() => {
     const updateCount = () => {
@@ -259,6 +274,59 @@ export const Header: React.FC<Props> = ({
                 />
               </button>
 
+              {/* Account / Sign In or Protected Profile Button */}
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('profile')}
+                  title={`Signed in as ${user.email || accountDisplayName} · Open Protected Profile`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all border cursor-pointer active:scale-95 shrink-0 ${
+                    activeTab === 'profile'
+                      ? 'bg-[#22C55E] text-white border-[#22C55E] shadow-md shadow-emerald-500/20'
+                      : isDark
+                      ? 'bg-[#18181B] hover:bg-[#27272A] text-white border-[#27272A]'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-200'
+                  }`}
+                >
+                  {accountAvatarUrl ? (
+                    <img
+                      src={accountAvatarUrl}
+                      alt={accountDisplayName}
+                      className="w-5 h-5 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span
+                      className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ${
+                        activeTab === 'profile'
+                          ? 'bg-white/25 text-white'
+                          : 'bg-[#22C55E] text-white'
+                      }`}
+                    >
+                      {accountInitials}
+                    </span>
+                  )}
+                  <span className="text-xs font-bold hidden md:inline max-w-[90px] truncate">
+                    {accountDisplayName}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('profile')}
+                  title="Sign in with Google to access your SmartSolve profile & vault"
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition-all border cursor-pointer active:scale-95 shrink-0 ${
+                    activeTab === 'profile'
+                      ? 'bg-[#22C55E] text-white border-[#22C55E]'
+                      : isDark
+                      ? 'bg-[#18181B] hover:bg-[#27272A] text-white border-[#27272A]'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-200'
+                  }`}
+                >
+                  <LogIn className="w-4 h-4 text-[#22C55E]" />
+                  <span className="text-xs font-bold hidden sm:inline">Sign In</span>
+                </button>
+              )}
+
               {/* App Language & Writing Selector (desktop; also inside Settings Room) */}
               <button
                 onClick={() => setIsLanguageModalOpen(true)}
@@ -284,6 +352,7 @@ export const Header: React.FC<Props> = ({
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onOpenCloudSync={() => setIsCloudSyncOpen(true)}
+        onOpenProfile={() => setActiveTab('profile')}
         isInstalled={isInstalled}
         onTriggerInstall={handleInstallClick}
       />

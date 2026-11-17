@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { buildApiUrl } from '../lib/apiClient';
 import {
   FlaskConical,
   Scale,
@@ -160,9 +161,20 @@ export const ChemistrySolverView: React.FC<ChemistrySolverViewProps> = ({ onOpen
   const [selectedMetal, setSelectedMetal] = useState<string>('Cu2');
 
   // Voice Input Hook for Chemistry Problem Dictation
-  const { isListening, toggleListening } = useVoiceInput((transcript) => {
-    setQuestionPrompt((prev) => (prev ? `${prev} ${transcript}` : transcript));
-  });
+  const {
+    isListening,
+    isTranscribing,
+    recordingSeconds: voiceRecordingSeconds,
+    interimTranscript,
+    recorderMode,
+    voiceError,
+    toggleListening,
+  } = useVoiceInput(
+    (transcript) => {
+      setQuestionPrompt((prev) => (prev ? `${prev.trim()} ${transcript}` : transcript));
+    },
+    { mode: 'math' }
+  );
 
   // Chemical Equilibrium & ICE Table Workstation States
   const [icePreset, setIcePreset] = useState<'nh3' | 'hi' | 'pcl5'>('nh3');
@@ -338,7 +350,7 @@ MANDATORY RESPONSE REQUIREMENTS:
         headers['x-gemini-key'] = userApiKey;
       }
 
-      let response = await fetch('/api/solve', {
+      let response = await fetch(buildApiUrl('/api/solve'), {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -349,7 +361,7 @@ MANDATORY RESPONSE REQUIREMENTS:
       });
 
       if (response.status === 404) {
-        response = await fetch('/api/ai/solve', {
+        response = await fetch(buildApiUrl('/api/ai/solve'), {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -1268,17 +1280,27 @@ MANDATORY RESPONSE REQUIREMENTS:
                 <button
                   type="button"
                   onClick={toggleListening}
-                  className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center space-x-1.5 cursor-pointer active:scale-95 transition-all ${
+                  disabled={isTranscribing}
+                  className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center space-x-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-60 ${
                     isListening
                       ? 'bg-rose-500/20 text-rose-400 border-rose-500 animate-pulse'
                       : 'bg-[#18181B] hover:bg-[#27272A] text-zinc-300 border-[#27272A]'
                   }`}
                   title="Speak your chemistry problem into the microphone"
                 >
-                  {isListening ? (
+                  {isTranscribing ? (
+                    <>
+                      <RotateCcw className="w-4 h-4 animate-spin text-emerald-400" />
+                      <span>Transcribing...</span>
+                    </>
+                  ) : isListening ? (
                     <>
                       <MicOff className="w-4 h-4 text-rose-400" />
-                      <span>Listening... (Tap to stop)</span>
+                      <span>
+                        {recorderMode === 'ai-audio'
+                          ? `Recording ${Math.floor(voiceRecordingSeconds / 60)}:${String(voiceRecordingSeconds % 60).padStart(2, '0')} (Tap to Transcribe)`
+                          : 'Listening... (Tap to stop)'}
+                      </span>
                     </>
                   ) : (
                     <>
@@ -1308,6 +1330,23 @@ MANDATORY RESPONSE REQUIREMENTS:
                 )}
               </button>
             </div>
+
+            {(interimTranscript || voiceError) && (
+              <div
+                className={`p-3 rounded-2xl text-xs flex items-center space-x-2 border ${
+                  voiceError
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                    : 'bg-[#0A0A0C] border-emerald-500/30 text-emerald-400'
+                }`}
+              >
+                {voiceError ? (
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                ) : (
+                  <Mic className="w-4 h-4 shrink-0 animate-pulse" />
+                )}
+                <span>{voiceError || `Hearing: "${interimTranscript}"`}</span>
+              </div>
+            )}
 
             {/* Error Message */}
             {solveError && (

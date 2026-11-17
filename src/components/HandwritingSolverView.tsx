@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { buildApiUrl } from '../lib/apiClient';
 import {
   Upload,
   PenTool,
@@ -268,7 +269,7 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
 
     setIsAnalyzing(true);
     try {
-      const resp = await fetch('/api/handwriting', {
+      const resp = await fetch(buildApiUrl('/api/handwriting'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

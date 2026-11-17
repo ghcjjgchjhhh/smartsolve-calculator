@@ -69,10 +69,15 @@ import {
   Sigma,
   Users,
   Loader2,
+  UserCheck,
 } from 'lucide-react';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { LanguageProvider, useAppLanguage } from './contexts/LanguageContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { LanguageSettingsModal } from './components/LanguageSettingsModal';
+import { AuthModal } from './components/AuthModal';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { UserProfileView } from './components/UserProfileView';
 
 const AiWhiteboardView = lazy(() => import('./components/AiWhiteboardView').then((m) => ({ default: m.AiWhiteboardView })));
 const ThreePhysicsLabView = lazy(() => import('./components/ThreePhysicsLabView').then((m) => ({ default: m.ThreePhysicsLabView })));
@@ -140,6 +145,7 @@ function MainApp() {
         'equation_editor',
         'study_rooms',
         'calculus_lab',
+        'profile',
       ];
       if (tabParam && validTabs.includes(tabParam)) {
         return tabParam;
@@ -500,6 +506,7 @@ function MainApp() {
     { id: 'statistics', name: t('statistics', 'Stats & Ogive'), icon: BarChart2, badge: 'Ogive' },
     { id: 'matrix', name: t('matrix', 'Matrix Lab'), icon: Cpu, badge: '3x3 Gauss' },
     { id: 'revision', name: t('revision', 'Cheat-Sheets'), icon: BookOpen, badge: 'Print PDF' },
+    { id: 'profile', name: 'Profile & Vault', icon: UserCheck, badge: 'Protected' },
   ];
 
   const visibleNavigationTabs =
@@ -817,6 +824,17 @@ function MainApp() {
             <RevisionSheetsView />
           </div>
         )}
+        {visitedTabs.has('profile') && (
+          <div className={activeTab === 'profile' ? 'block animate-tabEnter' : 'hidden'}>
+            <ProtectedRoute
+              routeTitle="Student Profile & Private Vault"
+              routeDescription="Sign in with your Google account to sync your academic profile and store private study vault notes secured by Firebase Authentication & Firestore Security Rules."
+              onBackToCalculator={() => navigateTab('scientific')}
+            >
+              <UserProfileView onNavigateTab={navigateTab} />
+            </ProtectedRoute>
+          </div>
+        )}
 
         {/* 12 Lazy-Loaded SmartSolve Studio Modules */}
         {studioTabIds.has(activeTab) && (
@@ -867,6 +885,11 @@ function MainApp() {
         onClose={() => setIsInstallModalOpen(false)}
       />
       <LanguageSettingsModal />
+      <AuthModal
+        onAuthenticated={(redirectTab) => {
+          if (redirectTab) navigateTab(redirectTab);
+        }}
+      />
 
       {/* Footer */}
       <footer className="border-t border-[#27272A] bg-[#000000] py-6 text-center text-xs text-[#A1A1AA]">
@@ -900,7 +923,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <MainApp />
+        <AuthProvider>
+          <MainApp />
+        </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

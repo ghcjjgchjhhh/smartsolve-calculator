@@ -272,7 +272,22 @@ html:not(.dark) .bg-\[\#000000\],
 [data-theme="light"] .bg-\[\#000000\],
 html.light .bg-black,
 html:not(.dark) .bg-black,
-[data-theme="light"] .bg-black {
+[data-theme="light"] .bg-black,
+html.light .bg-\[\#050507\],
+html:not(.dark) .bg-\[\#050507\],
+[data-theme="light"] .bg-\[\#050507\],
+html.light .bg-\[\#08080C\],
+html:not(.dark) .bg-\[\#08080C\],
+[data-theme="light"] .bg-\[\#08080C\],
+html.light .bg-\[\#09090B\],
+html:not(.dark) .bg-\[\#09090B\],
+[data-theme="light"] .bg-\[\#09090B\],
+html.light .bg-\[\#09090D\],
+html:not(.dark) .bg-\[\#09090D\],
+[data-theme="light"] .bg-\[\#09090D\],
+html.light .bg-\[\#090D14\],
+html:not(.dark) .bg-\[\#090D14\],
+[data-theme="light"] .bg-\[\#090D14\] {
   background-color: #F8FAFC !important;
 }
 
@@ -283,25 +298,79 @@ html:not(.dark) .bg-\[\#0A0A0A\],
 html.light .bg-\[\#0A0A0C\],
 html:not(.dark) .bg-\[\#0A0A0C\],
 [data-theme="light"] .bg-\[\#0A0A0C\],
+html.light .bg-\[\#0A0A0E\],
+html:not(.dark) .bg-\[\#0A0A0E\],
+[data-theme="light"] .bg-\[\#0A0A0E\],
+html.light .bg-\[\#0B0B0E\],
+html:not(.dark) .bg-\[\#0B0B0E\],
+[data-theme="light"] .bg-\[\#0B0B0E\],
+html.light .bg-\[\#0B1117\],
+html:not(.dark) .bg-\[\#0B1117\],
+[data-theme="light"] .bg-\[\#0B1117\],
 html.light .bg-\[\#0D0D0E\],
 html:not(.dark) .bg-\[\#0D0D0E\],
 [data-theme="light"] .bg-\[\#0D0D0E\],
+html.light .bg-\[\#0D0D11\],
+html:not(.dark) .bg-\[\#0D0D11\],
+[data-theme="light"] .bg-\[\#0D0D11\],
+html.light .bg-\[\#0D131D\],
+html:not(.dark) .bg-\[\#0D131D\],
+[data-theme="light"] .bg-\[\#0D131D\],
 html.light .bg-\[\#0E0E12\],
 html:not(.dark) .bg-\[\#0E0E12\],
 [data-theme="light"] .bg-\[\#0E0E12\],
+html.light .bg-\[\#0e0e13\],
+html:not(.dark) .bg-\[\#0e0e13\],
+[data-theme="light"] .bg-\[\#0e0e13\],
+html.light .bg-\[\#0e0e14\],
+html:not(.dark) .bg-\[\#0e0e14\],
+[data-theme="light"] .bg-\[\#0e0e14\],
 html.light .bg-\[\#0F0F12\],
 html:not(.dark) .bg-\[\#0F0F12\],
-[data-theme="light"] .bg-\[\#0F0F12\] {
+[data-theme="light"] .bg-\[\#0F0F12\],
+html.light .bg-\[\#0F1015\],
+html:not(.dark) .bg-\[\#0F1015\],
+[data-theme="light"] .bg-\[\#0F1015\] {
   background-color: #FFFFFF !important;
 }
 
+html.light .bg-\[\#18181BE6\],
+html:not(.dark) .bg-\[\#18181BE6\],
+[data-theme="light"] .bg-\[\#18181BE6\],
+html.light .bg-\[\#18181BEE\],
+html:not(.dark) .bg-\[\#18181BEE\],
+[data-theme="light"] .bg-\[\#18181BEE\] {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+}
+
 /* Secondary Panels, Inputs & Inner Cards */
+html.light .bg-\[\#101014\],
+html:not(.dark) .bg-\[\#101014\],
+[data-theme="light"] .bg-\[\#101014\],
 html.light .bg-\[\#111115\],
 html:not(.dark) .bg-\[\#111115\],
 [data-theme="light"] .bg-\[\#111115\],
+html.light .bg-\[\#121212\],
+html:not(.dark) .bg-\[\#121212\],
+[data-theme="light"] .bg-\[\#121212\],
+html.light .bg-\[\#121214\],
+html:not(.dark) .bg-\[\#121214\],
+[data-theme="light"] .bg-\[\#121214\],
 html.light .bg-\[\#121216\],
 html:not(.dark) .bg-\[\#121216\],
 [data-theme="light"] .bg-\[\#121216\],
+html.light .bg-\[\#121217\],
+html:not(.dark) .bg-\[\#121217\],
+[data-theme="light"] .bg-\[\#121217\],
+html.light .bg-\[\#121417\],
+html:not(.dark) .bg-\[\#121417\],
+[data-theme="light"] .bg-\[\#121417\],
+html.light .bg-\[\#131318\],
+html:not(.dark) .bg-\[\#131318\],
+[data-theme="light"] .bg-\[\#131318\],
+html.light .bg-\[\#13161D\],
+html:not(.dark) .bg-\[\#13161D\],
+[data-theme="light"] .bg-\[\#13161D\],
 html.light .bg-\[\#141418\],
 html:not(.dark) .bg-\[\#141418\],
 [data-theme="light"] .bg-\[\#141418\],
@@ -311,6 +380,9 @@ html:not(.dark) .bg-\[\#151518\],
 html.light .bg-\[\#15151A\],
 html:not(.dark) .bg-\[\#15151A\],
 [data-theme="light"] .bg-\[\#15151A\],
+html.light .bg-\[\#15151b\],
+html:not(.dark) .bg-\[\#15151b\],
+[data-theme="light"] .bg-\[\#15151b\],
 html.light .bg-\[\#16161B\],
 html:not(.dark) .bg-\[\#16161B\],
 [data-theme="light"] .bg-\[\#16161B\],
@@ -320,6 +392,18 @@ html:not(.dark) .bg-\[\#18181B\],
 html.light .bg-\[\#18181D\],
 html:not(.dark) .bg-\[\#18181D\],
 [data-theme="light"] .bg-\[\#18181D\],
+html.light .bg-\[\#18181F\],
+html:not(.dark) .bg-\[\#18181F\],
+[data-theme="light"] .bg-\[\#18181F\],
+html.light .bg-\[\#181820\],
+html:not(.dark) .bg-\[\#181820\],
+[data-theme="light"] .bg-\[\#181820\],
+html.light .bg-\[\#181B20\],
+html:not(.dark) .bg-\[\#181B20\],
+[data-theme="light"] .bg-\[\#181B20\],
+html.light .bg-\[\#1A1D23\],
+html:not(.dark) .bg-\[\#1A1D23\],
+[data-theme="light"] .bg-\[\#1A1D23\],
 html.light .bg-\[\#1C1C20\],
 html:not(.dark) .bg-\[\#1C1C20\],
 [data-theme="light"] .bg-\[\#1C1C20\],
@@ -329,19 +413,86 @@ html:not(.dark) .bg-\[\#1C1C22\],
 html.light .bg-\[\#1C1C24\],
 html:not(.dark) .bg-\[\#1C1C24\],
 [data-theme="light"] .bg-\[\#1C1C24\],
+html.light .bg-\[\#1C1F26\],
+html:not(.dark) .bg-\[\#1C1F26\],
+[data-theme="light"] .bg-\[\#1C1F26\],
+html.light .bg-\[\#1E1E22\],
+html:not(.dark) .bg-\[\#1E1E22\],
+[data-theme="light"] .bg-\[\#1E1E22\],
+html.light .bg-\[\#1E1E24\],
+html:not(.dark) .bg-\[\#1E1E24\],
+[data-theme="light"] .bg-\[\#1E1E24\],
+html.light .bg-\[\#1E2228\],
+html:not(.dark) .bg-\[\#1E2228\],
+[data-theme="light"] .bg-\[\#1E2228\],
 html.light .bg-\[\#1F1F26\],
 html:not(.dark) .bg-\[\#1F1F26\],
 [data-theme="light"] .bg-\[\#1F1F26\],
+html.light .bg-\[\#20242B\],
+html:not(.dark) .bg-\[\#20242B\],
+[data-theme="light"] .bg-\[\#20242B\],
+html.light .bg-\[\#22222A\],
+html:not(.dark) .bg-\[\#22222A\],
+[data-theme="light"] .bg-\[\#22222A\],
 html.light .bg-\[\#27272A\],
 html:not(.dark) .bg-\[\#27272A\],
-[data-theme="light"] .bg-\[\#27272A\] {
+[data-theme="light"] .bg-\[\#27272A\],
+html.light .bg-zinc-800,
+html:not(.dark) .bg-zinc-800,
+[data-theme="light"] .bg-zinc-800,
+html.light .bg-zinc-800\/40,
+html:not(.dark) .bg-zinc-800\/40,
+[data-theme="light"] .bg-zinc-800\/40,
+html.light .bg-zinc-700,
+html:not(.dark) .bg-zinc-700,
+[data-theme="light"] .bg-zinc-700,
+html.light .bg-zinc-700\/40,
+html:not(.dark) .bg-zinc-700\/40,
+[data-theme="light"] .bg-zinc-700\/40 {
   background-color: #F1F5F9 !important;
+}
+
+/* Light Mode Hover Surfaces */
+html.light .hover\:bg-\[\#27272A\]:hover,
+html:not(.dark) .hover\:bg-\[\#27272A\]:hover,
+[data-theme="light"] .hover\:bg-\[\#27272A\]:hover,
+html.light .hover\:bg-\[\#18181B\]:hover,
+html:not(.dark) .hover\:bg-\[\#18181B\]:hover,
+[data-theme="light"] .hover\:bg-\[\#18181B\]:hover,
+html.light .hover\:bg-\[\#181820\]:hover,
+html:not(.dark) .hover\:bg-\[\#181820\]:hover,
+[data-theme="light"] .hover\:bg-\[\#181820\]:hover,
+html.light .hover\:bg-\[\#1A1D23\]:hover,
+html:not(.dark) .hover\:bg-\[\#1A1D23\]:hover,
+[data-theme="light"] .hover\:bg-\[\#1A1D23\]:hover,
+html.light .hover\:bg-\[\#1C1C22\]:hover,
+html:not(.dark) .hover\:bg-\[\#1C1C22\]:hover,
+[data-theme="light"] .hover\:bg-\[\#1C1C22\]:hover,
+html.light .hover\:bg-zinc-800:hover,
+html:not(.dark) .hover\:bg-zinc-800:hover,
+[data-theme="light"] .hover\:bg-zinc-800:hover,
+html.light .hover\:bg-white\/10:hover,
+html:not(.dark) .hover\:bg-white\/10:hover,
+[data-theme="light"] .hover\:bg-white\/10:hover,
+html.light .hover\:bg-white\/5:hover,
+html:not(.dark) .hover\:bg-white\/5:hover,
+[data-theme="light"] .hover\:bg-white\/5:hover {
+  background-color: #E2E8F0 !important;
 }
 
 /* Border overrides */
 html.light .border-\[\#27272A\],
 html:not(.dark) .border-\[\#27272A\],
 [data-theme="light"] .border-\[\#27272A\],
+html.light .border-\[\#2E333B\],
+html:not(.dark) .border-\[\#2E333B\],
+[data-theme="light"] .border-\[\#2E333B\],
+html.light .border-\[\#2E333D\],
+html:not(.dark) .border-\[\#2E333D\],
+[data-theme="light"] .border-\[\#2E333D\],
+html.light .border-\[\#333842\],
+html:not(.dark) .border-\[\#333842\],
+[data-theme="light"] .border-\[\#333842\],
 html.light .border-\[\#3F3F46\],
 html:not(.dark) .border-\[\#3F3F46\],
 [data-theme="light"] .border-\[\#3F3F46\],
@@ -360,8 +511,20 @@ html:not(.dark) .text-\[\#FFFFFF\],
 [data-theme="light"] .text-\[\#FFFFFF\],
 html.light .text-white,
 html:not(.dark) .text-white,
-[data-theme="light"] .text-white {
+[data-theme="light"] .text-white,
+html.light .hover\:text-white:hover,
+html:not(.dark) .hover\:text-white:hover,
+[data-theme="light"] .hover\:text-white:hover,
+html.light .hover\:text-\[\#FFFFFF\]:hover,
+html:not(.dark) .hover\:text-\[\#FFFFFF\]:hover,
+[data-theme="light"] .hover\:text-\[\#FFFFFF\]:hover {
   color: #0F172A !important;
+}
+
+html.light .text-white\/80,
+html:not(.dark) .text-white\/80,
+[data-theme="light"] .text-white\/80 {
+  color: #1E293B !important;
 }
 
 /* Secondary & Muted Text in Light Mode */
@@ -373,7 +536,22 @@ html:not(.dark) .text-\[\#E4E4E7\],
 [data-theme="light"] .text-\[\#E4E4E7\],
 html.light .text-\[\#D4D4D8\],
 html:not(.dark) .text-\[\#D4D4D8\],
-[data-theme="light"] .text-\[\#D4D4D8\] {
+[data-theme="light"] .text-\[\#D4D4D8\],
+html.light .text-zinc-100,
+html:not(.dark) .text-zinc-100,
+[data-theme="light"] .text-zinc-100,
+html.light .text-zinc-200,
+html:not(.dark) .text-zinc-200,
+[data-theme="light"] .text-zinc-200,
+html.light .text-zinc-300,
+html:not(.dark) .text-zinc-300,
+[data-theme="light"] .text-zinc-300,
+html.light .text-slate-200,
+html:not(.dark) .text-slate-200,
+[data-theme="light"] .text-slate-200,
+html.light .text-slate-300,
+html:not(.dark) .text-slate-300,
+[data-theme="light"] .text-slate-300 {
   color: #1E293B !important;
 }
 
@@ -383,43 +561,214 @@ html:not(.dark) .text-\[\#A1A1AA\],
 html.light .text-\[\#71717A\],
 html:not(.dark) .text-\[\#71717A\],
 [data-theme="light"] .text-\[\#71717A\],
+html.light .text-\[\#94A3B8\],
+html:not(.dark) .text-\[\#94A3B8\],
+[data-theme="light"] .text-\[\#94A3B8\],
 html.light .text-zinc-400,
 html:not(.dark) .text-zinc-400,
 [data-theme="light"] .text-zinc-400,
 html.light .text-zinc-500,
 html:not(.dark) .text-zinc-500,
 [data-theme="light"] .text-zinc-500 {
-  color: #64748B !important;
+  color: #475569 !important;
 }
 
-/* Preserve Contrast Text on Solid Accent & Danger Buttons */
-html.light .bg-\[\#22C55E\],
-html:not(.dark) .bg-\[\#22C55E\],
-[data-theme="light"] .bg-\[\#22C55E\],
-html.light .bg-\[\#16A34A\],
-html:not(.dark) .bg-\[\#16A34A\],
-[data-theme="light"] .bg-\[\#16A34A\],
-html.light .bg-emerald-500,
-html:not(.dark) .bg-emerald-500,
-[data-theme="light"] .bg-emerald-500,
-html.light .bg-emerald-600,
-html:not(.dark) .bg-emerald-600,
-[data-theme="light"] .bg-emerald-600,
-html.light button.bg-\[\#22C55E\],
-html:not(.dark) button.bg-\[\#22C55E\],
-[data-theme="light"] button.bg-\[\#22C55E\],
-html.light .bg-\[\#22C55E\] span,
-html:not(.dark) .bg-\[\#22C55E\] span,
-[data-theme="light"] .bg-\[\#22C55E\] span,
-html.light .bg-\[\#22C55E\] p,
-html:not(.dark) .bg-\[\#22C55E\] p,
-[data-theme="light"] .bg-\[\#22C55E\] p,
-html.light .bg-\[\#22C55E\] svg,
-html:not(.dark) .bg-\[\#22C55E\] svg,
-[data-theme="light"] .bg-\[\#22C55E\] svg {
-  color: var(--accent-on-solid, #FFFFFF) !important;
+/* Readable Pastel Status & Badge Colors in Light Mode */
+html.light .text-sky-100,
+html:not(.dark) .text-sky-100,
+[data-theme="light"] .text-sky-100,
+html.light .text-sky-200,
+html:not(.dark) .text-sky-200,
+[data-theme="light"] .text-sky-200,
+html.light .text-sky-300,
+html:not(.dark) .text-sky-300,
+[data-theme="light"] .text-sky-300,
+html.light .text-sky-400,
+html:not(.dark) .text-sky-400,
+[data-theme="light"] .text-sky-400,
+html.light .text-cyan-400,
+html:not(.dark) .text-cyan-400,
+[data-theme="light"] .text-cyan-400 {
+  color: #0369A1 !important;
 }
 
+html.light .text-blue-400,
+html:not(.dark) .text-blue-400,
+[data-theme="light"] .text-blue-400 {
+  color: #1D4ED8 !important;
+}
+
+html.light .text-teal-400,
+html:not(.dark) .text-teal-400,
+[data-theme="light"] .text-teal-400 {
+  color: #0F766E !important;
+}
+
+html.light .text-purple-400,
+html:not(.dark) .text-purple-400,
+[data-theme="light"] .text-purple-400,
+html.light .text-\[\#C084FC\],
+html:not(.dark) .text-\[\#C084FC\],
+[data-theme="light"] .text-\[\#C084FC\] {
+  color: #7E22CE !important;
+}
+
+html.light .text-pink-400,
+html:not(.dark) .text-pink-400,
+[data-theme="light"] .text-pink-400 {
+  color: #BE185D !important;
+}
+
+html.light .text-amber-100,
+html:not(.dark) .text-amber-100,
+[data-theme="light"] .text-amber-100,
+html.light .text-amber-200,
+html:not(.dark) .text-amber-200,
+[data-theme="light"] .text-amber-200,
+html.light .text-amber-200\/90,
+html:not(.dark) .text-amber-200\/90,
+[data-theme="light"] .text-amber-200\/90,
+html.light .text-amber-300,
+html:not(.dark) .text-amber-300,
+[data-theme="light"] .text-amber-300,
+html.light .text-amber-400,
+html:not(.dark) .text-amber-400,
+[data-theme="light"] .text-amber-400,
+html.light .text-\[\#FBBF24\],
+html:not(.dark) .text-\[\#FBBF24\],
+[data-theme="light"] .text-\[\#FBBF24\] {
+  color: #B45309 !important;
+}
+
+html.light .text-orange-400,
+html:not(.dark) .text-orange-400,
+[data-theme="light"] .text-orange-400 {
+  color: #C2410C !important;
+}
+
+html.light .text-rose-200,
+html:not(.dark) .text-rose-200,
+[data-theme="light"] .text-rose-200,
+html.light .text-rose-300,
+html:not(.dark) .text-rose-300,
+[data-theme="light"] .text-rose-300,
+html.light .text-rose-400,
+html:not(.dark) .text-rose-400,
+[data-theme="light"] .text-rose-400,
+html.light .text-red-200,
+html:not(.dark) .text-red-200,
+[data-theme="light"] .text-red-200,
+html.light .text-red-400,
+html:not(.dark) .text-red-400,
+[data-theme="light"] .text-red-400,
+html.light .text-\[\#FCA5A5\],
+html:not(.dark) .text-\[\#FCA5A5\],
+[data-theme="light"] .text-\[\#FCA5A5\],
+html.light .text-\[\#F87171\],
+html:not(.dark) .text-\[\#F87171\],
+[data-theme="light"] .text-\[\#F87171\] {
+  color: #BE123C !important;
+}
+
+/* Light Mode: Always keep Emerald text crisp and dark enough on white */
+html.light .text-\[\#22C55E\],
+html:not(.dark) .text-\[\#22C55E\],
+[data-theme="light"] .text-\[\#22C55E\],
+html.light .text-emerald-500,
+html:not(.dark) .text-emerald-500,
+[data-theme="light"] .text-emerald-500,
+html.light .text-\[\#4ADE80\],
+html:not(.dark) .text-\[\#4ADE80\],
+[data-theme="light"] .text-\[\#4ADE80\],
+html.light .text-emerald-400,
+html:not(.dark) .text-emerald-400,
+[data-theme="light"] .text-emerald-400,
+html.light .text-emerald-300,
+html:not(.dark) .text-emerald-300,
+[data-theme="light"] .text-emerald-300,
+html.light .text-emerald-200,
+html:not(.dark) .text-emerald-200,
+[data-theme="light"] .text-emerald-200 {
+  color: var(--accent-text, #15803D) !important;
+}
+
+/* Preserve Contrast Text on Solid Saturated, Dark & Accent Buttons in Light Mode */
+html.light .bg-slate-900,
+html:not(.dark) .bg-slate-900,
+[data-theme="light"] .bg-slate-900,
+html.light .bg-slate-900 .text-white,
+html:not(.dark) .bg-slate-900 .text-white,
+[data-theme="light"] .bg-slate-900 .text-white,
+html.light .bg-slate-800,
+html:not(.dark) .bg-slate-800,
+[data-theme="light"] .bg-slate-800,
+html.light .bg-slate-800 .text-white,
+html:not(.dark) .bg-slate-800 .text-white,
+[data-theme="light"] .bg-slate-800 .text-white,
+html.light .bg-\[\#7E22CE\],
+html:not(.dark) .bg-\[\#7E22CE\],
+[data-theme="light"] .bg-\[\#7E22CE\],
+html.light .bg-\[\#9333EA\],
+html:not(.dark) .bg-\[\#9333EA\],
+[data-theme="light"] .bg-\[\#9333EA\],
+html.light .bg-\[\#EC4899\],
+html:not(.dark) .bg-\[\#EC4899\],
+[data-theme="light"] .bg-\[\#EC4899\],
+html.light .bg-green-500 .text-white,
+html:not(.dark) .bg-green-500 .text-white,
+html.light .bg-green-600 .text-white,
+html:not(.dark) .bg-green-600 .text-white,
+html.light .bg-green-700 .text-white,
+html:not(.dark) .bg-green-700 .text-white,
+html.light .bg-teal-400 .text-white,
+html:not(.dark) .bg-teal-400 .text-white,
+html.light .bg-teal-500 .text-white,
+html:not(.dark) .bg-teal-500 .text-white,
+html.light .bg-cyan-500 .text-white,
+html:not(.dark) .bg-cyan-500 .text-white,
+html.light .bg-sky-500 .text-white,
+html:not(.dark) .bg-sky-500 .text-white,
+html.light .bg-blue-500 .text-white,
+html:not(.dark) .bg-blue-500 .text-white,
+html.light .bg-blue-600,
+html:not(.dark) .bg-blue-600,
+[data-theme="light"] .bg-blue-600,
+html.light .bg-blue-700,
+html:not(.dark) .bg-blue-700,
+[data-theme="light"] .bg-blue-700,
+html.light .bg-indigo-500 .text-white,
+html:not(.dark) .bg-indigo-500 .text-white,
+html.light .bg-indigo-600,
+html:not(.dark) .bg-indigo-600,
+[data-theme="light"] .bg-indigo-600,
+html.light .bg-indigo-700,
+html:not(.dark) .bg-indigo-700,
+[data-theme="light"] .bg-indigo-700,
+html.light .bg-violet-500 .text-white,
+html:not(.dark) .bg-violet-500 .text-white,
+html.light .bg-purple-500 .text-white,
+html:not(.dark) .bg-purple-500 .text-white,
+html.light .bg-purple-700,
+html:not(.dark) .bg-purple-700,
+[data-theme="light"] .bg-purple-700,
+html.light .bg-fuchsia-500 .text-white,
+html:not(.dark) .bg-fuchsia-500 .text-white,
+html.light .bg-pink-500 .text-white,
+html:not(.dark) .bg-pink-500 .text-white,
+html.light .bg-red-600 .text-white,
+html:not(.dark) .bg-red-600 .text-white,
+html.light .bg-orange-500 .text-white,
+html:not(.dark) .bg-orange-500 .text-white,
+html.light .bg-orange-600 .text-white,
+html:not(.dark) .bg-orange-600 .text-white,
+html.light .bg-slate-500 .text-white,
+html:not(.dark) .bg-slate-500 .text-white,
+html.light .bg-teal-600,
+html:not(.dark) .bg-teal-600,
+[data-theme="light"] .bg-teal-600,
+html.light .bg-teal-700,
+html:not(.dark) .bg-teal-700,
+[data-theme="light"] .bg-teal-700,
 html.light .bg-\[\#EF4444\],
 html:not(.dark) .bg-\[\#EF4444\],
 [data-theme="light"] .bg-\[\#EF4444\],
@@ -432,9 +781,12 @@ html:not(.dark) .bg-rose-500,
 html.light .bg-rose-600,
 html:not(.dark) .bg-rose-600,
 [data-theme="light"] .bg-rose-600,
-html.light button.bg-\[\#EF4444\],
-html:not(.dark) button.bg-\[\#EF4444\],
-[data-theme="light"] button.bg-\[\#EF4444\],
+html.light .bg-rose-500 span,
+html:not(.dark) .bg-rose-500 span,
+[data-theme="light"] .bg-rose-500 span,
+html.light .bg-rose-600 span,
+html:not(.dark) .bg-rose-600 span,
+[data-theme="light"] .bg-rose-600 span,
 html.light .bg-\[\#EF4444\] span,
 html:not(.dark) .bg-\[\#EF4444\] span,
 [data-theme="light"] .bg-\[\#EF4444\] span,
@@ -442,6 +794,30 @@ html.light .bg-\[\#EF4444\] p,
 html:not(.dark) .bg-\[\#EF4444\] p,
 [data-theme="light"] .bg-\[\#EF4444\] p {
   color: #FFFFFF !important;
+}
+
+html.light .bg-\[\#22C55E\],
+html:not(.dark) .bg-\[\#22C55E\],
+[data-theme="light"] .bg-\[\#22C55E\],
+html.light .bg-\[\#16A34A\],
+html:not(.dark) .bg-\[\#16A34A\],
+[data-theme="light"] .bg-\[\#16A34A\],
+html.light .bg-emerald-500,
+html:not(.dark) .bg-emerald-500,
+[data-theme="light"] .bg-emerald-500,
+html.light .bg-emerald-600,
+html:not(.dark) .bg-emerald-600,
+[data-theme="light"] .bg-emerald-600,
+html.light .bg-\[\#22C55E\] > span:not(.bg-black\/25),
+html:not(.dark) .bg-\[\#22C55E\] > span:not(.bg-black\/25),
+[data-theme="light"] .bg-\[\#22C55E\] > span:not(.bg-black\/25),
+html.light .bg-\[\#22C55E\] > p,
+html:not(.dark) .bg-\[\#22C55E\] > p,
+[data-theme="light"] .bg-\[\#22C55E\] > p,
+html.light .bg-\[\#22C55E\] > svg,
+html:not(.dark) .bg-\[\#22C55E\] > svg,
+[data-theme="light"] .bg-\[\#22C55E\] > svg {
+  color: var(--accent-on-solid, #FFFFFF) !important;
 }
 
 /* Light mode form controls */
@@ -465,7 +841,7 @@ html:not(.dark) input::placeholder,
 html.light textarea::placeholder,
 html:not(.dark) textarea::placeholder,
 [data-theme="light"] textarea::placeholder {
-  color: #94A3B8 !important;
+  color: #64748B !important;
 }
 
 /* KaTeX in Light Mode */
@@ -483,7 +859,7 @@ html:not(.dark) .katex .fbox,
 
 /* ========================================================
    DYNAMIC ACCENT COLOR PALETTE OVERRIDES
-   (Violet, Amber, Orange, Rose, Lime, Cyan)
+   (All 28 Palettes — High-Contrast in Light & Dark Mode)
    ======================================================== */
 :root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\],
 :root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500,
@@ -492,11 +868,25 @@ html:not(.dark) .katex .fbox,
   color: var(--accent-on-solid) !important;
 }
 
-:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\] *,
-:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#16A34A\] *,
-:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500 *,
-:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-600 * {
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\] > span:not(.bg-black\/25),
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\] > p,
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#22C55E\] > svg,
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#16A34A\] > span:not(.bg-black\/25),
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#16A34A\] > p,
+:root[data-accent]:not([data-accent="emerald"]) .bg-\[\#16A34A\] > svg,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500 > span:not(.bg-black\/25),
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-500 > svg,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-600 > span:not(.bg-black\/25),
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-600 > svg {
   color: var(--accent-on-solid) !important;
+}
+
+/* Keep dark translucent badge pills crisp white even on Gold/Amber/Lime buttons */
+:root[data-accent] .bg-\[\#22C55E\] .bg-black\/25,
+:root[data-accent] .bg-\[\#16A34A\] .bg-black\/25,
+:root[data-accent] .bg-emerald-500 .bg-black\/25,
+:root[data-accent] .bg-emerald-600 .bg-black\/25 {
+  color: #FFFFFF !important;
 }
 
 :root[data-accent]:not([data-accent="emerald"]) .bg-\[\#16A34A\],
@@ -541,7 +931,9 @@ html:not(.dark) .katex .fbox,
 
 :root[data-accent]:not([data-accent="emerald"]) .bg-emerald-50,
 :root[data-accent]:not([data-accent="emerald"]) .bg-emerald-50\/40,
-:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-100 {
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-50\/70,
+:root[data-accent]:not([data-accent="emerald"]) .bg-emerald-100,
+:root[data-accent]:not([data-accent="emerald"]) .hover\:bg-emerald-100:hover {
   background-color: var(--accent-soft-light) !important;
 }
 
@@ -557,11 +949,11 @@ html:not(.dark) .katex .fbox,
   color: var(--accent-text) !important;
 }
 
-:root[data-accent]:not([data-accent="emerald"]) .text-\[\#4ADE80\],
-:root[data-accent]:not([data-accent="emerald"]) .text-emerald-400,
-:root[data-accent]:not([data-accent="emerald"]) .text-emerald-300,
-:root[data-accent]:not([data-accent="emerald"]) .text-emerald-200,
-:root[data-accent]:not([data-accent="emerald"]) .hover\:text-\[\#4ADE80\]:hover {
+html.dark[data-accent]:not([data-accent="emerald"]) .text-\[\#4ADE80\],
+html.dark[data-accent]:not([data-accent="emerald"]) .text-emerald-400,
+html.dark[data-accent]:not([data-accent="emerald"]) .text-emerald-300,
+html.dark[data-accent]:not([data-accent="emerald"]) .text-emerald-200,
+html.dark[data-accent]:not([data-accent="emerald"]) .hover\:text-\[\#4ADE80\]:hover {
   color: var(--accent-light) !important;
 }
 

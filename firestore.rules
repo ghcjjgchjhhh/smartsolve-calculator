@@ -181,6 +181,31 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['ownerId', 'fullName', 'studyLevel', 'bio', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'fullName', 'studyLevel', 'bio', 'photoUrl', 'createdAt', 'updatedAt'])
+        && data.ownerId == userId
+        && data.fullName is string && data.fullName.size() <= 100
+        && data.studyLevel is string && data.studyLevel.size() >= 1 && data.studyLevel.size() <= 60
+        && data.bio is string && data.bio.size() <= 500
+        && (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidVaultItem(data, userId, itemId) {
+      return data.keys().hasAll(['id', 'ownerId', 'itemType', 'title', 'content', 'subject', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'itemType', 'title', 'content', 'subject', 'createdAt', 'updatedAt'])
+        && data.id == itemId
+        && data.ownerId == userId
+        && data.itemType in ['formula', 'note', 'calculation', 'goal']
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.content is string && data.content.size() <= 2000
+        && data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 60
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     // 4. Collection Rules
     match /room_invites/{inviteCode} {
       allow get: if isSignedIn() && inviteCode is string && inviteCode.size() >= 4 && inviteCode.size() <= 20 && inviteCode.matches('^[A-Z0-9]+$');
@@ -217,6 +242,53 @@ service cloud.firestore {
           'displayName', 'pinnedFormulas', 'examGoals', 'recentHistory', 'tutorStats', 'updatedAt'
         ]);
       allow delete: if isSignedIn() && isValidId(userId) && userId == request.auth.uid;
+    }
+
+    match /user_profiles/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && userId == request.auth.uid;
+      allow list: if false;
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidUserProfile(incoming(), userId)
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'fullName', 'studyLevel', 'bio', 'photoUrl', 'updatedAt'
+        ]);
+      allow delete: if isSignedIn() && isValidId(userId) && userId == request.auth.uid;
+
+      match /vault_items/{itemId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(itemId) && userId == request.auth.uid;
+        allow list: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && resource.data.ownerId == request.auth.uid;
+        allow create: if isSignedIn()
+          && isValidId(userId)
+          && isValidId(itemId)
+          && userId == request.auth.uid
+          && isValidVaultItem(incoming(), userId, itemId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isSignedIn()
+          && isValidId(userId)
+          && isValidId(itemId)
+          && userId == request.auth.uid
+          && isValidVaultItem(incoming(), userId, itemId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'itemType', 'title', 'content', 'subject', 'updatedAt'
+          ]);
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(itemId) && userId == request.auth.uid;
+      }
     }
 
     match /study_rooms/{roomId} {

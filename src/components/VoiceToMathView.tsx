@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { buildApiUrl } from '../lib/apiClient';
 import {
   Mic,
   MicOff,
@@ -10,6 +11,7 @@ import {
   CheckCircle2,
   ArrowRight,
   Trash2,
+  X,
 } from 'lucide-react';
 import { useVoiceInput } from '../hooks/useVoiceInput';
 import { MathRenderer } from './MathRenderer';
@@ -17,6 +19,12 @@ import {
   computeDeterministically,
   normalizeSpokenMathToExpression,
 } from '../services/deterministicSolver';
+import {
+  blobToBase64,
+  createMediaRecorder,
+  normalizeAudioMimeType,
+  requestMicrophoneStream,
+} from '../lib/audioRecorder';
 
 interface VoiceMathResult {
   spokenInterpretation: string;
@@ -34,6 +42,9 @@ interface Props {
   onOpenInGemini?: (prompt: string, subject?: string) => void;
 }
 
+const recordingSecondsFormat = (secs: number) =>
+  `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+
 const SAMPLE_PHRASES = [
   'What is the square root of 144 plus 5 cubed divided by 25',
   'Integral of x squared from 0 to 3 dx',
@@ -44,24 +55,38 @@ const SAMPLE_PHRASES = [
 export const VoiceToMathView: React.FC<Props> = ({ onOpenInGemini }) => {
   const [transcript, setTranscript] = useState<string>('');
   const [isRecordingAudio, setIsRecordingAudio] = useState<boolean>(false);
+  const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
   const [isSolving, setIsSolving] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [result, setResult] = useState<VoiceMathResult | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<BlobPart[]>([]);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cancelledRef = useRef<boolean>(false);
 
   const onTranscriptUpdate = useCallback((chunk: string) => {
     setTranscript((prev) => {
       const cleanedPrev = prev.trim();
-      if (!cleanedPrev) return chunk;
-      // Avoid repeating trailing interim duplicates
-      if (chunk.toLowerCase().startsWith(cleanedPrev.toLowerCase())) return chunk;
-      return `${cleanedPrev} ${chunk}`;
+      const cleanedChunk = chunk.trim();
+      if (!cleanedChunk) return cleanedPrev;
+      if (!cleanedPrev) return cleanedChunk;
+      if (cleanedPrev.toLowerCase().endsWith(cleanedChunk.toLowerCase())) return cleanedPrev;
+      return `${cleanedPrev} ${cleanedChunk}`;
     });
   }, []);
 
-  const { isListening, isSupported, voiceError, toggleListening } = useVoiceInput(onTranscriptUpdate);
+  const {
+    isListening,
+    isSupported,
+    isTranscribing,
+    recordingSeconds: hookRecordingSeconds,
+    interimTranscript,
+    recorderMode,
+    voiceError,
+    toggleListening,
+  } = useVoiceInput(onTranscriptUpdate, { mode: 'math' });
 
   const solveTranscript = async (textToSolve: string, audioBase64?: string, audioMimeType?: string) => {
     if (!textToSolve.trim() && !audioBase64) {
@@ -93,13 +118,24 @@ export const VoiceToMathView: React.FC<Props> = ({ onOpenInGemini }) => {
     }
 
     try {
-      const resp = await fetch('/api/voice-math', {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      try {
+        const clientKey =
+          (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+          localStorage.getItem('gemini_user_api_key') ||
+          '';
+        if (clientKey) headers['x-gemini-key'] = clientKey;
+      } catch {
+        // ignore storage errors
+      }
+
+      const resp = await fetch(buildApiUrl('/api/voice-math'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           transcript: textToSolve.trim(),
           audioBase64,
-          audioMimeType,
+          audioMimeType: audioMimeType ? normalizeAudioMimeType(audioMimeType) : undefined,
         }),
       });
       const data = await resp.json();
@@ -126,8 +162,9 @@ export const VoiceToMathView: React.FC<Props> = ({ onOpenInGemini }) => {
         }
       }
 
-      if (parsed.spokenInterpretation && !transcript.trim()) {
-        setTranscript(parsed.spokenInterpretation);
+      const heardText = String(parsed.spokenInterpretation || data?.transcript || '').trim();
+      if (heardText && (audioBase64 || !textToSolve.trim())) {
+        setTranscript(heardText);
       }
       setResult(parsed);
     } catch (err: any) {
@@ -137,39 +174,118 @@ export const VoiceToMathView: React.FC<Props> = ({ onOpenInGemini }) => {
     }
   };
 
+  const stopRecordingTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const cleanupRecordingTracks = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((tr) => tr.stop());
+      mediaStreamRef.current = null;
+    }
+  };
+
+  const cancelAudioRecording = () => {
+    cancelledRef.current = true;
+    stopRecordingTimer();
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== 'inactive') {
+      try {
+        rec.stop();
+      } catch {
+        // ignore
+      }
+    } else {
+      cleanupRecordingTracks();
+    }
+    chunksRef.current = [];
+    setIsRecordingAudio(false);
+    setRecordingSeconds(0);
+  };
+
   const toggleAudioRecording = async () => {
     if (isRecordingAudio) {
-      mediaRecorderRef.current?.stop();
+      const rec = mediaRecorderRef.current;
+      stopRecordingTimer();
       setIsRecordingAudio(false);
+      setRecordingSeconds(0);
+      if (rec && rec.state !== 'inactive') {
+        try {
+          rec.requestData();
+        } catch {
+          // ignore if unsupported
+        }
+        rec.stop();
+      } else {
+        cleanupRecordingTracks();
+      }
       return;
     }
 
     setError('');
+    cancelledRef.current = false;
+    setRecordingSeconds(0);
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const stream = await requestMicrophoneStream();
+      mediaStreamRef.current = stream;
+
+      const { recorder, mimeType } = createMediaRecorder(stream);
       chunksRef.current = [];
 
-      recorder.ondataavailable = (ev) => {
-        if (ev.data.size > 0) chunksRef.current.push(ev.data);
+      recorder.ondataavailable = (ev: BlobEvent) => {
+        if (ev.data && ev.data.size > 0) {
+          chunksRef.current.push(ev.data);
+        }
       };
 
-      recorder.onstop = () => {
-        stream.getTracks().forEach((tr) => tr.stop());
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = String(reader.result || '');
-          void solveTranscript('', base64, mimeType);
-        };
-        reader.readAsDataURL(blob);
+      recorder.onerror = () => {
+        stopRecordingTimer();
+        cleanupRecordingTracks();
+        setIsRecordingAudio(false);
+        setRecordingSeconds(0);
+        setError('Audio recording encountered an error. Please try again.');
+      };
+
+      recorder.onstop = async () => {
+        stopRecordingTimer();
+        cleanupRecordingTracks();
+        const actualMime = normalizeAudioMimeType(recorder.mimeType || mimeType);
+
+        if (cancelledRef.current) {
+          chunksRef.current = [];
+          return;
+        }
+
+        const blob = new Blob(chunksRef.current, { type: actualMime });
+        chunksRef.current = [];
+
+        if (blob.size < 150) {
+          setError('Recording was too short or silent. Please hold the mic closer and speak clearly.');
+          return;
+        }
+
+        try {
+          const base64 = await blobToBase64(blob);
+          void solveTranscript('', base64, actualMime);
+        } catch (convErr: any) {
+          setError(convErr?.message || 'Could not process recorded audio.');
+        }
       };
 
       mediaRecorderRef.current = recorder;
-      recorder.start();
+      recorder.start(250);
       setIsRecordingAudio(true);
+      timerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
     } catch (err: any) {
+      stopRecordingTimer();
+      cleanupRecordingTracks();
+      setIsRecordingAudio(false);
       setError(err?.message || 'Microphone access denied or unavailable.');
     }
   };
@@ -191,31 +307,65 @@ export const VoiceToMathView: React.FC<Props> = ({ onOpenInGemini }) => {
           <button
             type="button"
             onClick={toggleListening}
-            disabled={!isSupported}
+            disabled={!isSupported || isRecordingAudio || isTranscribing}
             className={`px-5 py-3 rounded-xl text-sm font-bold flex items-center gap-2 cursor-pointer transition-colors ${
               isListening
-                ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                ? 'bg-rose-600 hover:bg-rose-700 text-white animate-pulse'
                 : 'bg-[#22C55E] hover:bg-[#16A34A] text-white disabled:opacity-40'
             }`}
           >
-            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            <span>{isListening ? 'Stop Dictation' : 'Start Live Dictation'}</span>
+            {isTranscribing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Transcribing Speech...</span>
+              </>
+            ) : isListening ? (
+              <>
+                <MicOff className="w-4 h-4" />
+                <span>
+                  {recorderMode === 'ai-audio'
+                    ? `Stop & Transcribe (${recordingSecondsFormat(hookRecordingSeconds)})`
+                    : 'Stop Dictation'}
+                </span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-4 h-4" />
+                <span>Start Live Dictation</span>
+              </>
+            )}
           </button>
 
           <button
             type="button"
             onClick={toggleAudioRecording}
-            className={`px-4 py-3 rounded-xl border text-xs sm:text-sm font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
+            disabled={isListening || isSolving}
+            className={`px-4 py-3 rounded-xl border text-xs sm:text-sm font-semibold flex items-center gap-2 cursor-pointer transition-colors disabled:opacity-40 ${
               isRecordingAudio
-                ? 'border-rose-500 bg-rose-500/15 text-rose-500'
+                ? 'border-rose-500 bg-rose-500/15 text-rose-500 animate-pulse'
                 : 'border-slate-200 dark:border-[#27272A] text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#18181B]'
             }`}
           >
             {isRecordingAudio ? <Square className="w-4 h-4" /> : <Radio className="w-4 h-4 text-[#22C55E]" />}
-            <span>{isRecordingAudio ? 'Stop & Transcribe Audio' : 'Record Voice Clip (AI Audio)'}</span>
+            <span>
+              {isRecordingAudio
+                ? `Stop & Solve (${recordingSecondsFormat(recordingSeconds)})`
+                : 'Record Voice Clip (AI Audio)'}
+            </span>
           </button>
 
-          {transcript && (
+          {isRecordingAudio && (
+            <button
+              type="button"
+              onClick={cancelAudioRecording}
+              className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-[#27272A] text-xs font-semibold text-slate-500 hover:text-rose-500 flex items-center gap-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Cancel</span>
+            </button>
+          )}
+
+          {transcript && !isRecordingAudio && (
             <button
               type="button"
               onClick={() => {
@@ -229,6 +379,17 @@ export const VoiceToMathView: React.FC<Props> = ({ onOpenInGemini }) => {
             </button>
           )}
         </div>
+
+        {(interimTranscript || isTranscribing) && (
+          <div className="px-3.5 py-2.5 rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 text-xs text-slate-700 dark:text-zinc-200 flex items-center gap-2">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22C55E] shrink-0" />
+            <span>
+              {isTranscribing
+                ? 'Transcribing your voice recording with AI...'
+                : `Hearing: "${interimTranscript}"`}
+            </span>
+          </div>
+        )}
 
         {(voiceError || error) && (
           <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">

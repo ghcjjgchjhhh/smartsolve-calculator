@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { buildApiUrl } from '../lib/apiClient';
 import { ChatMessage, ChatAttachment, ChatSession } from '../types';
 import {
   loadChatSessions,
@@ -50,7 +51,15 @@ import {
   Maximize2,
   ChevronDown,
   Globe,
+  Loader2,
 } from 'lucide-react';
+import {
+  createMediaRecorder,
+  getAudioFileExtension,
+  normalizeAudioMimeType,
+  requestMicrophoneStream,
+  transcribeAudioBlob,
+} from '../lib/audioRecorder';
 
 // Helper to compress/resize high-resolution camera images client-side before sending
 const compressImageFile = (
@@ -409,9 +418,18 @@ export const AiChatAssistantView: React.FC<Props> = ({
   // Voice Note Recording State
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [isTranscribingAudio, setIsTranscribingAudio] = useState(false);
+  const [audioLevels, setAudioLevels] = useState<number[]>(() => Array(16).fill(24));
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
+  const recordingSecondsRef = useRef(0);
+  const recordingCancelledRef = useRef(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const audioLevelRafRef = useRef<number | null>(null);
+  const inputTextRef = useRef('');
+  inputTextRef.current = inputText;
 
   // Audio Preview Before Sending State
   const [pendingAudioPreview, setPendingAudioPreview] = useState<{
@@ -420,6 +438,7 @@ export const AiChatAssistantView: React.FC<Props> = ({
     duration: number;
     mimeType: string;
     name?: string;
+    transcript?: string;
   } | null>(null);
   const [isPlayingPendingAudio, setIsPlayingPendingAudio] = useState(false);
   const pendingAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -631,89 +650,195 @@ export const AiChatAssistantView: React.FC<Props> = ({
     setEditingSessionId(null);
   };
 
+  const stopAudioMeter = () => {
+    if (audioLevelRafRef.current !== null) {
+      cancelAnimationFrame(audioLevelRafRef.current);
+      audioLevelRafRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close().catch(() => {});
+      audioCtxRef.current = null;
+    }
+    setAudioLevels(Array(16).fill(24));
+  };
+
+  const cleanupRecordingStream = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
+  };
+
+  const runPendingAudioTranscription = async (audioBlob: Blob, rawMimeType: string) => {
+    setIsTranscribingAudio(true);
+    try {
+      const { transcript, noSpeech } = await transcribeAudioBlob(audioBlob, rawMimeType, {
+        language: currentLanguage?.name,
+        mode: 'general',
+      });
+      if (transcript && !noSpeech) {
+        setPendingAudioPreview((prev) =>
+          prev && prev.blob === audioBlob ? { ...prev, transcript } : prev
+        );
+        if (!inputTextRef.current.trim()) {
+          setInputText(transcript);
+        }
+      }
+    } catch (transErr: any) {
+      console.warn('[AiChat] Auto-transcription warning:', transErr?.message);
+    } finally {
+      setIsTranscribingAudio(false);
+    }
+  };
+
   // Voice Recording Handlers
   const startVoiceRecording = async () => {
     if (typeof window === 'undefined') return;
+    setChatError(null);
+    recordingCancelledRef.current = false;
+    recordingSecondsRef.current = 0;
+    setRecordingSeconds(0);
+    audioChunksRef.current = [];
+
     try {
-      setRecordingSeconds(0);
-      audioChunksRef.current = [];
+      const stream = await requestMicrophoneStream();
+      mediaStreamRef.current = stream;
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/mp4')
-        ? 'audio/mp4'
-        : 'audio/webm';
-
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const { recorder: mediaRecorder, mimeType: initialMime } = createMediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
-      mediaRecorder.start(100);
+      mediaRecorder.onerror = () => {
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        stopAudioMeter();
+        cleanupRecordingStream();
+        setIsRecording(false);
+        setChatError('Audio recording encountered an error. Please tap the mic to try again.');
+      };
+
+      mediaRecorder.onstop = async () => {
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        stopAudioMeter();
+        cleanupRecordingStream();
+        setIsRecording(false);
+
+        if (recordingCancelledRef.current) {
+          audioChunksRef.current = [];
+          return;
+        }
+
+        const rawMime = mediaRecorder.mimeType || initialMime || 'audio/webm';
+        const cleanMime = normalizeAudioMimeType(rawMime);
+        const audioBlob = new Blob(audioChunksRef.current, { type: cleanMime });
+        audioChunksRef.current = [];
+
+        if (audioBlob.size < 150) {
+          setChatError('Voice note was too short or silent. Please speak closer to the mic.');
+          return;
+        }
+
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const ext = getAudioFileExtension(cleanMime);
+        const dur = Math.max(recordingSecondsRef.current, 1);
+
+        setPendingAudioPreview({
+          url: audioUrl,
+          blob: audioBlob,
+          duration: dur,
+          mimeType: cleanMime,
+          name: `Voice_Note_${new Date().toLocaleTimeString().replace(/:/g, '-')}.${ext}`,
+        });
+
+        void runPendingAudioTranscription(audioBlob, cleanMime);
+      };
+
+      // Optional real-time Web Audio microphone level visualizer
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          audioCtxRef.current = ctx;
+          const source = ctx.createMediaStreamSource(stream);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 64;
+          source.connect(analyser);
+          const dataArr = new Uint8Array(analyser.frequencyBinCount);
+          const tick = () => {
+            if (!audioCtxRef.current) return;
+            analyser.getByteFrequencyData(dataArr);
+            const bars = Array.from({ length: 16 }, (_, i) => {
+              const val = dataArr[i % dataArr.length] || 0;
+              return Math.max(20, Math.min(100, Math.round((val / 255) * 100) + 18));
+            });
+            setAudioLevels(bars);
+            audioLevelRafRef.current = requestAnimationFrame(tick);
+          };
+          audioLevelRafRef.current = requestAnimationFrame(tick);
+        }
+      } catch {
+        // Fallback smoothly if Web Audio analyser is unavailable
+      }
+
+      mediaRecorder.start(250);
       setIsRecording(true);
 
       recordingTimerRef.current = setInterval(() => {
-        setRecordingSeconds((prev) => prev + 1);
+        recordingSecondsRef.current += 1;
+        setRecordingSeconds(recordingSecondsRef.current);
       }, 1000);
-    } catch (err) {
-      console.error('Microphone access denied:', err);
-      setChatError('Microphone permission is required to record voice notes. Please grant access.');
+    } catch (err: any) {
+      stopAudioMeter();
+      cleanupRecordingStream();
+      setIsRecording(false);
+      setChatError(err?.message || 'Microphone permission is required to record voice notes.');
     }
   };
 
   const cancelVoiceRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
-    }
+    recordingCancelledRef.current = true;
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    stopAudioMeter();
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== 'inactive') {
+      try {
+        rec.stop();
+      } catch {
+        cleanupRecordingStream();
+      }
+    } else {
+      cleanupRecordingStream();
+    }
     setIsRecording(false);
     setRecordingSeconds(0);
+    recordingSecondsRef.current = 0;
     audioChunksRef.current = [];
   };
 
   const finishVoiceRecording = () => {
-    if (!mediaRecorderRef.current) return;
-    const finalSeconds = recordingSeconds;
-
-    mediaRecorderRef.current.onstop = async () => {
-      const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
-      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-      if (audioBlob.size < 200) {
-        setChatError('Voice note was too short or empty. Please speak clearly while recording.');
-        return;
-      }
-      const audioUrl = URL.createObjectURL(audioBlob);
-
-      setPendingAudioPreview({
-        url: audioUrl,
-        blob: audioBlob,
-        duration: Math.max(finalSeconds, 1),
-        mimeType,
-        name: `Voice_Note_${new Date().toLocaleTimeString().replace(/:/g, '-')}.webm`,
-      });
-    };
-
-    if (mediaRecorderRef.current.state !== 'inactive') {
-      try {
-        mediaRecorderRef.current.requestData();
-      } catch {}
-      mediaRecorderRef.current.stop();
-    }
-    mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+    const rec = mediaRecorderRef.current;
+    if (!rec) return;
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    setIsRecording(false);
-    setRecordingSeconds(0);
+    if (rec.state !== 'inactive') {
+      try {
+        rec.requestData();
+      } catch {}
+      rec.stop();
+    } else {
+      stopAudioMeter();
+      cleanupRecordingStream();
+      setIsRecording(false);
+    }
   };
 
-  // Audio file upload (MP3, WAV, M4A, WebM, OGG)
+  // Audio file upload (MP3, WAV, M4A, MP4, WebM, OGG, AAC, FLAC)
   const handleAudioFileUpload = (file: File) => {
-    const validMimes = ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/webm', 'audio/m4a', 'audio/x-m4a', 'audio/aac', 'audio/ogg'];
-    if (!validMimes.some((m) => file.type.toLowerCase().includes(m.split('/')[1]))) {
-      setChatError('Please upload a supported audio format (MP3, WAV, M4A, WebM, OGG).');
+    const allowedExt = /\.(mp3|wav|m4a|mp4|webm|ogg|aac|flac)$/i.test(file.name);
+    const isAudioMime = file.type.toLowerCase().startsWith('audio/');
+    if (!isAudioMime && !allowedExt) {
+      setChatError('Please upload a supported audio format (MP3, WAV, M4A, MP4, WebM, OGG).');
       return;
     }
 
@@ -722,27 +847,25 @@ export const AiChatAssistantView: React.FC<Props> = ({
       return;
     }
 
+    const cleanMime = normalizeAudioMimeType(file.type || 'audio/mp3');
     const audioUrl = URL.createObjectURL(file);
-    // Estimate audio duration
     const tempAudio = new Audio(audioUrl);
-    tempAudio.onloadedmetadata = () => {
-      const dur = Math.round(tempAudio.duration) || 5;
+    const finalizeAudio = (dur: number) => {
       setPendingAudioPreview({
         url: audioUrl,
         blob: file,
         duration: dur,
-        mimeType: file.type || 'audio/mp3',
+        mimeType: cleanMime,
         name: file.name,
       });
+      void runPendingAudioTranscription(file, cleanMime);
+    };
+    tempAudio.onloadedmetadata = () => {
+      const dur = Math.round(tempAudio.duration) || 5;
+      finalizeAudio(dur);
     };
     tempAudio.onerror = () => {
-      setPendingAudioPreview({
-        url: audioUrl,
-        blob: file,
-        duration: 10,
-        mimeType: file.type || 'audio/mp3',
-        name: file.name,
-      });
+      finalizeAudio(10);
     };
   };
 
@@ -999,7 +1122,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       let usedEndpoint = '/api/chat';
 
       try {
-        response = await fetch('/api/chat', {
+        response = await fetch(buildApiUrl('/api/chat'), {
           method: 'POST',
           headers: requestHeaders,
           body: JSON.stringify(requestPayload),
@@ -1014,7 +1137,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
       if (!response || response.status === 404) {
         usedEndpoint = '/api/ai/chat';
         try {
-          response = await fetch('/api/ai/chat', {
+          response = await fetch(buildApiUrl('/api/ai/chat'), {
             method: 'POST',
             headers: requestHeaders,
             body: JSON.stringify(requestPayload),
@@ -2097,24 +2220,63 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                 </div>
               ))}
 
-              {/* Pending Audio Preview with Full Scrubbing & Playback Controls */}
+              {/* Pending Audio Preview with Full Scrubbing, Playback & Live Transcription */}
               {pendingAudioPreview && (
-                <div className="w-full flex items-center justify-between gap-2 p-1.5 rounded-2xl bg-[#141418] border border-[#22C55E]/40">
-                  <div className="flex-1 min-w-0">
-                    <VoiceNotePlayer
-                      audioUrl={pendingAudioPreview.url}
-                      title={pendingAudioPreview.name || 'Voice Note (Ready to Send)'}
-                      duration={pendingAudioPreview.duration}
-                    />
+                <div className="w-full flex flex-col gap-2 p-2 rounded-2xl bg-[#141418] border border-[#22C55E]/40">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <VoiceNotePlayer
+                        audioUrl={pendingAudioPreview.url}
+                        title={pendingAudioPreview.name || 'Voice Note (Ready to Send)'}
+                        duration={pendingAudioPreview.duration}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isTranscribingAudio}
+                        onClick={() =>
+                          runPendingAudioTranscription(
+                            pendingAudioPreview.blob,
+                            pendingAudioPreview.mimeType
+                          )
+                        }
+                        className="px-2.5 py-1.5 rounded-xl bg-[#27272A] hover:bg-[#22C55E] text-zinc-200 hover:text-white text-[11px] font-bold transition-colors cursor-pointer disabled:opacity-50"
+                        title="Transcribe audio recording into text"
+                      >
+                        {isTranscribingAudio ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <span>Transcribe</span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingAudioPreview(null)}
+                        className="p-2 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+                        title="Remove audio recording"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setPendingAudioPreview(null)}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-white/10 transition-colors shrink-0"
-                    title="Remove audio recording"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  {(isTranscribingAudio || pendingAudioPreview.transcript) && (
+                    <div className="px-2.5 py-1.5 rounded-xl bg-black/30 border border-white/5 text-xs text-zinc-300 flex items-center gap-2">
+                      {isTranscribingAudio ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22C55E] shrink-0" />
+                          <span>Transcribing voice note with AI...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 text-[#22C55E] shrink-0" />
+                          <span className="truncate">
+                            <strong>Transcript:</strong> {pendingAudioPreview.transcript}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -2146,7 +2308,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
           />
           <input
             type="file"
-            accept="audio/*,.mp3,.wav,.m4a,.webm,.ogg"
+            accept="audio/*,.mp3,.wav,.m4a,.mp4,.webm,.ogg,.aac,.flac"
             ref={audioFileInputRef}
             className="hidden"
             onChange={(e) => {
@@ -2158,7 +2320,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
 
           {/* Live Voice Recording Bar (WhatsApp / Live voice note interface) */}
           {isRecording ? (
-            <div className="flex items-center space-x-3 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/40 animate-pulse">
+            <div className="flex items-center space-x-3 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/40">
               <button
                 type="button"
                 onClick={cancelVoiceRecording}
@@ -2174,13 +2336,13 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
                   {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, '0')}
                 </span>
 
-                {/* Animated Voice Waveform */}
+                {/* Live Microphone Waveform */}
                 <div className="flex items-center space-x-1 h-5 flex-1">
-                  {[40, 70, 100, 50, 85, 30, 95, 60, 80, 45, 90, 65, 35, 100, 75, 50].map((h, i) => (
+                  {audioLevels.map((h, i) => (
                     <div
                       key={i}
                       style={{ height: `${h}%` }}
-                      className="w-1 bg-rose-400 rounded-full animate-pulse"
+                      className="w-1 bg-rose-400 rounded-full transition-all duration-75"
                     />
                   ))}
                 </div>

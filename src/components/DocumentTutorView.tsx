@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { buildApiUrl } from '../lib/apiClient';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
@@ -115,7 +116,7 @@ export const DocumentTutorView: React.FC = () => {
         mode === 'explain'
           ? selectedExcerpt.trim() || `[Page ${pages[activePageIdx]?.pageNumber}] ${pages[activePageIdx]?.text || ''}`
           : '';
-      const resp = await fetch('/api/document-tutor', {
+      const resp = await fetch(buildApiUrl('/api/document-tutor'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

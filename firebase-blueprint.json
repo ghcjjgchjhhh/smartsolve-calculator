@@ -131,6 +131,37 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["ownerId", "displayName", "pinnedFormulas", "examGoals", "recentHistory", "tutorStats", "createdAt", "updatedAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated student profile preferences synced via Firebase Google Sign-In.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "studyLevel": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "bio": { "type": "string", "maxLength": 500 },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "fullName", "studyLevel", "bio", "createdAt", "updatedAt"]
+    },
+    "VaultItem": {
+      "title": "VaultItem",
+      "description": "Private formula, study note, calculation, or exam goal saved in a student's cloud vault.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "itemType": { "type": "string", "enum": ["formula", "note", "calculation", "goal"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "content": { "type": "string", "maxLength": 2000 },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "itemType", "title", "content", "subject", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -165,6 +196,14 @@
     "/user_workspaces/{userId}": {
       "schema": { "$ref": "#/entities/UserWorkspace" },
       "description": "Private user workspace storing cross-device formulas, exam countdowns, history, and mastery stats."
+    },
+    "/user_profiles/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private student profile preferences owned by the authenticated user."
+    },
+    "/user_profiles/{userId}/vault_items/{itemId}": {
+      "schema": { "$ref": "#/entities/VaultItem" },
+      "description": "Private formulas, study notes, and exam goals inside the user's cloud study vault."
     }
   }
 }
