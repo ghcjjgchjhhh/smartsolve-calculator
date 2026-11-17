@@ -348,6 +348,8 @@ CRITICAL SOLVER BEHAVIOUR & PRESENTATION RULES:
    - For multi-part answers, combine all answers cleanly separated by ",\\quad ":
      e.g. "\\boxed{a = 3\\text{ m/s}^2,\\quad s = 900\\text{ m},\\quad \\text{deceleration} = 3\\text{ m/s}^2,\\quad v_{\\text{avg}} = 22.5\\text{ m/s}}"
    - Ensure all braces are closed and never produce trailing or truncated macros like \\tex.
+6. VISUALS / DIAGRAMS:
+   - Do NOT invent or attach random diagrams or placeholder graphs. Only include "graphs" if the question explicitly asks to plot/sketch a graph or describes a velocity-time/projectile/SHM curve; otherwise keep "graphs": [] and "diagram": null.
 
 Problem to solve: "${prompt || 'Solve the question shown in the image.'}"
 
@@ -380,7 +382,9 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
   "finalAnswer": "\\boxed{a = 3\\text{ m/s}^2,\\quad s = 900\\text{ m},\\quad \\text{deceleration} = 3\\text{ m/s}^2,\\quad v_{\\text{avg}} = 22.5\\text{ m/s}}",
   "unit": "SI unit",
   "explanation": "Clear educational explanation of the physical or mathematical principles demonstrated",
-  "tips": "Practical exam tip or common pitfall to avoid"
+  "tips": "Practical exam tip or common pitfall to avoid",
+  "graphs": [],
+  "diagram": null
 }
 `.trim();
 
@@ -393,6 +397,11 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
       parsedSolution = repairAndParseJson(response.text);
     } catch {
       throw new Error('AI engine returned an invalid response structure. Please try again.');
+    }
+
+    // Never pass unvalidated LLM-hallucinated diagrams directly; client/detector synthesizes verified diagrams only when relevant
+    if (parsedSolution && typeof parsedSolution === 'object') {
+      delete parsedSolution.diagram;
     }
 
     res.statusCode = 200;

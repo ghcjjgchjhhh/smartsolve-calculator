@@ -489,7 +489,6 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
 
         {/* Force 2: Normal Reaction R / N (perpendicular to slope) */}
         {(() => {
-          const normAngle = rad - Math.PI / 2;
           const nx = blockCenter.x + normalMag * Math.sin(rad);
           const ny = blockCenter.y - 15 - normalMag * Math.cos(rad);
           return (
@@ -505,7 +504,7 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
               />
               {showLabels && (
                 <text x={nx + 8} y={ny + 2} fill="#22C55E" fontSize="12" fontWeight="bold">
-                  R (Normal Reaction)
+                  R {ip?.normalForceN ? `(${ip.normalForceN} N)` : '(Normal)'}
                 </text>
               )}
             </g>
@@ -529,16 +528,16 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
                 markerEnd="url(#arrow-amber)"
               />
               {showLabels && (
-                <text x={dsx - 70} y={dsy + 14} fill="#F59E0B" fontSize="11" fontWeight="bold">
-                  mg sin θ
+                <text x={dsx - 10} y={dsy + 16} fill="#F59E0B" fontSize="11" fontWeight="bold" textAnchor="end">
+                  mg sin θ {ip?.mgSinN ? `(${ip.mgSinN} N)` : ''}
                 </text>
               )}
             </g>
           );
         })()}
 
-        {/* Force 4: Friction Force f opposing motion (up the slope) */}
-        {(() => {
+        {/* Force 4: Friction Force f opposing motion (if rough plane) */}
+        {(ip?.coefficientOfFriction === undefined || ip.coefficientOfFriction > 0 || (ip?.frictionN ?? 0) > 0) && (() => {
           const fx = blockCenter.x + frictionMag * Math.cos(rad);
           const fy = blockCenter.y - 15 - frictionMag * Math.sin(rad);
           return (
@@ -554,7 +553,31 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
               />
               {showLabels && (
                 <text x={fx + 8} y={fy - 6} fill="#A855F7" fontSize="12" fontWeight="bold">
-                  f (Friction) = μR
+                  f {ip?.frictionN ? `= ${ip.frictionN} N` : '= μR'}
+                </text>
+              )}
+            </g>
+          );
+        })()}
+
+        {/* Optional Applied / Tension Force up the slope */}
+        {ip?.appliedForceN && (() => {
+          const ux = blockCenter.x + 80 * Math.cos(rad);
+          const uy = blockCenter.y - 15 - 80 * Math.sin(rad);
+          return (
+            <g>
+              <line
+                x1={blockCenter.x}
+                y1={blockCenter.y - 15}
+                x2={ux}
+                y2={uy}
+                stroke="#38BDF8"
+                strokeWidth="2.5"
+                markerEnd="url(#arrow-cyan)"
+              />
+              {showLabels && (
+                <text x={ux + 8} y={uy + 14} fill="#38BDF8" fontSize="12" fontWeight="bold">
+                  F = {ip.appliedForceN} N
                 </text>
               )}
             </g>
@@ -563,7 +586,7 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
 
         {/* Legend Card */}
         <g transform="translate(20, 20)">
-          <rect width="180" height="74" rx="8" fill="#18181B" stroke="#27272A" />
+          <rect width="195" height="74" rx="8" fill="#18181B" stroke="#27272A" />
           <text x="10" y="20" fill="#FFFFFF" fontSize="11" fontWeight="bold">
             Equilibrium / Motion:
           </text>
@@ -571,7 +594,7 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
             • R = mg cos({angleDeg}°)
           </text>
           <text x="10" y="56" fill="#F59E0B" fontSize="11">
-            • F_net = mg sin({angleDeg}°) - f
+            • F_net = mg sin({angleDeg}°){(ip?.coefficientOfFriction ?? 0.25) > 0 ? ' - f' : ''}
           </text>
         </g>
       </g>
@@ -582,22 +605,30 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
   const renderFreeBodyDiagram = () => {
     const fbd = diagram.data.freeBody;
     const cx = 300;
-    const cy = 200;
-    const forces = fbd?.forces || [
-      { name: 'Normal (N)', value: '49 N', directionDeg: 90, color: '#22C55E' },
-      { name: 'Gravity (W)', value: '49 N', directionDeg: 270, color: '#EF4444' },
-      { name: 'Applied (F)', value: '30 N', directionDeg: 0, color: '#38BDF8' },
-      { name: 'Friction (f)', value: '15 N', directionDeg: 180, color: '#F59E0B' },
-    ];
+    const cy = 195;
+    const forces = fbd?.forces || [];
+
+    const getMarker = (color?: string) => {
+      if (color === '#22C55E') return 'url(#arrow-green)';
+      if (color === '#EF4444') return 'url(#arrow-red)';
+      if (color === '#F59E0B') return 'url(#arrow-amber)';
+      if (color === '#A855F7') return 'url(#arrow-purple)';
+      return 'url(#arrow-cyan)';
+    };
 
     return (
       <g>
+        {/* Horizontal reference surface if normal/friction present */}
+        {forces.some((f) => /normal|friction/i.test(f.name)) && (
+          <line x1="90" y1={cy + 36} x2="510" y2={cy + 36} stroke="#475569" strokeWidth="2" strokeDasharray="6 4" />
+        )}
+
         {/* Central Mass Box */}
         <rect
-          x={cx - 35}
-          y={cy - 35}
-          width="70"
-          height="70"
+          x={cx - 36}
+          y={cy - 36}
+          width="72"
+          height="72"
           rx="8"
           fill="#1E293B"
           stroke="#60A5FA"
@@ -610,30 +641,40 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
         {/* Forces Arrows */}
         {forces.map((force, idx) => {
           const rad = (force.directionDeg * Math.PI) / 180;
-          const arrowLen = 110;
-          const ex = cx + arrowLen * Math.cos(rad);
-          const ey = cy - arrowLen * Math.sin(rad);
+          const cos = Math.cos(rad);
+          const sin = Math.sin(rad);
+          const arrowLen = 105;
+          const sx = cx + 36 * cos;
+          const sy = cy - 36 * sin;
+          const ex = cx + (36 + arrowLen) * cos;
+          const ey = cy - (36 + arrowLen) * sin;
+
+          const anchor = cos > 0.25 ? 'start' : cos < -0.25 ? 'end' : 'middle';
+          const lx = ex + (cos > 0.25 ? 10 : cos < -0.25 ? -10 : 0);
+          const ly = ey + (sin > 0.25 ? -12 : sin < -0.25 ? 20 : 4);
 
           return (
             <g key={idx}>
               <line
-                x1={cx}
-                y1={cy}
+                x1={sx}
+                y1={sy}
                 x2={ex}
                 y2={ey}
                 stroke={force.color || '#38BDF8'}
                 strokeWidth="2.5"
-                markerEnd="url(#arrow-cyan)"
+                markerEnd={getMarker(force.color)}
               />
               {showLabels && (
                 <text
-                  x={ex + (Math.cos(rad) > 0 ? 10 : Math.cos(rad) < 0 ? -70 : -30)}
-                  y={ey + (Math.sin(rad) > 0 ? -10 : Math.sin(rad) < 0 ? 20 : 5)}
+                  x={lx}
+                  y={ly}
                   fill={force.color || '#38BDF8'}
                   fontSize="12"
                   fontWeight="bold"
+                  textAnchor={anchor}
                 >
-                  {force.name} {force.value ? `(${force.value})` : ''}
+                  {force.name}
+                  {force.value ? ` (${force.value})` : ''}
                 </text>
               )}
             </g>
@@ -753,15 +794,15 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
 
         {/* Optics Nature Summary Badge */}
         <g transform="translate(30, 20)">
-          <rect width="210" height="74" rx="8" fill="#18181B" stroke="#27272A" />
+          <rect width="230" height="74" rx="8" fill="#18181B" stroke="#27272A" />
           <text x="10" y="20" fill="#38BDF8" fontSize="11" fontWeight="bold">
-            Mirror Equation: 1/f = 1/v + 1/u
+            {opticType.includes('lens') ? 'Lens Equation: 1/f = 1/v - 1/u' : 'Mirror Equation: 1/f = 1/v + 1/u'}
           </text>
           <text x="10" y="38" fill="#FFFFFF" fontSize="11">
             • Focal Length: f = {f} cm
           </text>
           <text x="10" y="56" fill="#22C55E" fontSize="11">
-            • Nature: {isVirtual ? 'Virtual & Magnified' : 'Real, Inverted'}
+            • Nature: {opt?.imageNature || (isVirtual ? 'Virtual & Upright' : 'Real & Inverted')}
           </text>
         </g>
       </g>
@@ -1003,13 +1044,13 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
         {/* Amplitude A Dimension */}
         <line x1="105" y1={py} x2="105" y2={py - amp} stroke="#F59E0B" strokeWidth="2" markerEnd="url(#arrow-amber)" />
         <text x="115" y={py - amp / 2} fill="#F59E0B" fontSize="12" fontWeight="bold">
-          Amplitude (A)
+          {wData?.amplitudeLabel || 'Amplitude (A)'}
         </text>
 
         {/* Wavelength λ Dimension between two crests */}
         <line x1="105" y1="80" x2="285" y2="80" stroke="#A855F7" strokeWidth="2" markerStart="url(#arrow-purple)" markerEnd="url(#arrow-purple)" />
-        <text x="175" y="70" fill="#A855F7" fontSize="13" fontWeight="bold">
-          Wavelength (λ)
+        <text x="165" y="70" fill="#A855F7" fontSize="13" fontWeight="bold">
+          {wData?.wavelengthLabel || 'Wavelength (λ)'}
         </text>
       </g>
     );
@@ -1019,46 +1060,48 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
   const renderMomentsLever = () => {
     const lData = diagram.data.lever;
     const py = 220;
-    const pivotX = 260;
+    const pivotX = 270;
+    const leftLoad = lData?.leftLoads?.[0];
+    const rightLoad = lData?.rightLoads?.[0];
 
     return (
       <g>
         {/* Fulcrum / Pivot Triangle */}
         <polygon points={`${pivotX},${py} ${pivotX - 25},${py + 50} ${pivotX + 25},${py + 50}`} fill="#38BDF8" stroke="#60A5FA" strokeWidth="2" />
-        <text x={pivotX - 18} y={py + 70} fill="#38BDF8" fontSize="12" fontWeight="bold">
-          Pivot
+        <text x={pivotX} y={py + 70} fill="#38BDF8" fontSize="12" fontWeight="bold" textAnchor="middle">
+          Pivot / Fulcrum
         </text>
 
         {/* Horizontal Uniform Beam */}
         <rect x="70" y={py - 14} width="460" height="14" rx="3" fill="#E2E8F0" stroke="#94A3B8" strokeWidth="1" />
 
-        {/* Left Load W1 */}
+        {/* Left Load */}
         <line x1="120" y1={py} x2="120" y2={py + 80} stroke="#EF4444" strokeWidth="3" markerEnd="url(#arrow-red)" />
-        <text x="100" y={py + 100} fill="#EF4444" fontSize="12" fontWeight="bold">
-          W₁ (Load)
+        <text x="120" y={py + 100} fill="#EF4444" fontSize="12" fontWeight="bold" textAnchor="middle">
+          F₁ {leftLoad ? `= ${leftLoad.forceN} N` : '(Load)'}
         </text>
         {/* Distance d1 */}
         <line x1="120" y1={py - 30} x2={pivotX} y2={py - 30} stroke="#F59E0B" strokeWidth="1.8" strokeDasharray="3 3" />
-        <text x={(120 + pivotX) / 2 - 10} y={py - 36} fill="#F59E0B" fontSize="11" fontWeight="bold">
-          d₁
+        <text x={(120 + pivotX) / 2} y={py - 36} fill="#F59E0B" fontSize="11" fontWeight="bold" textAnchor="middle">
+          d₁ {leftLoad ? `= ${leftLoad.distanceM} m` : ''}
         </text>
 
-        {/* Right Load W2 */}
-        <line x1="460" y1={py} x2="460" y2={py + 60} stroke="#22C55E" strokeWidth="3" markerEnd="url(#arrow-green)" />
-        <text x="440" y={py + 80} fill="#22C55E" fontSize="12" fontWeight="bold">
-          W₂ (Effort)
+        {/* Right Load */}
+        <line x1="460" y1={py} x2="460" y2={py + 65} stroke="#22C55E" strokeWidth="3" markerEnd="url(#arrow-green)" />
+        <text x="460" y={py + 85} fill="#22C55E" fontSize="12" fontWeight="bold" textAnchor="middle">
+          F₂ {rightLoad ? `= ${rightLoad.forceN} N` : '(Effort)'}
         </text>
         {/* Distance d2 */}
         <line x1={pivotX} y1={py - 30} x2="460" y2={py - 30} stroke="#F59E0B" strokeWidth="1.8" strokeDasharray="3 3" />
-        <text x={(pivotX + 460) / 2 - 10} y={py - 36} fill="#F59E0B" fontSize="11" fontWeight="bold">
-          d₂
+        <text x={(pivotX + 460) / 2} y={py - 36} fill="#F59E0B" fontSize="11" fontWeight="bold" textAnchor="middle">
+          d₂ {rightLoad ? `= ${rightLoad.distanceM} m` : ''}
         </text>
 
         {/* Principle of Moments formula banner */}
-        <g transform="translate(180, 40)">
-          <rect width="240" height="40" rx="8" fill="#18181B" stroke="#27272A" />
-          <text x="12" y="25" fill="#22C55E" fontSize="12" fontWeight="bold">
-            W₁ × d₁ = W₂ × d₂ (Equilibrium)
+        <g transform="translate(170, 40)">
+          <rect width="260" height="40" rx="8" fill="#18181B" stroke="#27272A" />
+          <text x="130" y="25" fill="#22C55E" fontSize="12" fontWeight="bold" textAnchor="middle">
+            F₁ × d₁ = F₂ × d₂ (Equilibrium)
           </text>
         </g>
       </g>
@@ -1068,18 +1111,27 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
   // 10. Vectors Parallelogram of Forces
   const renderVectors = () => {
     const vData = diagram.data.vectors;
-    const ox = 150;
-    const oy = 280;
+    const magA = vData?.vectorA?.magnitude ?? 20;
+    const magB = vData?.vectorB?.magnitude ?? 15;
+    const angleDeg = Math.min(Math.max(vData?.angleBetweenDeg ?? 60, 15), 145);
+    const rad = (angleDeg * Math.PI) / 180;
+    const resultantMag =
+      vData?.resultant?.magnitude ??
+      Math.round(Math.sqrt(magA * magA + magB * magB + 2 * magA * magB * Math.cos(rad)) * 100) / 100;
 
-    // Vector A along horizontal
-    const ax = ox + 220;
+    const maxForce = Math.max(magA, magB, 1);
+    const lenA = Math.max(100, Math.min(200, (magA / maxForce) * 190));
+    const lenB = Math.max(90, Math.min(180, (magB / maxForce) * 180));
+
+    const ox = angleDeg > 90 ? 220 : 140;
+    const oy = 285;
+
+    const ax = ox + lenA;
     const ay = oy;
 
-    // Vector B at angle 50 deg
-    const bx = ox + 140;
-    const by = oy - 140;
+    const bx = ox + lenB * Math.cos(rad);
+    const by = oy - lenB * Math.sin(rad);
 
-    // Resultant R = Vector A + Vector B
     const rx = ax + (bx - ox);
     const ry = by;
 
@@ -1087,14 +1139,14 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
       <g>
         {/* Vector A */}
         <line x1={ox} y1={oy} x2={ax} y2={ay} stroke="#38BDF8" strokeWidth="3" markerEnd="url(#arrow-cyan)" />
-        <text x={ax - 30} y={ay + 22} fill="#38BDF8" fontSize="13" fontWeight="bold">
-          Vector A ({vData?.vectorA?.magnitude || '20 N'})
+        <text x={(ox + ax) / 2} y={ay + 24} fill="#38BDF8" fontSize="13" fontWeight="bold" textAnchor="middle">
+          {vData?.vectorA?.name || 'F₁'} ({magA} N)
         </text>
 
         {/* Vector B */}
         <line x1={ox} y1={oy} x2={bx} y2={by} stroke="#F59E0B" strokeWidth="3" markerEnd="url(#arrow-amber)" />
-        <text x={bx - 45} y={by - 10} fill="#F59E0B" fontSize="13" fontWeight="bold">
-          Vector B ({vData?.vectorB?.magnitude || '15 N'})
+        <text x={bx - 12} y={by - 12} fill="#F59E0B" fontSize="13" fontWeight="bold" textAnchor={angleDeg > 90 ? 'end' : 'start'}>
+          {vData?.vectorB?.name || 'F₂'} ({magB} N)
         </text>
 
         {/* Parallelogram dotted lines */}
@@ -1103,14 +1155,19 @@ export const ScientificDiagramRenderer: React.FC<Props> = ({ diagram, className 
 
         {/* Resultant Vector R (Diagonal) */}
         <line x1={ox} y1={oy} x2={rx} y2={ry} stroke="#22C55E" strokeWidth="3.5" markerEnd="url(#arrow-green)" />
-        <text x={rx + 10} y={ry + 5} fill="#22C55E" fontSize="13" fontWeight="bold">
-          Resultant R ({vData?.resultant?.magnitude || '32 N'})
+        <text x={rx + 10} y={ry - 6} fill="#22C55E" fontSize="13" fontWeight="bold">
+          {vData?.resultant?.name || 'R'} ({resultantMag} N)
         </text>
 
         {/* Angle θ Arc */}
-        <path d={`M ${ox + 45} ${oy} A 45 45 0 0 0 ${ox + 35} ${oy - 28}`} fill="none" stroke="#F59E0B" strokeWidth="2" />
-        <text x={ox + 50} y={oy - 10} fill="#F59E0B" fontSize="12" fontWeight="bold">
-          θ = {vData?.angleBetweenDeg || '50'}°
+        <path
+          d={`M ${ox + 45} ${oy} A 45 45 0 0 0 ${ox + 45 * Math.cos(rad)} ${oy - 45 * Math.sin(rad)}`}
+          fill="none"
+          stroke="#F59E0B"
+          strokeWidth="2"
+        />
+        <text x={ox + 52} y={oy - 12} fill="#F59E0B" fontSize="12" fontWeight="bold">
+          θ = {angleDeg}°
         </text>
       </g>
     );

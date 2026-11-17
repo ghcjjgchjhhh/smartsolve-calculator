@@ -4,6 +4,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 import { detectAndGenerateDiagram } from './src/services/aiDiagramDetector';
+import { detectAndEnhanceGraphs } from './src/services/aiGraphDetector';
 import whiteboardHandler from './api/whiteboard';
 import voiceMathHandler from './api/voice-math';
 import handwritingHandler from './api/handwriting';
@@ -461,16 +462,15 @@ For Chemistry calculations, strictly show:
 6. Final answer boxed in LaTeX (\\boxed{...})
 7. Short conceptual explanation
 
-GRAPH DRAWING & ANIMATED SIMULATION ENGINE (CRITICAL):
-Whenever the question inherently relates to, describes, or asks for a graph, motion, trajectory, function, or curve (or if an uploaded image contains a graph or asks to find distance from v-t graph, gradient, root, vertex, area, etc.):
-1. Automatically detect that a graph is required.
-2. Formulate 100% accurate, real mathematical/physical equations for the graph lines and piecewise motion.
-3. Physics motion graphs supported: Distance-Time, Displacement-Time, Velocity-Time, Speed-Time, Acceleration-Time, Projectile Motion, SHM, Wave Motion, Force-Time, Momentum-Time, Pressure-Volume (P-V), Temperature-Time, Current-Voltage (I-V), etc.
-4. Mathematics graphs supported: Linear, Quadratic, Cubic, Polynomial, Rational, Exponential, Logarithmic, Trigonometric, Calculus derivatives/integrals, Inequalities, Simultaneous, Coordinate Circles, Conics (Parabola, Hyperbola, Ellipse), etc.
-5. In "featuresExplanation", clearly state what the gradient/slope (dy/dx) and area under the curve (∫ y dx) represent physically or mathematically.
-6. In "simulation", define the animated laboratory configuration ('motion_1d', 'projectile_2d', 'shm_oscillator', 'wave_propagation', 'curve_tracing') so SmartSolve can animate the actual vehicle, particle, or trajectory in real time!
-7. If multiple graphs are appropriate (e.g. both Velocity-Time and Displacement-Time), provide all of them in the "graphs" array.
-8. If a graph is needed but essential data is missing, populate "missingInformation" with a polite prompt.
+GRAPH & DIAGRAM STRICTNESS (CRITICAL):
+- NEVER draw or invent random diagrams or placeholder graphs for algebra, arithmetic, symbolic calculus (unless plotting is explicitly requested), stoichiometry, chemistry, gas laws, or conceptual questions.
+- For non-visual problems, strictly return "graphs": [] and "diagram": null.
+- ONLY populate "graphs" when the question explicitly asks to plot/sketch/draw a graph, or involves a motion-time graph (velocity-time, displacement-time, acceleration-time), 2D projectile trajectory, or SHM oscillator curve:
+  1. Formulate 100% accurate equations for the graph lines/curves (never fabricate unrelated curves).
+  2. In "featuresExplanation", state gradient/slope (dy/dx) and area under the curve meanings.
+  3. In "simulation", configure 'motion_1d', 'projectile_2d', 'shm_oscillator', 'wave_propagation', or 'curve_tracing'.
+  4. If essential graph data is missing, populate "missingInformation".
+- Keep "diagram": null unless the question physically/geometrically involves forces (free-body diagram), an inclined plane, levers/moments, electric circuits, ray optics, circle theorems, bearings, triangles, or transverse wave anatomy.
 
 Problem: "${prompt || 'Solve the question shown in the image.'}"
 
@@ -537,48 +537,14 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
       throw new Error('AI engine returned an invalid response structure. Please try again.');
     }
 
-    const combined = `${parsedSolution.title || ''} ${parsedSolution.problemStatement || ''} ${(parsedSolution.steps || []).join(' ')} ${prompt || ''}`.toLowerCase();
-    const isPureGeometry =
-      /\b(circle|chord|radius|diameter|tangent\s+to\s+(?:the|a)\s+circle|secant|cyclic|perpendicular\s+distance|centre\s+o|center\s+o|inscribed|subtended|semicircle|triangle|incline|optics|lens|mirror|fulcrum|lever|circuit)\b/i.test(combined);
-    const isExplicitGraph =
-      /\b(velocity-time|displacement-time|acceleration-time|v-t\s+graph|s-t\s+graph|a-t\s+graph|plot\s+the\s+graph|draw\s+the\s+graph|sketch\s+the\s+graph|cartesian|x-axis|y-axis|axes|coordinate\s+plane|grid|linear\s+graph|straight\s+line\s+graph)\b/i.test(combined);
+    const validatedGraphs = detectAndEnhanceGraphs(parsedSolution, prompt);
+    parsedSolution.graphs = validatedGraphs && validatedGraphs.length > 0 ? validatedGraphs : [];
 
-    if (isPureGeometry && !isExplicitGraph) {
-      // Discard any AI-hallucinated kinematics graphs for geometry problems
-      parsedSolution.graphs = [];
-    }
-
-    // Automatically enforce physical entity label on all simulation graphs
-    if (parsedSolution && parsedSolution.graphs && Array.isArray(parsedSolution.graphs)) {
-      let entity = 'Car';
-      if (/plane|airplane|aeroplane|jet|aircraft|runway|flight|takeoff|aviation/i.test(combined)) entity = 'Plane';
-      else if (/stone|rock|cliff|boulder|dropped|free fall|freefall|height of|falls from|thrown vertically|tower/i.test(combined)) entity = 'Stone';
-      else if (/rocket|missile|spacecraft|shuttle|launch|thrust|booster/i.test(combined)) entity = 'Rocket';
-      else if (/train|locomotive|rail|railway|railroad|station|carriage/i.test(combined)) entity = 'Train';
-      else if (/bicycle|bike|cyclist|cycling/i.test(combined)) entity = 'Bicycle';
-      else if (/runner|sprinter|athlete|running|sprint|marathon/i.test(combined)) entity = 'Runner';
-      else if (/boat|ship|canoe|vessel|ferry|sailing/i.test(combined)) entity = 'Boat';
-      else if (/ball|sphere|projectile|cannonball/i.test(combined)) entity = 'Ball';
-
-      parsedSolution.graphs.forEach((g: any) => {
-        if (!g.simulation) {
-          g.simulation = {
-            hasSimulation: true,
-            type: g.graphType === 'projectile_motion' ? 'projectile_2d' : 'motion_1d',
-            duration: g.xAxis?.max || 10,
-            objectLabel: entity,
-          };
-        } else {
-          g.simulation.objectLabel = entity;
-        }
-      });
-    }
-
-    if (!parsedSolution.diagram) {
-      const diag = detectAndGenerateDiagram(parsedSolution, prompt);
-      if (diag) {
-        parsedSolution.diagram = diag;
-      }
+    const diag = detectAndGenerateDiagram(parsedSolution, prompt);
+    if (diag && parsedSolution.graphs.length === 0) {
+      parsedSolution.diagram = diag;
+    } else {
+      delete parsedSolution.diagram;
     }
 
     return res.json({

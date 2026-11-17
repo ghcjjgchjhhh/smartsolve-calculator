@@ -461,12 +461,11 @@ CRITICAL SOLVER BEHAVIOUR & PRESENTATION RULES:
      e.g. "\\boxed{a = 3\\text{ m/s}^2,\\quad s = 900\\text{ m},\\quad \\text{deceleration} = 3\\text{ m/s}^2,\\quad v_{\\text{avg}} = 22.5\\text{ m/s}}"
    - Ensure all braces are closed and never produce trailing or truncated macros like \\tex.
 
-GRAPH DRAWING & ANIMATED SIMULATION ENGINE:
-If the question involves any Physics motion (velocity-time, displacement-time, acceleration-time, projectile trajectory, SHM oscillator, wave, etc.) or Mathematics curves (quadratic, cubic, rational, exponential, trigonometric, calculus derivatives/integrals, conics, etc.):
-1. Formulate exact equations for all graph curves in "graphs".
-2. State gradient (dy/dx) and area under curve meanings in "featuresExplanation".
-3. Configure the virtual lab simulation ('motion_1d', 'projectile_2d', 'shm_oscillator', 'wave_propagation', 'curve_tracing').
-4. If missing essential parameters, set "missingInformation".
+GRAPH & DIAGRAM STRICTNESS (CRITICAL):
+- NEVER draw or invent random diagrams or placeholder graphs for algebra, arithmetic, calculus differentiation/integration (unless explicitly asked to plot), stoichiometry, chemistry, gas laws, or conceptual questions.
+- For all standard non-visual problems, set "graphs": [] and "diagram": null.
+- ONLY populate "graphs" when the question explicitly asks to plot/sketch/draw a graph, or involves a motion-time graph (velocity-time, displacement-time, acceleration-time), 2D projectile trajectory, or SHM oscillator curve. Formulate exact real equations (never generic placeholder curves), state gradient/area meanings in "featuresExplanation", and configure "simulation".
+- Leave "diagram": null unless the question physically/geometrically requires a diagram (forces/free-body, inclined plane, levers/moments, electric circuits, ray optics, circle theorems, bearings, triangles, or transverse wave anatomy).
 
 Problem to solve: "${targetPrompt || 'Solve the question shown in the image.'}"
 
@@ -575,12 +574,12 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
           clearTimeout(stageTimer1);
           clearTimeout(stageTimer2);
           const enhanced = detectAndEnhanceGraphs(sol, targetPrompt);
-          if (enhanced && enhanced.length > 0) {
-            sol.graphs = enhanced;
-          }
+          sol.graphs = enhanced && enhanced.length > 0 ? enhanced : [];
           const diag = detectAndGenerateDiagram(sol, targetPrompt);
-          if (diag) {
+          if (diag && sol.graphs.length === 0) {
             sol.diagram = diag;
+          } else {
+            delete sol.diagram;
           }
           setSolution(sol);
           saveToHistory(sol);
@@ -703,12 +702,12 @@ You MUST respond with a valid JSON object with EXACTLY this structure:
 
       const sol = data.solution;
       const enhanced = detectAndEnhanceGraphs(sol, targetPrompt);
-      if (enhanced && enhanced.length > 0) {
-        sol.graphs = enhanced;
-      }
+      sol.graphs = enhanced && enhanced.length > 0 ? enhanced : [];
       const diag = detectAndGenerateDiagram(sol, targetPrompt);
-      if (diag) {
+      if (diag && sol.graphs.length === 0) {
         sol.diagram = diag;
+      } else {
+        delete sol.diagram;
       }
 
       setSolution(sol);
