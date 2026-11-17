@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { buildApiUrl } from '../lib/apiClient';
+import { buildAiHeaders, buildApiUrl, parseJsonResponse } from '../lib/apiClient';
 import {
   Microscope,
   CheckCircle2,
@@ -49,11 +49,11 @@ export const ScientificResearchView: React.FC = () => {
     try {
       const resp = await fetch(buildApiUrl('/api/research'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildAiHeaders(),
         body: JSON.stringify({ query: targetQuery.trim(), discipline: targetDiscipline }),
       });
-      const data = await resp.json();
-      if (!resp.ok || !data?.research) {
+      const data = await parseJsonResponse<any>(resp, 'Could not generate research brief');
+      if (!data?.research) {
         throw new Error(data?.error || 'Could not generate research brief.');
       }
       const research = data.research;

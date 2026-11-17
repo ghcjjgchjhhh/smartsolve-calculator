@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { buildApiUrl } from '../lib/apiClient';
+import { buildAiHeaders, buildApiUrl, parseJsonResponse } from '../lib/apiClient';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
@@ -118,7 +118,7 @@ export const DocumentTutorView: React.FC = () => {
           : '';
       const resp = await fetch(buildApiUrl('/api/document-tutor'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildAiHeaders(),
         body: JSON.stringify({
           action: mode,
           fileName,
@@ -127,8 +127,8 @@ export const DocumentTutorView: React.FC = () => {
           targetSection,
         }),
       });
-      const data = await resp.json();
-      if (!resp.ok || !data?.result) {
+      const data = await parseJsonResponse<any>(resp, 'Could not process document with AI Tutor');
+      if (!data?.result) {
         throw new Error(data?.error || 'Could not process document with AI Tutor.');
       }
       setAiResult(data.result);

@@ -81,11 +81,37 @@ function repairAndParseJson(rawText: string | undefined): any {
   }
 }
 
-async function generateJson(contents: any[], timeoutMs = 25000) {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || '';
-  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
-    throw new Error('Server AI configuration missing (GEMINI_API_KEY).');
-  }
+function isValidApiKey(val: unknown): string {
+  const s = typeof val === 'string' ? val.trim() : '';
+  if (!s || s === 'MY_GEMINI_API_KEY' || s === 'YOUR_GEMINI_API_KEY' || s.length < 16) return '';
+  return s;
+}
+
+function resolveApiKey(req: any, body?: any): string {
+  const envCandidates = [
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_GENAI_API_KEY,
+    process.env.GOOGLE_API_KEY,
+    process.env.GEMINI_KEY,
+    process.env.GENAI_API_KEY,
+    process.env.VITE_GEMINI_API_KEY,
+    process.env.VITE_GOOGLE_API_KEY,
+    process.env.API_KEY,
+  ];
+  const headerKey =
+    (req?.headers?.['x-gemini-key'] as string) ||
+    (req?.headers?.['authorization'] as string)?.replace(/^Bearer\s+/i, '') ||
+    '';
+
+  return (
+    envCandidates.map(isValidApiKey).find(Boolean) ||
+    isValidApiKey(headerKey) ||
+    isValidApiKey(body?.apiKey) ||
+    ''
+  );
+}
+
+async function generateJson(apiKey: string, contents: any[], timeoutMs = 25000) {
   const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { 'User-Agent': 'aistudio-build' } } });
   const models = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
   let lastError: any = null;
@@ -112,6 +138,14 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = parseBody(req);
+    const apiKey = resolveApiKey(req, body);
+    if (!apiKey) {
+      return sendJson(res, 503, {
+        error:
+          'Server AI configuration missing (GEMINI_API_KEY). Add GEMINI_API_KEY in Vercel Environment Variables and redeploy.',
+      });
+    }
+
     const query = String(body.query || body.topic || '').trim();
     const discipline = String(body.discipline || 'Physics & General Science').trim();
 
@@ -167,7 +201,7 @@ Return ONLY valid JSON:
 }
 `.trim();
 
-    const research = await generateJson([{ text: prompt }], 40000);
+    const research = await generateJson(apiKey, [{ text: prompt }], 40000);
     return sendJson(res, 200, { success: true, research });
   } catch (err: any) {
     return sendJson(res, 500, { error: err?.message || 'Failed to generate scientific research brief.' });

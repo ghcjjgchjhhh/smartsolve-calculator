@@ -140,21 +140,29 @@ export default async function handler(req: any, res: any) {
       }
     }
 
+    const isValidKey = (v: unknown) => {
+      const s = typeof v === 'string' ? v.trim() : '';
+      return !s || s === 'MY_GEMINI_API_KEY' || s === 'YOUR_GEMINI_API_KEY' || s.length < 16 ? '' : s;
+    };
     const headerKey =
       (req.headers?.['x-gemini-key'] as string) ||
       (req.headers?.['authorization'] as string)?.replace(/^Bearer\s+/i, '') ||
       '';
-    const serverKey =
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_GENAI_API_KEY ||
-      process.env.GOOGLE_API_KEY ||
-      process.env.VITE_GEMINI_API_KEY ||
-      process.env.API_KEY ||
-      '';
+    const envCandidates = [
+      process.env.GEMINI_API_KEY,
+      process.env.GOOGLE_GENAI_API_KEY,
+      process.env.GOOGLE_API_KEY,
+      process.env.GEMINI_KEY,
+      process.env.GENAI_API_KEY,
+      process.env.VITE_GEMINI_API_KEY,
+      process.env.VITE_GOOGLE_API_KEY,
+      process.env.API_KEY,
+    ];
     const apiKey =
-      (headerKey && headerKey.trim()) ||
-      (body.apiKey && String(body.apiKey).trim()) ||
-      serverKey;
+      envCandidates.map(isValidKey).find(Boolean) ||
+      isValidKey(headerKey) ||
+      isValidKey(body.apiKey) ||
+      '';
 
     if (!apiKey) {
       res.statusCode = 503;
@@ -162,7 +170,7 @@ export default async function handler(req: any, res: any) {
       return res.end(
         JSON.stringify({
           error:
-            'AI reasoning engine is temporarily unavailable. Please try again in a few moments.',
+            'Server AI configuration missing (GEMINI_API_KEY). Add GEMINI_API_KEY in Vercel Environment Variables and redeploy.',
         })
       );
     }

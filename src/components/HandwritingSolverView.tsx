@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { buildApiUrl } from '../lib/apiClient';
+import { buildAiHeaders, buildApiUrl, parseJsonResponse } from '../lib/apiClient';
 import {
   Upload,
   PenTool,
@@ -37,6 +37,7 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
   const [inputMode, setInputMode] = useState<'draw' | 'upload' | 'camera'>('draw');
   const padRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef<boolean>(false);
+  const hasDrawnRef = useRef<boolean>(false);
   const [padTool, setPadTool] = useState<'pen' | 'eraser'>('pen');
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -127,6 +128,7 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
   };
 
   const clearPad = () => {
+    hasDrawnRef.current = false;
     const c = padRef.current;
     if (!c) return;
     const ctx = c.getContext('2d');
@@ -186,6 +188,9 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
     if (!c) return;
     const ctx = c.getContext('2d');
     if (!ctx) return;
+    if (padTool === 'pen') {
+      hasDrawnRef.current = true;
+    }
     const pt = getCoords(e);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -220,7 +225,7 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
     reader.readAsDataURL(file);
   };
 
-  const compressImageDataUrl = (dataUrl: string, maxDim = 1280): Promise<{ dataUrl: string; mime: string }> =>
+  const compressImageDataUrl = (dataUrl: string, maxDim = 1600): Promise<{ dataUrl: string; mime: string }> =>
     new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
@@ -238,7 +243,7 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
-        resolve({ dataUrl: off.toDataURL('image/jpeg', 0.85), mime: 'image/jpeg' });
+        resolve({ dataUrl: off.toDataURL('image/jpeg', 0.92), mime: 'image/jpeg' });
       };
       img.onerror = () => resolve({ dataUrl, mime: uploadedMime });
       img.src = dataUrl;
@@ -251,7 +256,11 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
 
     if (inputMode === 'draw') {
       if (!padRef.current) return;
-      imageBase64 = padRef.current.toDataURL('image/jpeg', 0.88);
+      if (!hasDrawnRef.current) {
+        setError('Please write or draw an equation on the pad first, or switch to Upload Image / Camera Snap.');
+        return;
+      }
+      imageBase64 = padRef.current.toDataURL('image/jpeg', 0.92);
       mimeType = 'image/jpeg';
     } else {
       if (!uploadedPreview) {
@@ -271,15 +280,15 @@ export const HandwritingSolverView: React.FC<Props> = ({ onOpenInGemini }) => {
     try {
       const resp = await fetch(buildApiUrl('/api/handwriting'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildAiHeaders(),
         body: JSON.stringify({
           imageBase64,
           mimeType,
           note: note.trim(),
         }),
       });
-      const data = await resp.json();
-      if (!resp.ok || !data?.recognition) {
+      const data = await parseJsonResponse<any>(resp, 'Handwriting recognition failed');
+      if (!data?.recognition) {
         throw new Error(data?.error || 'Handwriting recognition failed.');
       }
 

@@ -86,23 +86,34 @@ function normalizeMimeType(raw?: string): string {
   return mime;
 }
 
-function resolveApiKey(req: any): string {
+function isValidApiKey(val: unknown): string {
+  const s = typeof val === 'string' ? val.trim() : '';
+  if (!s || s === 'MY_GEMINI_API_KEY' || s === 'YOUR_GEMINI_API_KEY' || s.length < 16) return '';
+  return s;
+}
+
+function resolveApiKey(req: any, body?: any): string {
+  const envCandidates = [
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_GENAI_API_KEY,
+    process.env.GOOGLE_API_KEY,
+    process.env.GEMINI_KEY,
+    process.env.GENAI_API_KEY,
+    process.env.VITE_GEMINI_API_KEY,
+    process.env.VITE_GOOGLE_API_KEY,
+    process.env.API_KEY,
+  ];
   const headerKey =
-    (req.headers?.['x-gemini-key'] as string) ||
-    (req.headers?.['authorization'] as string)?.replace(/^Bearer\s+/i, '') ||
-    '';
-  const serverKey =
-    process.env.GEMINI_API_KEY ||
-    process.env.GOOGLE_GENAI_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    process.env.VITE_GEMINI_API_KEY ||
-    process.env.API_KEY ||
+    (req?.headers?.['x-gemini-key'] as string) ||
+    (req?.headers?.['authorization'] as string)?.replace(/^Bearer\s+/i, '') ||
     '';
 
-  if (headerKey && headerKey.trim() && headerKey !== 'MY_GEMINI_API_KEY' && headerKey.trim().length > 15) {
-    return headerKey.trim();
-  }
-  return serverKey;
+  return (
+    envCandidates.map(isValidApiKey).find(Boolean) ||
+    isValidApiKey(headerKey) ||
+    isValidApiKey(body?.apiKey) ||
+    ''
+  );
 }
 
 export async function transcribeAudioWithGemini(

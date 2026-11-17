@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { buildApiUrl } from '../lib/apiClient';
+import { buildAiHeaders, buildApiUrl, parseJsonResponse } from '../lib/apiClient';
 import {
   HelpCircle,
   Lightbulb,
@@ -56,7 +56,7 @@ export const SocraticTutorView: React.FC = () => {
     try {
       const resp = await fetch(buildApiUrl('/api/socratic'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildAiHeaders(),
         body: JSON.stringify({
           problem: targetProblem,
           mode,
@@ -65,8 +65,8 @@ export const SocraticTutorView: React.FC = () => {
           history: currentTurns.map((t) => ({ role: t.role, content: `${t.content} ${t.guidingQuestion || ''}`.trim() })),
         }),
       });
-      const data = await resp.json();
-      if (!resp.ok || !data?.socratic) {
+      const data = await parseJsonResponse<any>(resp, 'Failed to get Socratic response');
+      if (!data?.socratic) {
         throw new Error(data?.error || 'Failed to get Socratic response.');
       }
 

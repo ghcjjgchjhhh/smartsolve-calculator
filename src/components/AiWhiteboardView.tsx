@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { buildApiUrl } from '../lib/apiClient';
+import { buildAiHeaders, buildApiUrl, parseJsonResponse } from '../lib/apiClient';
 import {
   PenTool,
   Eraser,
@@ -449,11 +449,11 @@ export const AiWhiteboardView: React.FC = () => {
     try {
       const resp = await fetch(buildApiUrl('/api/whiteboard'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildAiHeaders(),
         body: JSON.stringify({ topic: promptInput.trim() }),
       });
-      const data = await resp.json();
-      if (!resp.ok || !data?.boardLesson) {
+      const data = await parseJsonResponse<any>(resp, 'Could not generate AI Whiteboard lesson');
+      if (!data?.boardLesson) {
         throw new Error(data?.error || 'Could not generate AI Whiteboard lesson.');
       }
       setLesson(data.boardLesson);

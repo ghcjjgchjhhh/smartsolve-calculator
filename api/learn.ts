@@ -51,22 +51,32 @@ function applyCorsHeaders(req: any, res: any): boolean {
   return false;
 }
 
+function isValidApiKey(val: unknown): string {
+  const s = typeof val === 'string' ? val.trim() : '';
+  if (!s || s === 'MY_GEMINI_API_KEY' || s === 'YOUR_GEMINI_API_KEY' || s.length < 16) return '';
+  return s;
+}
+
 function resolveApiKey(req: any, body: any): string {
   const headerKey =
     (req.headers?.['x-gemini-key'] as string) ||
     (req.headers?.['authorization'] as string)?.replace(/^Bearer\s+/i, '') ||
     '';
-  const serverKey =
-    process.env.GEMINI_API_KEY ||
-    process.env.GOOGLE_GENAI_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    process.env.VITE_GEMINI_API_KEY ||
-    process.env.API_KEY ||
-    '';
+  const envCandidates = [
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_GENAI_API_KEY,
+    process.env.GOOGLE_API_KEY,
+    process.env.GEMINI_KEY,
+    process.env.GENAI_API_KEY,
+    process.env.VITE_GEMINI_API_KEY,
+    process.env.VITE_GOOGLE_API_KEY,
+    process.env.API_KEY,
+  ];
   return (
-    (headerKey && headerKey.trim()) ||
-    (body?.apiKey && String(body.apiKey).trim()) ||
-    serverKey
+    envCandidates.map(isValidApiKey).find(Boolean) ||
+    isValidApiKey(headerKey) ||
+    isValidApiKey(body?.apiKey) ||
+    ''
   );
 }
 

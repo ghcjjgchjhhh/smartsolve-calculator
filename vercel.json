@@ -25,6 +25,30 @@
       "destination": "/api/transcribe"
     },
     {
+      "source": "/api/ai/handwriting",
+      "destination": "/api/handwriting"
+    },
+    {
+      "source": "/api/ai/whiteboard",
+      "destination": "/api/whiteboard"
+    },
+    {
+      "source": "/api/ai/socratic",
+      "destination": "/api/socratic"
+    },
+    {
+      "source": "/api/ai/research",
+      "destination": "/api/research"
+    },
+    {
+      "source": "/api/ai/document-tutor",
+      "destination": "/api/document-tutor"
+    },
+    {
+      "source": "/api/ai/voice-math",
+      "destination": "/api/voice-math"
+    },
+    {
       "source": "/api/learn/follow-up",
       "destination": "/api/learn?action=follow_up"
     },

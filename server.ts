@@ -33,7 +33,19 @@ app.use((_req, res, next) => {
 });
 
 // Initialize GoogleGenAI SDK server-side
-const apiKey = process.env.GEMINI_API_KEY || '';
+const apiKey =
+  [
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_GENAI_API_KEY,
+    process.env.GOOGLE_API_KEY,
+    process.env.GEMINI_KEY,
+    process.env.GENAI_API_KEY,
+    process.env.VITE_GEMINI_API_KEY,
+    process.env.VITE_GOOGLE_API_KEY,
+    process.env.API_KEY,
+  ]
+    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+    .find((v) => v && v !== 'MY_GEMINI_API_KEY' && v !== 'YOUR_GEMINI_API_KEY' && v.length >= 16) || '';
 const ai = apiKey
   ? new GoogleGenAI({
       apiKey,
@@ -49,7 +61,7 @@ const ai = apiKey
 app.get('/api/ai/status', (_req: Request, res: Response) => {
   res.json({
     ok: true,
-    hasApiKey: Boolean(apiKey && apiKey !== 'MY_GEMINI_API_KEY'),
+    hasApiKey: Boolean(apiKey),
     models: ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'],
   });
 });
