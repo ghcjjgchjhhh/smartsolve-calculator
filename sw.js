@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smartsolve-v8-authjs-oauth';
+const CACHE_NAME = 'smartsolve-v9-fast-boot';
 const ASSETS = [
   '/',
   '/manifest.json',

@@ -22,7 +22,8 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
     <script>
       (function() {
         try {
@@ -41,27 +42,28 @@
         } catch(e) {}
       })();
     </script>
-    <script type="module" crossorigin src="./assets/index-1WxwJoWb.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/jsx-runtime-d5rYQebX.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-ZRQq7mnc.css">
+    <style>#smartsolve-boot-splash{z-index:9998;color:#0f172a;background:#f8fafc;flex-direction:column;justify-content:center;align-items:center;font-family:system-ui,-apple-system,sans-serif;display:flex;position:fixed;inset:0}html.dark #smartsolve-boot-splash{color:#fff;background:#000}#smartsolve-boot-splash .ss-mark{color:#22c55e;background:#fff;border:1px solid #22c55e66;border-radius:16px;justify-content:center;align-items:center;width:64px;height:64px;margin-bottom:12px;font-family:ui-monospace,monospace;font-size:24px;font-weight:800;display:flex;box-shadow:0 12px 30px #22c55e29}html.dark #smartsolve-boot-splash .ss-mark{background:#0a0a0c}#smartsolve-boot-splash .ss-title{letter-spacing:-.02em;font-size:18px;font-weight:800}#smartsolve-boot-splash .ss-title span{color:#22c55e}#smartsolve-boot-splash .ss-sub{opacity:.65;margin-top:4px;font-size:11px}</style>
+    <script type="module" crossorigin src="./assets/index-CSnOWKQE.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-XKyaHtl9.js">
+    <link rel="modulepreload" crossorigin href="./assets/vendor-icons-DknM2dNp.js">
+    <link rel="modulepreload" crossorigin href="./assets/vendor-react-y7Jl7h8X.js">
+    <link rel="modulepreload" crossorigin href="./assets/mathEngine-DSHrpBkQ.js">
+    <link rel="modulepreload" crossorigin href="./assets/vendor-katex-BEmI5duO.js">
+    <link rel="modulepreload" crossorigin href="./assets/vendor-pdfjs-R5swAtoE.js">
+    <link rel="stylesheet" crossorigin href="./assets/vendor-katex-DMZ4qLFT.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-CsK19tLP.css">
   </head>
   <body class="transition-colors duration-200">
+    <div id="smartsolve-boot-splash" aria-hidden="true">
+      <div class="ss-mark">√x</div>
+      <div class="ss-title">Smart<span>Solve</span></div>
+      <div class="ss-sub">Math, Physics &amp; AI Studio</div>
+    </div>
     <div id="root"></div>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
-            reg.onupdatefound = function() {
-              var installingWorker = reg.installing;
-              if (installingWorker) {
-                installingWorker.onstatechange = function() {
-                  if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    window.location.reload();
-                  }
-                };
-              }
-            };
-          }).catch(function(e) {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(e) {
             console.log('SW registration note:', e);
           });
         });
