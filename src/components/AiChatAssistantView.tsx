@@ -534,9 +534,9 @@ export const AiChatAssistantView: React.FC<Props> = ({
     };
   }, []);
 
-  // Auto-scroll on message updates
+  // Auto-scroll on message updates (avoid smooth-scroll animation fighting during fast token streaming)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: isGenerating ? 'auto' : 'smooth' });
   }, [activeSession?.messages, isGenerating]);
 
   // Handle external initial prompt if passed
@@ -551,7 +551,8 @@ export const AiChatAssistantView: React.FC<Props> = ({
   const updateSessionMessages = (
     targetSessionId: string,
     updater: (currentMessages: ChatMessage[]) => ChatMessage[],
-    explicitTitle?: string
+    explicitTitle?: string,
+    persist: boolean = true
   ) => {
     setSessions((prevSessions) => {
       const sessionIndex = prevSessions.findIndex((s) => s.id === targetSessionId);
@@ -581,7 +582,9 @@ export const AiChatAssistantView: React.FC<Props> = ({
         updatedAt: Date.now(),
       };
 
-      saveSingleSession(updatedSession);
+      if (persist) {
+        saveSingleSession(updatedSession);
+      }
 
       const next = [...prevSessions];
       next[sessionIndex] = updatedSession;
@@ -915,20 +918,22 @@ export const AiChatAssistantView: React.FC<Props> = ({
     attachments: ChatAttachment[]
   ): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey });
-    const systemPrompt = `You are a brilliant, friendly, and natural conversational partner and master academic tutor, with the conversational flexibility of ChatGPT and world-class problem-solving capabilities.
+    const systemPrompt = `You are a brilliant, warm, and crystal-clear AI tutor and conversational assistant—explaining ideas with the clarity, structure, and natural flow of ChatGPT.
 
-CONVERSATIONAL BEHAVIOR & TONE:
-- Be authentic, thoughtful, concise, and direct. Never sound like a scripted corporate customer-service bot.
-- CRITICAL: DO NOT introduce yourself. Do not state your name, title, or what you can do. Never give a welcome monologue or a bullet list of your capabilities.
-- When the user sends a casual greeting (like "Hi", "Hello", "Hey", "Good morning", or "Sup"), reply like a real person in ONE short, friendly sentence.
-- If the user cracks a joke or shares casual thoughts, banter naturally with warmth and humor.
-- Adjust response length strictly to the prompt: keep simple chats brief and punchy, and make complex math/physics/chemistry derivations deeply detailed with LaTeX ($...$ and $$...$$).
+CONVERSATION & TONE:
+- Be natural, friendly, direct, and helpful. Never introduce yourself, never state your title or capabilities, and never say "As an AI...".
+- Match length to the prompt: reply to casual greetings in one short, warm sentence; give clear, thorough walkthroughs for academic, technical, or multi-step questions.
+- Use clear, natural standard English (unless the user writes in or asks for another language or Pidgin).
 
-MULTIMODAL AUDIO & VOICE RECOGNITION:
-- You genuinely listen to and comprehend user voice notes and audio clips.
-- CRITICAL: ALWAYS WRITE OUT THE COMPLETE ANSWER IN FULL TEXT. Even when the user speaks via a voice note or audio recording, you MUST write out the complete, comprehensive written answer on screen with all steps, formulas ($...$ and $$...$$), equations, and explanations clearly visible so the user can read and study it.
-- When answering a voice note, briefly note the question heard (e.g., 🎙️ *Heard:* "...") and immediately provide the complete, step-by-step written solution.
-- Never respond with an audio-only or partial reply. Every response MUST be written out in full text.`;
+CHATGPT-STYLE STRUCTURE & SPACING (CRITICAL):
+- NEVER write a dense wall of text. Always leave clear blank lines between paragraphs, headings, lists, steps, and equation blocks so every explanation breathes cleanly.
+- Lead with a crisp, intuitive summary or direct answer in 1–2 sentences.
+- Break explanations down using clear section headings (### ...), short paragraphs, and bullet points with **bold lead-ins**.
+- Put key formulas and calculations in standalone display blocks ($$...$$) on their own lines with blank lines above and below, and inline math in $...$.
+
+MULTIMODAL AUDIO & IMAGE UNDERSTANDING:
+- Listen closely to voice notes, briefly note what was heard (e.g., 🎙️ *Heard:* "...") on its own line, leave a blank line, and write out the complete, well-spaced explanation in full text.
+- Inspect uploaded photos and handwritten equations carefully and walk through the solution step by step.`;
 
     const chatContents: any[] = [];
     if (Array.isArray(history) && history.length > 0) {
@@ -1088,16 +1093,9 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
         attachments: m.attachments?.map((a) => ({ name: a.name, type: a.type })),
       }));
 
-    const primaryImage = messageAttachments.find((a) => a.type === 'image');
-    const primaryAudio = messageAttachments.find((a) => a.type === 'audio');
-
     const requestPayload = {
       message: text,
       history: historyPayload,
-      imageData: primaryImage?.data,
-      mimeType: primaryImage?.mimeType,
-      audioData: primaryAudio?.data,
-      audioMimeType: primaryAudio?.mimeType,
       attachments: messageAttachments,
       preferredLanguage: currentLanguage.name,
       languageCode: voiceSettings.language || currentLanguage.voiceCode,
@@ -1226,14 +1224,18 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
             }
           }
 
-          // Smooth throttled UI update (~30ms) so main thread stays responsive while streaming
+          // Smooth throttled in-memory UI update (~45ms) without blocking on localStorage serialization
           const now = Date.now();
-          if (hadNewTokens && now - lastRenderTime > 30) {
+          if (hadNewTokens && now - lastRenderTime > 45) {
             lastRenderTime = now;
-            updateSessionMessages(currentSessionId, (msgs) =>
-              msgs.map((m) =>
-                m.id === assistantMessageId ? { ...m, content: accumulatedText, isStreaming: true } : m
-              )
+            updateSessionMessages(
+              currentSessionId,
+              (msgs) =>
+                msgs.map((m) =>
+                  m.id === assistantMessageId ? { ...m, content: accumulatedText, isStreaming: true } : m
+                ),
+              undefined,
+              false
             );
           }
         }
@@ -1799,7 +1801,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
         </header>
 
         {/* Messages Feed */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scrollbar-thin">
           {activeSession?.messages.map((msg, idx) => {
             const isUser = msg.role === 'user';
 
@@ -1823,7 +1825,7 @@ MULTIMODAL AUDIO & VOICE RECOGNITION:
 
                 {/* Message Bubble */}
                 <div
-                  className={`max-w-[88%] sm:max-w-[80%] rounded-3xl p-4 sm:p-5 text-sm leading-relaxed shadow-lg ${
+                  className={`max-w-[90%] sm:max-w-[82%] rounded-3xl px-4 py-4 sm:px-6 sm:py-5 text-sm leading-relaxed shadow-lg ${
                     isUser
                       ? 'bg-[#18181D] text-white rounded-tr-none border border-[#27272A]'
                       : 'bg-[#111115] text-[#F4F4F5] rounded-tl-none border border-[#27272A]'

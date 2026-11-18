@@ -8,13 +8,21 @@ interface Props {
 }
 
 export const ChatMessageRenderer: React.FC<Props> = ({ content, isStreaming }) => {
-  // Parse message into blocks: code blocks, tables, math, and regular text
-  const blocks = React.useMemo(() => {
-    return parseMessageBlocks(content);
+  // Normalize \(...\) and \[...\] delimiters before block splitting
+  const normalizedContent = React.useMemo(() => {
+    if (!content) return '';
+    return content
+      .replace(/\\\[([\s\S]*?)\\\]/g, (_, expr) => `\n\n$$${expr}$$\n\n`)
+      .replace(/\\\(([^\n]*?)\\\)/g, (_, expr) => `$${expr}$`);
   }, [content]);
 
+  // Parse message into blocks: code blocks, tables, math, and regular text
+  const blocks = React.useMemo(() => {
+    return parseMessageBlocks(normalizedContent);
+  }, [normalizedContent]);
+
   return (
-    <div className="space-y-3 leading-relaxed text-sm text-[#F4F4F5] break-words">
+    <div className="space-y-4 leading-7 text-[14.5px] text-[#F4F4F5] break-words">
       {blocks.map((block, idx) => {
         if (block.type === 'code') {
           return (
@@ -34,11 +42,7 @@ export const ChatMessageRenderer: React.FC<Props> = ({ content, isStreaming }) =
           return <DisplayMathCard key={idx} math={block.content} />;
         }
 
-        return (
-          <div key={idx} className="space-y-2">
-            <InlineFormattedText text={block.content} />
-          </div>
-        );
+        return <InlineFormattedText key={idx} text={block.content} />;
       })}
 
       {isStreaming && (
@@ -61,7 +65,7 @@ const CodeBlockCard: React.FC<{ language: string; code: string }> = ({ language,
   };
 
   return (
-    <div className="my-3 rounded-2xl overflow-hidden border border-[#27272A] bg-[#0A0A0C] shadow-lg">
+    <div className="my-4 rounded-2xl overflow-hidden border border-[#27272A] bg-[#0A0A0C] shadow-lg">
       <div className="flex items-center justify-between px-4 py-2 bg-[#121216] border-b border-[#27272A] text-xs font-mono text-[#A1A1AA]">
         <span className="uppercase font-bold tracking-wider text-white">
           {language}
@@ -97,7 +101,7 @@ const CodeBlockCard: React.FC<{ language: string; code: string }> = ({ language,
 // Sub-component: Standalone Display Math Block ($$...$$)
 const DisplayMathCard: React.FC<{ math: string }> = ({ math }) => {
   const html = React.useMemo(() => {
-    let clean = math.trim().replace(/(?<!\\)%/g, '\\%');
+    const clean = math.trim().replace(/(?<!\\)%/g, '\\%');
     try {
       return katex.renderToString(clean, {
         displayMode: true,
@@ -119,7 +123,7 @@ const DisplayMathCard: React.FC<{ math: string }> = ({ math }) => {
   }, [math]);
 
   return (
-    <div className="my-2.5 p-3 rounded-xl bg-[#141418] border border-[#27272A] overflow-x-auto text-center scrollbar-thin">
+    <div className="my-3.5 px-4 py-3.5 rounded-xl bg-[#141418] border border-[#27272A] overflow-x-auto text-center scrollbar-thin">
       <div dangerouslySetInnerHTML={{ __html: html }} className="text-white inline-block" />
     </div>
   );
@@ -149,7 +153,7 @@ const TableBlockCard: React.FC<{ rawTable: string }> = ({ rawTable }) => {
   if (!tableData) return <div className="font-mono text-xs">{rawTable}</div>;
 
   return (
-    <div className="my-3 overflow-x-auto rounded-2xl border border-[#27272A] bg-[#0A0A0C] shadow-md scrollbar-thin">
+    <div className="my-4 overflow-x-auto rounded-2xl border border-[#27272A] bg-[#0A0A0C] shadow-md scrollbar-thin">
       <table className="w-full text-left text-xs border-collapse">
         <thead className="bg-[#18181B] text-[#FFFFFF] font-bold border-b border-[#27272A]">
           <tr>
@@ -176,96 +180,170 @@ const TableBlockCard: React.FC<{ rawTable: string }> = ({ rawTable }) => {
   );
 };
 
-// Sub-component: Inline Formatted Text (Inline LaTeX $...$, Bold **...**, Lists, Links)
+// Sub-component: Inline Formatted Text with ChatGPT-style paragraph/list/heading spacing
 const InlineFormattedText: React.FC<{ text: string }> = ({ text }) => {
   const renderedHtml = React.useMemo(() => {
     if (!text) return '';
 
-    // Split paragraphs
-    const paragraphs = text.split(/\n\s*\n/);
+    const rawLines = text.split(/\r?\n/);
+    const out: string[] = [];
+    let i = 0;
 
-    const processedParagraphs = paragraphs.map((para) => {
-      // Check for bullet lists
-      const lines = para.split('\n');
-      const isBulletList = lines.every((l) => /^\s*[-*•]\s+/.test(l));
-      const isNumberedList = lines.every((l) => /^\s*\d+\.\s+/.test(l));
+    while (i < rawLines.length) {
+      const line = rawLines[i];
+      const trimmed = line.trim();
 
-      if (isBulletList) {
-        const items = lines
-          .map((l) => l.replace(/^\s*[-*•]\s+/, '').trim())
-          .map((item) => `<li>${formatInlineMathAndText(item)}</li>`)
-          .join('');
-        return `<ul class="list-disc list-inside space-y-1 my-1.5 pl-1">${items}</ul>`;
+      if (!trimmed) {
+        i++;
+        continue;
       }
 
-      if (isNumberedList) {
-        const items = lines
-          .map((l) => l.replace(/^\s*\d+\.\s+/, '').trim())
-          .map((item) => `<li>${formatInlineMathAndText(item)}</li>`)
-          .join('');
-        return `<ol class="list-decimal list-inside space-y-1 my-1.5 pl-1">${items}</ol>`;
+      // Horizontal rule
+      if (/^([-*_]){3,}$/.test(trimmed)) {
+        out.push('<hr class="my-4 border-[#27272A]" />');
+        i++;
+        continue;
       }
 
-      // Check for blockquote
-      if (para.startsWith('>')) {
-        const quoteContent = para.replace(/^>\s*/gm, '');
-        return `<blockquote class="border-l-2 border-[#22C55E] pl-3 py-1 my-2 text-zinc-300 italic">${formatInlineMathAndText(
-          quoteContent
-        )}</blockquote>`;
-      }
-
-      // Check for headers
-      if (/^#{1,4}\s+/.test(para)) {
-        const level = (para.match(/^#+/) || ['#'])[0].length;
-        const headingText = para.replace(/^#+\s*/, '');
+      // Markdown heading (# ... ####)
+      const headingMatch = trimmed.match(/^(#{1,4})\s+(.*)$/);
+      if (headingMatch) {
+        const level = headingMatch[1].length;
+        const headingText = headingMatch[2];
         const sizeClass =
           level === 1
-            ? 'text-base font-black text-white mt-3 mb-1'
+            ? 'text-base font-extrabold text-white mt-5 mb-2.5 first:mt-0 tracking-tight'
             : level === 2
-            ? 'text-sm font-bold text-white mt-2.5 mb-1'
-            : 'text-xs font-bold text-white mt-2 mb-0.5 uppercase tracking-wider';
-        return `<div class="${sizeClass}">${formatInlineMathAndText(headingText)}</div>`;
+            ? 'text-[15px] font-bold text-white mt-4 mb-2 first:mt-0'
+            : 'text-[14px] font-bold text-[#22C55E] mt-4 mb-1.5 first:mt-0';
+        out.push(`<div class="${sizeClass}">${formatInlineMathAndText(headingText)}</div>`);
+        i++;
+        continue;
       }
 
-      // Standard paragraph with line breaks
-      const formattedLines = lines.map((line) => formatInlineMathAndText(line)).join('<br/>');
-      return `<p>${formattedLines}</p>`;
-    });
+      // Blockquote lines (> ...)
+      if (/^>\s?/.test(trimmed)) {
+        const quoteLines: string[] = [];
+        while (i < rawLines.length && /^\s*>/.test(rawLines[i])) {
+          quoteLines.push(rawLines[i].replace(/^\s*>\s?/, ''));
+          i++;
+        }
+        out.push(
+          `<blockquote class="border-l-2 border-[#22C55E] pl-3.5 py-1.5 my-3.5 text-zinc-300 bg-[#18181D]/60 rounded-r-xl leading-7">${quoteLines
+            .map((ql) => formatInlineMathAndText(ql))
+            .join('<br/>')}</blockquote>`
+        );
+        continue;
+      }
 
-    return processedParagraphs.join('');
+      // Unordered bullet list (-, *, •)
+      if (/^\s*[-*•]\s+/.test(line)) {
+        const items: string[] = [];
+        while (i < rawLines.length && /^\s*[-*•]\s+/.test(rawLines[i])) {
+          const itemText = rawLines[i].replace(/^\s*[-*•]\s+/, '').trim();
+          items.push(`<li class="leading-7">${formatInlineMathAndText(itemText)}</li>`);
+          i++;
+        }
+        out.push(`<ul class="list-disc pl-5 space-y-2 my-3 text-[#E4E4E7]">${items.join('')}</ul>`);
+        continue;
+      }
+
+      // Ordered numbered list (1. , 2) )
+      if (/^\s*\d+[.)]\s+/.test(line)) {
+        const items: string[] = [];
+        while (i < rawLines.length && /^\s*\d+[.)]\s+/.test(rawLines[i])) {
+          const itemText = rawLines[i].replace(/^\s*\d+[.)]\s+/, '').trim();
+          items.push(`<li class="leading-7">${formatInlineMathAndText(itemText)}</li>`);
+          i++;
+        }
+        out.push(`<ol class="list-decimal pl-5 space-y-2.5 my-3 text-[#E4E4E7]">${items.join('')}</ol>`);
+        continue;
+      }
+
+      // Regular paragraph: collect consecutive prose lines until blank or structural line
+      const paraLines: string[] = [];
+      while (i < rawLines.length) {
+        const cur = rawLines[i];
+        const curTrim = cur.trim();
+        if (
+          !curTrim ||
+          /^([-*_]){3,}$/.test(curTrim) ||
+          /^#{1,4}\s+/.test(curTrim) ||
+          /^\s*>/.test(cur) ||
+          /^\s*[-*•]\s+/.test(cur) ||
+          /^\s*\d+[.)]\s+/.test(cur)
+        ) {
+          break;
+        }
+        paraLines.push(cur);
+        i++;
+      }
+
+      if (paraLines.length > 0) {
+        const formattedLines = paraLines.map((l) => formatInlineMathAndText(l)).join('<br/>');
+        out.push(`<p class="mb-3.5 last:mb-0 leading-7 text-[#F4F4F5]">${formattedLines}</p>`);
+      }
+    }
+
+    return out.join('');
   }, [text]);
 
-  return <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />;
+  return <div className="space-y-1" dangerouslySetInnerHTML={{ __html: renderedHtml }} />;
 };
 
 function formatInlineMathAndText(str: string): string {
   if (!str) return '';
 
-  // 1. First extract and replace inline math $...$ with KaTeX HTML
-  let output = str.replace(/\$([^\$\n]+?)\$/g, (_, math) => {
+  // Extract protected tokens (inline math & inline code) so markdown emphasis never breaks inside them
+  const tokens: string[] = [];
+  const stash = (html: string) => {
+    const idx = tokens.length;
+    tokens.push(html);
+    return `\u0000TOK_${idx}\u0000`;
+  };
+
+  // 1. Protect inline code `code`
+  let output = str.replace(/`([^`]+)`/g, (_, code) =>
+    stash(
+      `<code class="px-1.5 py-0.5 rounded bg-[#1C1C20] border border-[#27272A] font-mono text-xs text-white">${escapeHtml(
+        code
+      )}</code>`
+    )
+  );
+
+  // 2. Protect and render inline math $...$
+  output = output.replace(/\$([^\$\n]+?)\$/g, (_, math) => {
     const clean = math.trim().replace(/(?<!\\)%/g, '\\%');
     try {
-      return katex.renderToString(clean, {
-        displayMode: false,
-        throwOnError: true,
-        output: 'htmlAndMathml',
-      });
+      return stash(
+        katex.renderToString(clean, {
+          displayMode: false,
+          throwOnError: true,
+          output: 'htmlAndMathml',
+        })
+      );
     } catch {
-      return `<span class="font-mono text-white">${escapeHtml(clean.replace(/\\/g, ''))}</span>`;
+      return stash(`<span class="font-mono text-white">${escapeHtml(clean.replace(/\\/g, ''))}</span>`);
     }
   });
 
-  // 2. Bold **text**
-  output = output.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-white">$1</strong>');
+  // 3. Escape any raw HTML in remaining prose before adding safe markup tags
+  output = escapeHtml(output);
 
-  // 3. Italic *text* or _text_
-  output = output.replace(/(?<!\*)\*(?!\*)(.*?)\*/g, '<em class="italic">$1</em>');
-
-  // 4. Inline code `code`
+  // 4. Markdown links [label](https://...)
   output = output.replace(
-    /`([^`]+)`/g,
-    '<code class="px-1.5 py-0.5 rounded bg-[#1C1C20] border border-[#27272A] font-mono text-xs text-white">$1</code>'
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-[#22C55E] underline underline-offset-2 hover:text-emerald-300">$1</a>'
   );
+
+  // 5. Bold **text**
+  output = output.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-white">$1</strong>');
+
+  // 6. Italic *text*
+  output = output.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em class="italic text-zinc-200">$1</em>');
+
+  // 7. Restore stashed inline code & KaTeX math
+  output = output.replace(/\u0000TOK_(\d+)\u0000/g, (_, idx) => tokens[Number(idx)] ?? '');
 
   return output;
 }
@@ -289,8 +367,8 @@ function parseMessageBlocks(raw: string): MessageBlock[] {
   const blocks: MessageBlock[] = [];
   if (!raw) return blocks;
 
-  // Split out code blocks ```lang\ncode\n```
-  const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
+  // Split out code blocks ```lang\ncode\n``` (also tolerate unclosed trailing code fence while streaming)
+  const codeBlockRegex = /```([a-zA-Z0-9_-]*)\r?\n([\s\S]*?)(?:```|$)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 

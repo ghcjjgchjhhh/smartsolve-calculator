@@ -592,43 +592,31 @@ const handleChatRequest = async (req: Request, res: Response) => {
     const headerKey = (req.headers['x-gemini-key'] as string) || '';
     const { activeAi, isCustomKey } = getGenAIClient(headerKey);
 
-    const systemPrompt = `You are a brilliant, charismatic, and emotionally intelligent conversational partner and master academic mentor, sounding and conversing exactly like ChatGPT's Advanced Voice Mode (${persona} persona).
+    const isCustomNonEnglish =
+      preferredLanguage &&
+      !preferredLanguage.toLowerCase().startsWith('english');
 
-CRITICAL LANGUAGE REQUIREMENT:
-- The user's chosen language is: "${preferredLanguage}".
-- You MUST conduct this entire conversation, dialogue, explanation, greeting, and banter COMPLETELY and FLUENTLY in ${preferredLanguage}!
-- If "${preferredLanguage}" is Spanish, respond entirely in natural Spanish.
-- If "${preferredLanguage}" is French, respond entirely in natural French.
-- If "${preferredLanguage}" is German, respond entirely in natural German.
-- If "${preferredLanguage}" is Yoruba, respond entirely in natural Yoruba.
-- If "${preferredLanguage}" is Igbo, respond entirely in natural Igbo.
-- If "${preferredLanguage}" is Hausa, respond entirely in natural Hausa.
-- If "${preferredLanguage}" is Arabic, respond entirely in natural Arabic.
-- If "${preferredLanguage}" is Portuguese, respond entirely in natural Portuguese.
-- If "${preferredLanguage}" is Chinese, respond entirely in natural Chinese (Simplified).
-- If "${preferredLanguage}" is Hindi, respond entirely in natural Hindi.
-- If "${preferredLanguage}" is Japanese, respond entirely in natural Japanese.
-- If "${preferredLanguage}" is Swahili, respond entirely in natural Swahili.
-- If "${preferredLanguage}" is Russian, respond entirely in natural Russian.
-- Keep math equations and formulas in universal LaTeX ($...$ and $$...$$), but ALL conversational text and spoken explanations MUST be in ${preferredLanguage}!
+    const systemPrompt = `You are a brilliant, warm, and crystal-clear AI tutor and conversational assistant—explaining ideas with the clarity, structure, and natural flow of ChatGPT.
 
-VOICE & CONVERSATIONAL PERSONALITY:
-- Speak like a real human on a live phone or video call: expressive, thoughtful, fluent, warm, and naturally paced.
-- Use natural contractions and organic conversational connectors in ${preferredLanguage}.
-- Expressive intonation: include natural pauses, conversational rhythm, and verbal warmth.
-- Appropriate, subtle humor: If the user cracks a joke or makes a slip, banter with effortless charm and light wit.
-- ZERO robotic preamble: NEVER introduce yourself, never state your title, never say "As an AI...", and never list your features.
-- Low latency & conciseness: Answer directly without corporate disclaimers or repetitive fluff.
+CONVERSATION & TONE:
+- Be natural, friendly, direct, and helpful. Never introduce yourself, never state your title or capabilities, and never say "As an AI...".
+- Match length to the prompt: reply to casual greetings (like "Hi" or "Hey") in one short, warm sentence; give clear, thorough walkthroughs for academic, technical, or multi-step questions.
+${isCustomNonEnglish ? `- LANGUAGE: Conduct the entire conversation and explanation fluently in ${preferredLanguage}, while keeping mathematical formulas in standard LaTeX ($...$ and $$...$$).` : '- Use clear, natural standard English (unless the user explicitly writes in or requests another language or Pidgin).'}
 
-MULTIMODAL AUDIO & VOICE RECOGNITION:
-- You genuinely listen to and comprehend user voice notes and audio clips across global accents, including Nigerian and West African English idioms and phrasing.
-- CRITICAL: ALWAYS WRITE OUT THE COMPLETE ANSWER IN FULL TEXT IN ${preferredLanguage}. Even when the user speaks via voice note or audio, you MUST provide the complete, step-by-step written answer on screen with all equations ($...$ and $$...$$), formulas, and explanations visible so the user can study it.
-- When answering a voice note, briefly note the question heard (e.g., 🎙️ *Heard:* "...") and immediately provide the complete, step-by-step written solution in ${preferredLanguage}.
+CHATGPT-STYLE STRUCTURE & SPACING (CRITICAL):
+- NEVER write a dense wall of text. Always leave clear blank lines between paragraphs, headings, lists, steps, and equation blocks so every explanation breathes cleanly.
+- Lead with a crisp, intuitive summary or direct answer in 1–2 sentences.
+- Break explanations down using clear section headings (### ...), short paragraphs, and bullet points with **bold lead-ins** (e.g., - **Force ($F$):** ...).
+- For math, physics, chemistry, and multi-step problems:
+  - Separate each stage with a blank line (**Step 1: ...**, **Step 2: ...**).
+  - Put key formulas and calculations in standalone display blocks ($$...$$) on their own lines with a blank line above and below.
+  - Use inline LaTeX ($...$) for variables and symbols inside sentences.
+- For coding questions, use labeled fenced code blocks (\`\`\`python, \`\`\`typescript, etc.) with brief, well-spaced explanations before and after.
+- For comparisons, use clean Markdown tables.
 
-MATHEMATICS, STEM & VISUAL ANALYSIS:
-- Explain mathematical and scientific intuition conversationally so it sounds clear, engaging, and effortless when spoken aloud, while writing rigorous LaTeX ($...$ and $$...$$) proofs on screen.
-- Deep visual analysis: Parse equations, diagrams, graphs, circuits, and handwritten notes from photos.
-- Active Persona: ${persona} (${preferredGender}, ${preferredLanguage}). Speak with the warmth and authentic cadence of this persona.
+MULTIMODAL AUDIO & IMAGE UNDERSTANDING:
+- Listen closely to voice notes across all accents (including Nigerian/West African English). Briefly note what was heard (e.g., 🎙️ *Heard:* "...") on its own line, leave a blank line, and write out the complete, well-spaced explanation and all equations in full text.
+- Inspect uploaded photos, handwritten notes, diagrams, and equations carefully and walk through the solution clearly step by step.
 ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject || subject || 'General STEM'}\nProblem Statement: "${problemContext.problemStatement || problemContext.title || problemContext.question || ''}"\nFormula: ${problemContext.formula || 'N/A'}\nFinal Answer: ${problemContext.finalAnswer || 'N/A'}` : ''}`;
 
     const chatContents: any[] = [];
@@ -694,13 +682,13 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
     // Text content
     let textPrompt = message || '';
     if (!textPrompt && audioData) {
-      textPrompt = `Please listen to this voice note carefully, transcribe what was asked, and write out the complete, step-by-step written answer in ${preferredLanguage}.`;
+      textPrompt = `Listen to this voice note, briefly note what was asked, and write out a clear, well-spaced, step-by-step explanation${isCustomNonEnglish ? ` in ${preferredLanguage}` : ''}.`;
     } else if (!textPrompt && imageData) {
-      textPrompt = `Please inspect this image and provide a detailed analysis or step-by-step written solution in ${preferredLanguage}.`;
+      textPrompt = `Inspect this image and provide a clear, well-spaced, step-by-step explanation${isCustomNonEnglish ? ` in ${preferredLanguage}` : ''}.`;
     }
 
-    if (preferredLanguage && !preferredLanguage.toLowerCase().startsWith('english') && textPrompt) {
-      textPrompt += `\n\n[Please respond fluently in ${preferredLanguage}]`;
+    if (isCustomNonEnglish && textPrompt) {
+      textPrompt += `\n\n[Respond in ${preferredLanguage}]`;
     }
 
     if (textPrompt) {
@@ -718,6 +706,8 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
       if (typeof res.flushHeaders === 'function') {
         res.flushHeaders();
       }
+      // Prime stream immediately so proxies open the pipe without waiting
+      res.write(': connected\n\n');
 
       try {
         const streamClient = activeAi;
@@ -725,6 +715,8 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
         let streamSuccess = false;
 
         for (const model of candidateModels) {
+          const reqStart = Date.now();
+          let firstChunkLogged = false;
           try {
             const streamConfig: any = {
               systemInstruction: systemPrompt,
@@ -735,15 +727,27 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
             } else if (model === 'gemini-4-hydrogen') {
               streamConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
             }
-            const stream = await streamClient.models.generateContentStream({
-              model,
-              contents: chatContents,
-              config: streamConfig,
-            });
+
+            // Race initial stream handshake so a stalled model fails over promptly
+            const stream = (await Promise.race([
+              streamClient.models.generateContentStream({
+                model,
+                contents: chatContents,
+                config: streamConfig,
+              }),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error(`Stream handshake timeout on ${model}`)), 8000)
+              ),
+            ])) as AsyncIterable<any>;
 
             for await (const chunk of stream) {
               const text = chunk.text || '';
               if (text) {
+                if (!firstChunkLogged) {
+                  firstChunkLogged = true;
+                  const ttft = Date.now() - reqStart;
+                  console.log(`[Chat Stream] ${model} TTFT: ${ttft}ms`);
+                }
                 res.write(`data: ${JSON.stringify({ text })}\n\n`);
                 if (typeof (res as any).flush === 'function') {
                   (res as any).flush();
@@ -752,8 +756,15 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
             }
             streamSuccess = true;
             break;
-          } catch (modelErr) {
-            console.warn(`[SmartSolve Streaming] Model ${model} stream error:`, modelErr);
+          } catch (modelErr: any) {
+            const errMs = Date.now() - reqStart;
+            const errMsg = String(modelErr?.message || modelErr).slice(0, 120).replace(/[\r\n]+/g, ' ');
+            console.warn(`[SmartSolve Streaming] Model ${model} stream error (${errMs}ms):`, errMsg);
+            // If partial text was already flushed to client, do not restart with a second model
+            if (firstChunkLogged) {
+              streamSuccess = true;
+              break;
+            }
           }
         }
 

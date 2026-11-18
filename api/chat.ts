@@ -186,60 +186,45 @@ export default async function handler(req: any, res: any) {
       );
     }
 
-    const systemPrompt = `You are a brilliant, friendly, and natural conversational partner and master academic tutor, with the conversational flexibility of ChatGPT and world-class problem-solving capabilities.
+    const isCustomNonEnglish =
+      preferredLanguage &&
+      !preferredLanguage.toLowerCase().startsWith('english');
 
-CONVERSATIONAL BEHAVIOR & TONE:
-- Be authentic, thoughtful, concise, and direct. Never sound like a scripted corporate customer-service bot.
-- CRITICAL: DO NOT introduce yourself. Do not state your name, title, or what you can do. Never give a welcome monologue or a bullet list of your capabilities.
-- When the user sends a casual greeting (like "Hi", "Hello", "Hey", "Good morning", or "Sup"), reply like a real person in ONE short, friendly sentence. For example: "Hey there! How's your day going?" or "Hello! What are you working on today?"
-- If the user cracks a joke or shares casual thoughts, banter naturally with warmth and humor.
-- Adjust response length strictly to the prompt: keep simple chats brief and punchy, and make complex math/physics/chemistry derivations deeply detailed.
+    const systemPrompt = `You are a brilliant, warm, and crystal-clear AI tutor and conversational assistant—explaining ideas with the clarity, structure, and natural flow of ChatGPT.
 
-MULTIMODAL AUDIO & VOICE RECOGNITION:
-- You genuinely listen to and comprehend user voice notes and audio clips.
-- Accurately recognize spoken questions across global accents, including Nigerian and West African English idioms and phrasing.
-- CRITICAL: ALWAYS WRITE OUT THE COMPLETE ANSWER IN FULL TEXT. Even when the user speaks via a voice note or audio recording, you MUST write out the complete, comprehensive written answer on screen with all steps, formulas ($...$ and $$...$$), equations, and explanations clearly visible so the user can read and study it.
-- When answering a voice note, briefly note the question heard (e.g., 🎙️ *Heard:* "...") and immediately provide the complete, step-by-step written solution.
-- Never respond with an audio-only or partial reply. Every response MUST be written out in full text.
+CONVERSATION & TONE:
+- Be natural, friendly, direct, and helpful. Never introduce yourself, never state your title or capabilities, and never say "As an AI...".
+- Match length to the prompt: reply to casual greetings (like "Hi" or "Hey") in one short, warm sentence; give clear, thorough walkthroughs for academic, technical, or multi-step questions.
+${isCustomNonEnglish ? `- LANGUAGE: Conduct the entire conversation and explanation fluently in ${preferredLanguage}, while keeping mathematical formulas in standard LaTeX ($...$ and $$...$$).` : '- Use clear, natural standard English (unless the user explicitly writes in or requests another language or Pidgin).'}
 
-MULTIMODAL IMAGE & VISION UNDERSTANDING:
-- Thoroughly inspect uploaded photos, screenshots, camera pictures, textbook problems, and handwritten notes.
-- Accurately parse equations, diagrams, circuit schematics, graphs, and chemical formulas.
-- Provide step-by-step walkthroughs for visual problems.
-- Support follow-up questions referencing previously uploaded images in the conversation.
+CHATGPT-STYLE STRUCTURE & SPACING (CRITICAL):
+- NEVER write a dense wall of text. Always leave clear blank lines between paragraphs, headings, lists, steps, and equation blocks so every explanation breathes cleanly.
+- Lead with a crisp, intuitive summary or direct answer in 1–2 sentences.
+- Break explanations down using clear section headings (### ...), short paragraphs, and bullet points with **bold lead-ins** (e.g., - **Force ($F$):** ...).
+- For math, physics, chemistry, and multi-step problems:
+  - Separate each stage with a blank line (**Step 1: ...**, **Step 2: ...**).
+  - Put key formulas and calculations in standalone display blocks ($$...$$) on their own lines with a blank line above and below.
+  - Use inline LaTeX ($...$) for variables and symbols inside sentences.
+- For coding questions, use labeled fenced code blocks (\`\`\`python, \`\`\`typescript, etc.) with brief, well-spaced explanations before and after.
+- For comparisons, use clean Markdown tables.
 
-ACADEMIC & GENERAL SCOPE:
-- Full spectrum: Everyday conversation, programming (Python, JS, TS, C++, Java, etc.), STEM (Mathematics, Physics, Chemistry, Biology), philosophy, history, essays, and exam prep (JAMB/UTME, WAEC/WASSCE, NECO, JUPEB, and University).
-- Mathematics & Physics: Show clear step-by-step working, use standard LaTeX ($...$ for inline, $$...$$ for display equations), and explain key conceptual principles.
-- Code blocks: Use labeled markdown code blocks (\`\`\`python, \`\`\`typescript, etc.).
-- Tables: Use standard Markdown tables for comparisons.
-- VOICE & LANGUAGE PREFERENCE: The user has selected "${preferredLanguage}" with a "${preferredGender}" voice assistant persona. When conversing or answering, accommodate this language naturally. Respond immediately and directly with clear, concise, step-by-step explanations without unnecessary introductory filler.
+MULTIMODAL AUDIO & IMAGE UNDERSTANDING:
+- Listen closely to voice notes across all accents (including Nigerian/West African English). Briefly note what was heard (e.g., 🎙️ *Heard:* "...") on its own line, leave a blank line, and write out the complete, well-spaced explanation and all equations in full text.
+- Inspect uploaded photos, handwritten notes, diagrams, and equations carefully and walk through the solution clearly step by step.
 ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject || subject || 'General STEM'}\nProblem Statement: "${problemContext.problemStatement || problemContext.title || problemContext.question || ''}"\nFormula: ${problemContext.formula || 'N/A'}\nFinal Answer: ${problemContext.finalAnswer || 'N/A'}` : ''}`;
 
     const chatContents: any[] = [];
 
-    // Reconstruct history with attachments
+    // Reconstruct recent conversation history (prune old heavy base64 to keep payload lightweight and fast)
     if (Array.isArray(history) && history.length > 0) {
-      for (const h of history.slice(-12)) {
+      for (const h of history.slice(-6)) {
         if (!h.content && (!h.attachments || h.attachments.length === 0)) continue;
         const parts: any[] = [];
 
         if (Array.isArray(h.attachments)) {
           for (const att of h.attachments) {
-            if (att.data) {
-              const cleanData = att.data.includes(';base64,')
-                ? att.data.split(';base64,')[1]
-                : att.data;
-              let mime = (att.mimeType || 'image/jpeg').trim();
-              if (mime.includes(';')) mime = mime.split(';')[0].trim();
-              if (cleanData) {
-                parts.push({
-                  inlineData: {
-                    mimeType: mime,
-                    data: cleanData,
-                  },
-                });
-              }
+            if (att.name) {
+              parts.push({ text: `[Attached: ${att.name}]` });
             }
           }
         }
@@ -287,29 +272,47 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
     if (imageData) appendInlinePart(imageData, mimeType || 'image/jpeg');
     if (audioData) appendInlinePart(audioData, audioMimeType || 'audio/webm');
 
-    const textPrompt = message || (audioData ? 'Please listen to this voice note carefully, transcribe what was asked, and write out the complete, step-by-step written answer in full detail.' : (imageData ? 'Please inspect this image and provide a detailed analysis or step-by-step solution.' : ''));
+    let textPrompt = message || '';
+    if (!textPrompt && audioData) {
+      textPrompt = `Listen to this voice note, briefly note what was asked, and write out a clear, well-spaced, step-by-step explanation${isCustomNonEnglish ? ` in ${preferredLanguage}` : ''}.`;
+    } else if (!textPrompt && imageData) {
+      textPrompt = `Inspect this image and provide a clear, well-spaced, step-by-step explanation${isCustomNonEnglish ? ` in ${preferredLanguage}` : ''}.`;
+    }
+    if (isCustomNonEnglish && textPrompt) {
+      textPrompt += `\n\n[Respond in ${preferredLanguage}]`;
+    }
     if (textPrompt) {
       currentParts.push({ text: textPrompt });
     }
 
     chatContents.push({ role: 'user', parts: currentParts });
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
 
     // 1. Streaming SSE Response (instant first-token delivery)
     if (shouldStream) {
       res.statusCode = 200;
-      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
       if (typeof res.flushHeaders === 'function') {
         res.flushHeaders();
       }
+      res.write(': connected\n\n');
 
       const candidateModels = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
       let streamSuccess = false;
 
       for (const model of candidateModels) {
+        let firstChunkEmitted = false;
         try {
           const streamConfig: any = {
             systemInstruction: systemPrompt,
@@ -320,22 +323,35 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
           } else if (model === 'gemini-4-hydrogen') {
             streamConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
           }
-          const stream = await ai.models.generateContentStream({
-            model,
-            contents: chatContents,
-            config: streamConfig,
-          });
+          const stream = (await Promise.race([
+            ai.models.generateContentStream({
+              model,
+              contents: chatContents,
+              config: streamConfig,
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error(`Stream handshake timeout on ${model}`)), 8000)
+            ),
+          ])) as AsyncIterable<any>;
 
           for await (const chunk of stream) {
             const text = chunk.text || '';
             if (text) {
+              firstChunkEmitted = true;
               res.write(`data: ${JSON.stringify({ text })}\n\n`);
+              if (typeof (res as any).flush === 'function') {
+                (res as any).flush();
+              }
             }
           }
           streamSuccess = true;
           break;
         } catch (modelErr) {
           console.warn(`[api/chat] Model ${model} stream error:`, modelErr);
+          if (firstChunkEmitted) {
+            streamSuccess = true;
+            break;
+          }
         }
       }
 
@@ -345,7 +361,14 @@ ${problemContext ? `\nACTIVE PROBLEM IN FOCUS:\nTopic: ${problemContext.subject 
           fallbackRes = await generateWithModelFallback(ai, chatContents, systemPrompt, 25000);
         } catch (err: any) {
           if (serverKey && serverKey !== apiKey) {
-            const fallbackAi = new GoogleGenAI({ apiKey: serverKey });
+            const fallbackAi = new GoogleGenAI({
+              apiKey: serverKey,
+              httpOptions: {
+                headers: {
+                  'User-Agent': 'aistudio-build',
+                },
+              },
+            });
             fallbackRes = await generateWithModelFallback(fallbackAi, chatContents, systemPrompt, 25000);
           } else {
             throw err;
