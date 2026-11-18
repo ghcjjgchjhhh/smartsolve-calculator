@@ -1,34 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Header } from './components/Header';
 import { ScientificCalculator } from './components/ScientificCalculator';
-import { MathHub } from './components/MathHub';
-import { PhysicsHub } from './components/PhysicsHub';
-import { EquationSolverView } from './components/EquationSolverView';
-import { UnitConverterView } from './components/UnitConverterView';
-import { JambPracticeView } from './components/JambPracticeView';
-import { SmartInputView } from './components/SmartInputView';
-import { GeminiAiSolverView } from './components/GeminiAiSolverView';
-import { AiChatAssistantView } from './components/AiChatAssistantView';
-import { FunctionGrapherView } from './components/FunctionGrapherView';
-import { PeriodicTableView } from './components/PeriodicTableView';
-import { PhysicsSimulatorView } from './components/PhysicsSimulatorView';
-import { FlashcardsView } from './components/FlashcardsView';
-import { CustomFormulaNotebookView } from './components/CustomFormulaNotebookView';
-import { VectorLabView } from './components/VectorLabView';
-import { CircuitLabView } from './components/CircuitLabView';
-import { OrganicChemistryView } from './components/OrganicChemistryView';
-import { ExamDiagnosticsView } from './components/ExamDiagnosticsView';
-import { OpticsLabView } from './components/OpticsLabView';
-import { GasLawsLabView } from './components/GasLawsLabView';
-import { TitrationLabView } from './components/TitrationLabView';
-import { StatisticsLabView } from './components/StatisticsLabView';
-import { MatrixLabView } from './components/MatrixLabView';
-import { ChemistrySolverView } from './components/ChemistrySolverView';
-import { RevisionSheetsView } from './components/RevisionSheetsView';
-import { LearnAnyTopicView } from './components/LearnAnyTopicView';
-import { HistoryDrawer } from './components/HistoryDrawer';
-import { SearchModal } from './components/SearchModal';
-import { InstallAppModal } from './components/InstallAppModal';
+import { AppOpeningCurtain } from './components/AppOpeningCurtain';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import {
   Calculator,
@@ -74,10 +47,39 @@ import {
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { LanguageProvider, useAppLanguage } from './contexts/LanguageContext';
 import { AuthProvider } from './contexts/AuthContext';
-import { LanguageSettingsModal } from './components/LanguageSettingsModal';
-import { AuthModal } from './components/AuthModal';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { UserProfileView } from './components/UserProfileView';
+
+const MathHub = lazy(() => import('./components/MathHub').then((m) => ({ default: m.MathHub })));
+const PhysicsHub = lazy(() => import('./components/PhysicsHub').then((m) => ({ default: m.PhysicsHub })));
+const EquationSolverView = lazy(() => import('./components/EquationSolverView').then((m) => ({ default: m.EquationSolverView })));
+const UnitConverterView = lazy(() => import('./components/UnitConverterView').then((m) => ({ default: m.UnitConverterView })));
+const JambPracticeView = lazy(() => import('./components/JambPracticeView').then((m) => ({ default: m.JambPracticeView })));
+const SmartInputView = lazy(() => import('./components/SmartInputView').then((m) => ({ default: m.SmartInputView })));
+const GeminiAiSolverView = lazy(() => import('./components/GeminiAiSolverView').then((m) => ({ default: m.GeminiAiSolverView })));
+const AiChatAssistantView = lazy(() => import('./components/AiChatAssistantView').then((m) => ({ default: m.AiChatAssistantView })));
+const FunctionGrapherView = lazy(() => import('./components/FunctionGrapherView').then((m) => ({ default: m.FunctionGrapherView })));
+const PeriodicTableView = lazy(() => import('./components/PeriodicTableView').then((m) => ({ default: m.PeriodicTableView })));
+const PhysicsSimulatorView = lazy(() => import('./components/PhysicsSimulatorView').then((m) => ({ default: m.PhysicsSimulatorView })));
+const FlashcardsView = lazy(() => import('./components/FlashcardsView').then((m) => ({ default: m.FlashcardsView })));
+const CustomFormulaNotebookView = lazy(() => import('./components/CustomFormulaNotebookView').then((m) => ({ default: m.CustomFormulaNotebookView })));
+const VectorLabView = lazy(() => import('./components/VectorLabView').then((m) => ({ default: m.VectorLabView })));
+const CircuitLabView = lazy(() => import('./components/CircuitLabView').then((m) => ({ default: m.CircuitLabView })));
+const OrganicChemistryView = lazy(() => import('./components/OrganicChemistryView').then((m) => ({ default: m.OrganicChemistryView })));
+const ExamDiagnosticsView = lazy(() => import('./components/ExamDiagnosticsView').then((m) => ({ default: m.ExamDiagnosticsView })));
+const OpticsLabView = lazy(() => import('./components/OpticsLabView').then((m) => ({ default: m.OpticsLabView })));
+const GasLawsLabView = lazy(() => import('./components/GasLawsLabView').then((m) => ({ default: m.GasLawsLabView })));
+const TitrationLabView = lazy(() => import('./components/TitrationLabView').then((m) => ({ default: m.TitrationLabView })));
+const StatisticsLabView = lazy(() => import('./components/StatisticsLabView').then((m) => ({ default: m.StatisticsLabView })));
+const MatrixLabView = lazy(() => import('./components/MatrixLabView').then((m) => ({ default: m.MatrixLabView })));
+const ChemistrySolverView = lazy(() => import('./components/ChemistrySolverView').then((m) => ({ default: m.ChemistrySolverView })));
+const RevisionSheetsView = lazy(() => import('./components/RevisionSheetsView').then((m) => ({ default: m.RevisionSheetsView })));
+const LearnAnyTopicView = lazy(() => import('./components/LearnAnyTopicView').then((m) => ({ default: m.LearnAnyTopicView })));
+const HistoryDrawer = lazy(() => import('./components/HistoryDrawer').then((m) => ({ default: m.HistoryDrawer })));
+const SearchModal = lazy(() => import('./components/SearchModal').then((m) => ({ default: m.SearchModal })));
+const InstallAppModal = lazy(() => import('./components/InstallAppModal').then((m) => ({ default: m.InstallAppModal })));
+const LanguageSettingsModal = lazy(() => import('./components/LanguageSettingsModal').then((m) => ({ default: m.LanguageSettingsModal })));
+const AuthModal = lazy(() => import('./components/AuthModal').then((m) => ({ default: m.AuthModal })));
+const ProtectedRoute = lazy(() => import('./components/ProtectedRoute').then((m) => ({ default: m.ProtectedRoute })));
+const UserProfileView = lazy(() => import('./components/UserProfileView').then((m) => ({ default: m.UserProfileView })));
 
 const AiWhiteboardView = lazy(() => import('./components/AiWhiteboardView').then((m) => ({ default: m.AiWhiteboardView })));
 const ThreePhysicsLabView = lazy(() => import('./components/ThreePhysicsLabView').then((m) => ({ default: m.ThreePhysicsLabView })));
@@ -697,142 +699,194 @@ function MainApp() {
         )}
         {visitedTabs.has('ai_chat') && (
           <div className={activeTab === 'ai_chat' ? 'block animate-tabEnter' : 'hidden'}>
-            <AiChatAssistantView />
+            <Suspense fallback={<ModuleLoader />}>
+              <AiChatAssistantView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('ai_solver') && (
           <div className={activeTab === 'ai_solver' ? 'block animate-tabEnter' : 'hidden'}>
-            <GeminiAiSolverView
-              initialPrompt={aiSolverInitialPrompt}
-              initialSubject={aiSolverInitialSubject}
-              onClearInitialPrompt={() => setAiSolverInitialPrompt('')}
-            />
+            <Suspense fallback={<ModuleLoader />}>
+              <GeminiAiSolverView
+                initialPrompt={aiSolverInitialPrompt}
+                initialSubject={aiSolverInitialSubject}
+                onClearInitialPrompt={() => setAiSolverInitialPrompt('')}
+              />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('learn_topic') && (
           <div className={activeTab === 'learn_topic' ? 'block animate-tabEnter' : 'hidden'}>
-            <LearnAnyTopicView />
+            <Suspense fallback={<ModuleLoader />}>
+              <LearnAnyTopicView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('grapher') && (
           <div className={activeTab === 'grapher' ? 'block animate-tabEnter' : 'hidden'}>
-            <FunctionGrapherView />
+            <Suspense fallback={<ModuleLoader />}>
+              <FunctionGrapherView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('periodic_table') && (
           <div className={activeTab === 'periodic_table' ? 'block animate-tabEnter' : 'hidden'}>
-            <PeriodicTableView />
+            <Suspense fallback={<ModuleLoader />}>
+              <PeriodicTableView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('physics_sim') && (
           <div className={activeTab === 'physics_sim' ? 'block animate-tabEnter' : 'hidden'}>
-            <PhysicsSimulatorView />
+            <Suspense fallback={<ModuleLoader />}>
+              <PhysicsSimulatorView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('flashcards') && (
           <div className={activeTab === 'flashcards' ? 'block animate-tabEnter' : 'hidden'}>
-            <FlashcardsView />
+            <Suspense fallback={<ModuleLoader />}>
+              <FlashcardsView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('notebook') && (
           <div className={activeTab === 'notebook' ? 'block animate-tabEnter' : 'hidden'}>
-            <CustomFormulaNotebookView />
+            <Suspense fallback={<ModuleLoader />}>
+              <CustomFormulaNotebookView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('math') && (
           <div className={activeTab === 'math' ? 'block animate-tabEnter' : 'hidden'}>
-            <MathHub />
+            <Suspense fallback={<ModuleLoader />}>
+              <MathHub />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('physics') && (
           <div className={activeTab === 'physics' ? 'block animate-tabEnter' : 'hidden'}>
-            <PhysicsHub />
+            <Suspense fallback={<ModuleLoader />}>
+              <PhysicsHub />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('equation') && (
           <div className={activeTab === 'equation' ? 'block animate-tabEnter' : 'hidden'}>
-            <EquationSolverView />
+            <Suspense fallback={<ModuleLoader />}>
+              <EquationSolverView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('converter') && (
           <div className={activeTab === 'converter' ? 'block animate-tabEnter' : 'hidden'}>
-            <UnitConverterView />
+            <Suspense fallback={<ModuleLoader />}>
+              <UnitConverterView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('jamb') && (
           <div className={activeTab === 'jamb' ? 'block animate-tabEnter' : 'hidden'}>
-            <JambPracticeView onOpenInGemini={handleOpenInGemini} />
+            <Suspense fallback={<ModuleLoader />}>
+              <JambPracticeView onOpenInGemini={handleOpenInGemini} />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('smart_input') && (
           <div className={activeTab === 'smart_input' ? 'block animate-tabEnter' : 'hidden'}>
-            <SmartInputView />
+            <Suspense fallback={<ModuleLoader />}>
+              <SmartInputView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('vectors') && (
           <div className={activeTab === 'vectors' ? 'block animate-tabEnter' : 'hidden'}>
-            <VectorLabView />
+            <Suspense fallback={<ModuleLoader />}>
+              <VectorLabView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('circuits') && (
           <div className={activeTab === 'circuits' ? 'block animate-tabEnter' : 'hidden'}>
-            <CircuitLabView />
+            <Suspense fallback={<ModuleLoader />}>
+              <CircuitLabView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('organic') && (
           <div className={activeTab === 'organic' ? 'block animate-tabEnter' : 'hidden'}>
-            <OrganicChemistryView />
+            <Suspense fallback={<ModuleLoader />}>
+              <OrganicChemistryView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('diagnostics') && (
           <div className={activeTab === 'diagnostics' ? 'block animate-tabEnter' : 'hidden'}>
-            <ExamDiagnosticsView onNavigateTab={navigateTab} />
+            <Suspense fallback={<ModuleLoader />}>
+              <ExamDiagnosticsView onNavigateTab={navigateTab} />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('optics') && (
           <div className={activeTab === 'optics' ? 'block animate-tabEnter' : 'hidden'}>
-            <OpticsLabView />
+            <Suspense fallback={<ModuleLoader />}>
+              <OpticsLabView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('gas_laws') && (
           <div className={activeTab === 'gas_laws' ? 'block animate-tabEnter' : 'hidden'}>
-            <GasLawsLabView />
+            <Suspense fallback={<ModuleLoader />}>
+              <GasLawsLabView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('titration') && (
           <div className={activeTab === 'titration' ? 'block animate-tabEnter' : 'hidden'}>
-            <TitrationLabView />
+            <Suspense fallback={<ModuleLoader />}>
+              <TitrationLabView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('chem_balancer') && (
           <div className={activeTab === 'chem_balancer' ? 'block animate-tabEnter' : 'hidden'}>
-            <ChemistrySolverView onOpenInGemini={handleOpenInGemini} />
+            <Suspense fallback={<ModuleLoader />}>
+              <ChemistrySolverView onOpenInGemini={handleOpenInGemini} />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('statistics') && (
           <div className={activeTab === 'statistics' ? 'block animate-tabEnter' : 'hidden'}>
-            <StatisticsLabView />
+            <Suspense fallback={<ModuleLoader />}>
+              <StatisticsLabView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('matrix') && (
           <div className={activeTab === 'matrix' ? 'block animate-tabEnter' : 'hidden'}>
-            <MatrixLabView />
+            <Suspense fallback={<ModuleLoader />}>
+              <MatrixLabView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('revision') && (
           <div className={activeTab === 'revision' ? 'block animate-tabEnter' : 'hidden'}>
-            <RevisionSheetsView />
+            <Suspense fallback={<ModuleLoader />}>
+              <RevisionSheetsView />
+            </Suspense>
           </div>
         )}
         {visitedTabs.has('profile') && (
           <div className={activeTab === 'profile' ? 'block animate-tabEnter' : 'hidden'}>
-            <ProtectedRoute
-              routeTitle="Student Profile & Private Vault"
-              routeDescription="Sign in with your Google account to sync your academic profile and store private study vault notes secured by Auth.js and encrypted HTTP-only cookie sessions."
-              onBackToCalculator={() => navigateTab('scientific')}
-            >
-              <UserProfileView onNavigateTab={navigateTab} />
-            </ProtectedRoute>
+            <Suspense fallback={<ModuleLoader />}>
+              <ProtectedRoute
+                routeTitle="Student Profile & Private Vault"
+                routeDescription="Sign in with your Google account to sync your academic profile and store private study vault notes secured by Auth.js and encrypted HTTP-only cookie sessions."
+                onBackToCalculator={() => navigateTab('scientific')}
+              >
+                <UserProfileView onNavigateTab={navigateTab} />
+              </ProtectedRoute>
+            </Suspense>
           </div>
         )}
 
@@ -873,23 +927,31 @@ function MainApp() {
         </aside>
       )}
 
-      {/* Global Modals / Drawers */}
-      <HistoryDrawer isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
-      <SearchModal
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        onSelectAction={handleSelectFromSearch}
-      />
-      <InstallAppModal
-        isOpen={isInstallModalOpen}
-        onClose={() => setIsInstallModalOpen(false)}
-      />
-      <LanguageSettingsModal />
-      <AuthModal
-        onAuthenticated={(redirectTab) => {
-          if (redirectTab) navigateTab(redirectTab);
-        }}
-      />
+      {/* Global Modals / Drawers (lazy-loaded so initial boot stays fast) */}
+      <Suspense fallback={null}>
+        {isHistoryOpen && (
+          <HistoryDrawer isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
+        )}
+        {isSearchOpen && (
+          <SearchModal
+            isOpen={isSearchOpen}
+            onClose={() => setIsSearchOpen(false)}
+            onSelectAction={handleSelectFromSearch}
+          />
+        )}
+        {isInstallModalOpen && (
+          <InstallAppModal
+            isOpen={isInstallModalOpen}
+            onClose={() => setIsInstallModalOpen(false)}
+          />
+        )}
+        <LanguageSettingsModal />
+        <AuthModal
+          onAuthenticated={(redirectTab) => {
+            if (redirectTab) navigateTab(redirectTab);
+          }}
+        />
+      </Suspense>
 
       {/* Footer */}
       <footer className="border-t border-[#27272A] bg-[#000000] py-6 text-center text-xs text-[#A1A1AA]">
@@ -924,6 +986,7 @@ export default function App() {
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
+          <AppOpeningCurtain />
           <MainApp />
         </AuthProvider>
       </LanguageProvider>
