@@ -57,8 +57,16 @@
       "destination": "/api/learn?action=formula_questions"
     },
     {
-      "source": "/api/auth/:path*",
-      "destination": "/api/auth?__authPath=:path*"
+      "source": "/api/user-data",
+      "destination": "/api/auth?__authRoute=user-data"
+    },
+    {
+      "source": "/api/study-rooms",
+      "destination": "/api/auth?__authRoute=study-rooms"
+    },
+    {
+      "source": "/api/auth/(.*)",
+      "destination": "/api/auth?__authPath=$1"
     },
     {
       "source": "/((?!api/).*)",

@@ -13,9 +13,7 @@ import researchHandler from './api/research';
 import documentTutorHandler from './api/document-tutor';
 import learnHandler from './api/learn';
 import transcribeHandler from './api/transcribe';
-import authHandler from './api/auth';
-import userDataHandler from './api/user-data';
-import studyRoomsHandler from './api/study-rooms';
+import authHandler, { userDataHandler, studyRoomsHandler } from './api/auth';
 
 dotenv.config();
 
