@@ -197,25 +197,83 @@ export function detectAndEnhanceGraphs(
       questionScope
     );
 
-  // If Gemini returned graphs, only keep them when the question genuinely warrants a graph
-  if (solution.graphs && solution.graphs.length > 0) {
+  // If Gemini returned graphs, normalize/validate them when the question genuinely warrants a graph
+  if (Array.isArray(solution.graphs) && solution.graphs.length > 0) {
     if (!hasGenuineGraphSignal) {
       solution.graphs = [];
       return [];
     }
-    solution.graphs.forEach((g) => {
-      if (g.simulation) {
-        g.simulation.objectLabel = detectedObjectLabel;
-      } else {
-        g.simulation = {
-          hasSimulation: true,
-          type: g.graphType === 'projectile_motion' ? 'projectile_2d' : 'motion_1d',
-          duration: g.xAxis.max || 10,
-          objectLabel: detectedObjectLabel,
+
+    const validNormalized = solution.graphs
+      .filter((g: any) => {
+        if (!g || typeof g !== 'object') return false;
+        const curves = Array.isArray(g.curves) ? g.curves : [];
+        return curves.some(
+          (c: any) =>
+            c &&
+            (typeof c.fnExpression === 'string' && c.fnExpression.trim().length > 0 ||
+              (Array.isArray(c.segments) && c.segments.length > 0) ||
+              (Array.isArray(c.points) && c.points.length > 0))
+        );
+      })
+      .map((g: any, idx: number): AiGraphData => {
+        const rawX = g.xAxis && typeof g.xAxis === 'object' ? g.xAxis : {};
+        const rawY = g.yAxis && typeof g.yAxis === 'object' ? g.yAxis : {};
+        const xMin = Number.isFinite(Number(rawX.min)) ? Number(rawX.min) : 0;
+        const rawXMax = Number.isFinite(Number(rawX.max)) ? Number(rawX.max) : xMin + 10;
+        const xMax = rawXMax > xMin ? rawXMax : xMin + 10;
+
+        const yMin = Number.isFinite(Number(rawY.min)) ? Number(rawY.min) : -10;
+        const rawYMax = Number.isFinite(Number(rawY.max)) ? Number(rawY.max) : yMin + 20;
+        const yMax = rawYMax > yMin ? rawYMax : yMin + 20;
+
+        const simulation = g.simulation && typeof g.simulation === 'object'
+          ? {
+              ...g.simulation,
+              hasSimulation: g.simulation.hasSimulation ?? true,
+              duration: Number.isFinite(Number(g.simulation.duration)) && Number(g.simulation.duration) > 0
+                ? Number(g.simulation.duration)
+                : Math.max(xMax - xMin, 10),
+              objectLabel: detectedObjectLabel,
+            }
+          : {
+              hasSimulation: true,
+              type: (g.graphType === 'projectile_motion' ? 'projectile_2d' : 'motion_1d') as 'projectile_2d' | 'motion_1d',
+              duration: Math.max(xMax - xMin, 10),
+              objectLabel: detectedObjectLabel,
+            };
+
+        return {
+          ...g,
+          id: g.id || `ai_graph_${idx + 1}`,
+          title: g.title || 'Interactive Mathematical & Physics Graph',
+          category: g.category || 'general',
+          graphType: g.graphType || 'custom',
+          xAxis: {
+            label: rawX.label || 'x',
+            unit: rawX.unit,
+            min: xMin,
+            max: xMax,
+            step: Number.isFinite(Number(rawX.step)) && Number(rawX.step) > 0 ? Number(rawX.step) : undefined,
+          },
+          yAxis: {
+            label: rawY.label || 'y',
+            unit: rawY.unit,
+            min: yMin,
+            max: yMax,
+            step: Number.isFinite(Number(rawY.step)) && Number(rawY.step) > 0 ? Number(rawY.step) : undefined,
+          },
+          curves: g.curves,
+          simulation,
         };
-      }
-    });
-    return solution.graphs;
+      });
+
+    if (validNormalized.length > 0) {
+      solution.graphs = validNormalized;
+      return validNormalized;
+    }
+    // Fall through to deterministic procedural generators if Gemini graphs had missing/empty curves
+    solution.graphs = [];
   }
 
   const graphs: AiGraphData[] = [];

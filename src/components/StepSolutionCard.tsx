@@ -148,7 +148,7 @@ export const StepSolutionCard: React.FC<Props> = ({ solution, onGenerateSimilar 
 
   const copySolutionText = () => {
     const text = `
-${solution.problemStatement ? `${solution.problemStatement}\n\n` : ''}${solution.steps.join('\n\n')}
+${solution.problemStatement ? `${solution.problemStatement}\n\n` : ''}${(solution.steps || []).join('\n\n')}
 
 Answer: ${solution.finalAnswer}
     `.trim();

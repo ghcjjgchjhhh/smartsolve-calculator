@@ -50,8 +50,8 @@ export const SIMULATION_OBJECTS: {
 ];
 
 export function detectSimObjectType(graph: AiGraphData, problemContext?: string): SimulationObjectType {
-  const fullText = `${problemContext || ''} ${graph.title || ''} ${graph.graphType || ''} ${graph.xAxis.label || ''} ${graph.yAxis.label || ''}`.toLowerCase();
-  const objLabel = (graph.simulation?.objectLabel || '').toLowerCase();
+  const fullText = `${problemContext || ''} ${graph?.title || ''} ${graph?.graphType || ''} ${graph?.xAxis?.label || ''} ${graph?.yAxis?.label || ''}`.toLowerCase();
+  const objLabel = (graph?.simulation?.objectLabel || '').toLowerCase();
 
   // 1. Plane / Airplane / Aeroplane / Jet / Aircraft
   if (
@@ -1004,7 +1004,48 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
   }
 
   const [activeGraphIndex, setActiveGraphIndex] = useState(0);
-  const graph = graphs[activeGraphIndex] || graphs[0];
+  const rawGraph = graphs[activeGraphIndex] || graphs[0];
+  const safeXAxis = useMemo(() => {
+    const ax = rawGraph?.xAxis && typeof rawGraph.xAxis === 'object' ? rawGraph.xAxis : ({} as Partial<AiGraphData['xAxis']>);
+    const min = Number.isFinite(Number(ax.min)) ? Number(ax.min) : 0;
+    const rawMax = Number.isFinite(Number(ax.max)) ? Number(ax.max) : min + 10;
+    return {
+      label: ax.label || 'x',
+      unit: ax.unit || '',
+      min,
+      max: rawMax > min ? rawMax : min + 10,
+      step: Number.isFinite(Number(ax.step)) && Number(ax.step) > 0 ? Number(ax.step) : undefined,
+    };
+  }, [rawGraph]);
+
+  const safeYAxis = useMemo(() => {
+    const ay = rawGraph?.yAxis && typeof rawGraph.yAxis === 'object' ? rawGraph.yAxis : ({} as Partial<AiGraphData['yAxis']>);
+    const min = Number.isFinite(Number(ay.min)) ? Number(ay.min) : -10;
+    const rawMax = Number.isFinite(Number(ay.max)) ? Number(ay.max) : min + 20;
+    return {
+      label: ay.label || 'y',
+      unit: ay.unit || '',
+      min,
+      max: rawMax > min ? rawMax : min + 20,
+      step: Number.isFinite(Number(ay.step)) && Number(ay.step) > 0 ? Number(ay.step) : undefined,
+    };
+  }, [rawGraph]);
+
+  const safeCurves = useMemo(() => (Array.isArray(rawGraph?.curves) ? rawGraph.curves : []), [rawGraph]);
+
+  const graph = useMemo<AiGraphData>(
+    () => ({
+      ...rawGraph,
+      id: rawGraph?.id || 'graph_1',
+      title: rawGraph?.title || 'Interactive Graph & Simulation',
+      category: rawGraph?.category || 'general',
+      graphType: rawGraph?.graphType || 'custom',
+      xAxis: safeXAxis,
+      yAxis: safeYAxis,
+      curves: safeCurves,
+    }),
+    [rawGraph, safeXAxis, safeYAxis, safeCurves]
+  );
 
   // Animation & simulation playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1034,12 +1075,15 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Graph domains
-  const xMin = graph.xAxis.min;
-  const xMax = graph.xAxis.max;
-  const yMin = graph.yAxis.min;
-  const yMax = graph.yAxis.max;
+  const xMin = safeXAxis.min;
+  const xMax = safeXAxis.max;
+  const yMin = safeYAxis.min;
+  const yMax = safeYAxis.max;
 
-  const simDuration = graph.simulation?.duration || Math.max(xMax - xMin, 5);
+  const simDuration =
+    Number.isFinite(Number(graph.simulation?.duration)) && Number(graph.simulation?.duration) > 0
+      ? Number(graph.simulation?.duration)
+      : Math.max(xMax - xMin, 5);
 
   // Safe evaluation of mathematical curve expressions
   const evaluateCurve = useCallback(
@@ -1230,8 +1274,8 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 4]);
 
-    const xStep = graph.xAxis.step || Math.max((curXMax - curXMin) / 8, 1);
-    const yStep = graph.yAxis.step || Math.max((curYMax - curYMin) / 6, 1);
+    const xStep = safeXAxis.step || Math.max((curXMax - curXMin) / 8, 1);
+    const yStep = safeYAxis.step || Math.max((curYMax - curYMin) / 6, 1);
 
     // Vertical grid & X-axis tick labels
     ctx.fillStyle = '#A1A1AA';
@@ -1294,19 +1338,19 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     // X label
-    const xUnit = graph.xAxis.unit ? ` (${graph.xAxis.unit})` : '';
-    ctx.fillText(`${graph.xAxis.label}${xUnit}`, padLeft + plotWidth / 2, height - 6);
+    const xUnit = safeXAxis.unit ? ` (${safeXAxis.unit})` : '';
+    ctx.fillText(`${safeXAxis.label}${xUnit}`, padLeft + plotWidth / 2, height - 6);
 
     // Y label (rotated)
     ctx.save();
     ctx.translate(18, padTop + plotHeight / 2);
     ctx.rotate(-Math.PI / 2);
-    const yUnit = graph.yAxis.unit ? ` (${graph.yAxis.unit})` : '';
-    ctx.fillText(`${graph.yAxis.label}${yUnit}`, 0, 0);
+    const yUnit = safeYAxis.unit ? ` (${safeYAxis.unit})` : '';
+    ctx.fillText(`${safeYAxis.label}${yUnit}`, 0, 0);
     ctx.restore();
 
     // 4. Shaded Areas (e.g. area under v-t graph = displacement)
-    graph.curves.forEach((curve) => {
+    safeCurves.forEach((curve) => {
       if (curve.shadedArea) {
         const { fromX, toX, color, label } = curve.shadedArea;
         const areaColor = color || '#22C55E';
@@ -1356,7 +1400,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
     });
 
     // 5. Plot Curves
-    graph.curves.forEach((curve) => {
+    safeCurves.forEach((curve) => {
       const strokeColor = curve.color || '#22C55E';
       ctx.save();
       ctx.beginPath();
@@ -1395,10 +1439,11 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
     });
 
     // 6. Draw Key Critical Points (Roots, Max, Min, Intercepts)
-    if (graph.keyPoints && graph.keyPoints.length > 0) {
+    if (Array.isArray(graph.keyPoints) && graph.keyPoints.length > 0) {
       graph.keyPoints.forEach((kp) => {
-        const kx = toCanvasX(kp.x);
-        const ky = toCanvasY(kp.y);
+        if (!kp || !Number.isFinite(Number(kp.x)) || !Number.isFinite(Number(kp.y))) return;
+        const kx = toCanvasX(Number(kp.x));
+        const ky = toCanvasY(Number(kp.y));
 
         if (kx >= padLeft && kx <= width - padRight && ky >= padTop && ky <= height - padBottom) {
           ctx.save();
@@ -1443,7 +1488,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
     }
 
     // 7. Draw Live Animated Tracer Dot & Value Crosshair
-    const primaryCurve = graph.curves[0];
+    const primaryCurve = safeCurves[0];
     if (primaryCurve) {
       const activeX = currentTime;
       const activeY = evaluateCurve(primaryCurve, activeX);
@@ -1482,7 +1527,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
         ctx.stroke();
 
         // Live Tracer HUD callout
-        const text = `t=${activeX.toFixed(2)}s | y=${activeY.toFixed(2)}${graph.yAxis.unit || ''}`;
+        const text = `t=${activeX.toFixed(2)}s | y=${activeY.toFixed(2)}${safeYAxis.unit || ''}`;
         ctx.font = 'bold 11px JetBrains Mono, monospace';
         const w = ctx.measureText(text).width + 16;
         const h = 22;
@@ -1546,11 +1591,11 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
     ctx.fillRect(0, 0, width, height);
 
     const simType = graph.simulation?.type || 'motion_1d';
-    const primaryCurve = graph.curves[0];
+    const primaryCurve = safeCurves[0];
     const currentVal = primaryCurve ? evaluateCurve(primaryCurve, currentTime) : 0;
 
     // A. 1D MOTION SIMULATION (Car / Particle on track)
-    if (simType === 'motion_1d' || graph.graphType.includes('time') || graph.graphType === 'velocity_time') {
+    if (simType === 'motion_1d' || (graph.graphType || '').includes('time') || graph.graphType === 'velocity_time') {
       const trackY = height * 0.65;
       const trackStart = 45;
       const trackEnd = width - 45;
@@ -1562,7 +1607,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
       // Compute vehicle / object position
       // For velocity-time, displacement s = area under curve up to currentTime
       let objectFraction = 0;
-      if (graph.graphType === 'velocity_time') {
+      if (graph.graphType === 'velocity_time' && primaryCurve) {
         // Approximate numerical integration for displacement
         let disp = 0;
         const dt = 0.05;
@@ -1617,7 +1662,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
       ctx.textAlign = 'left';
       ctx.fillText(`Elapsed Time: ${currentTime.toFixed(2)} s`, 20, 24);
       ctx.fillStyle = '#22C55E';
-      ctx.fillText(`Current Value (${graph.yAxis.label}): ${currentVal.toFixed(2)} ${graph.yAxis.unit || ''}`, 20, 42);
+      ctx.fillText(`Current Value (${safeYAxis.label}): ${currentVal.toFixed(2)} ${safeYAxis.unit || ''}`, 20, 42);
     }
 
     // B. PROJECTILE MOTION 2D SIMULATION
@@ -1642,7 +1687,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
       const projSteps = 100;
       for (let i = 0; i <= projSteps; i++) {
         const x = xMin + (i / projSteps) * (xMax - xMin);
-        const y = evaluateCurve(primaryCurve, x);
+        const y = primaryCurve ? evaluateCurve(primaryCurve, x) : 0;
         const px = cannonX + ((x - xMin) / (xMax - xMin || 1)) * groundWidth;
         const py = groundY - (y / (yMax || 1)) * (groundY - 30);
         if (i === 0) ctx.moveTo(px, py);
@@ -1653,7 +1698,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
 
       // Current projectile position
       const curX = currentTime;
-      const curY = evaluateCurve(primaryCurve, curX);
+      const curY = primaryCurve ? evaluateCurve(primaryCurve, curX) : 0;
       const ballX = cannonX + ((curX - xMin) / (xMax - xMin || 1)) * groundWidth;
       const ballY = groundY - (Math.max(curY, 0) / (yMax || 1)) * (groundY - 30);
 
@@ -1664,7 +1709,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
       const trailCount = Math.floor((curX / (xMax || 1)) * projSteps);
       for (let i = 0; i <= trailCount; i++) {
         const x = xMin + (i / projSteps) * (xMax - xMin);
-        const y = evaluateCurve(primaryCurve, x);
+        const y = primaryCurve ? evaluateCurve(primaryCurve, x) : 0;
         const px = cannonX + ((x - xMin) / (xMax - xMin || 1)) * groundWidth;
         const py = groundY - (y / (yMax || 1)) * (groundY - 30);
         if (i === 0) ctx.moveTo(px, py);
@@ -1820,7 +1865,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
       const curYSpan = (yMax - yMin) / zoomLevel;
       const xVal = xMin + ((px - padLeft) / plotWidth) * curXSpan;
       const yVal = yMin + ((plotHeight - (py - padTop)) / plotHeight) * curYSpan;
-      const curveY = graph.curves[0] ? evaluateCurve(graph.curves[0], xVal) : undefined;
+      const curveY = safeCurves[0] ? evaluateCurve(safeCurves[0], xVal) : undefined;
       setHoverCoord({ x: xVal, y: yVal, curveY });
     } else {
       setHoverCoord(null);
@@ -1863,7 +1908,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
               </span>
             </div>
             <p className="text-xs text-[#A1A1AA] truncate">
-              {graph.category === 'physics' ? 'Physics Motion Telemetry' : 'Mathematical Curve Analysis'} · {graph.curves.length} Plot Curve{graph.curves.length > 1 ? 's' : ''}
+              {graph.category === 'physics' ? 'Physics Motion Telemetry' : 'Mathematical Curve Analysis'} · {safeCurves.length} Plot Curve{safeCurves.length > 1 ? 's' : ''}
             </p>
           </div>
         </div>
@@ -1885,7 +1930,7 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
                       : 'text-[#A1A1AA] hover:text-white'
                   }`}
                 >
-                  {g.title.split(' ')[0] || `Graph ${idx + 1}`}
+                  {(g.title || '').split(' ')[0] || `Graph ${idx + 1}`}
                 </button>
               ))}
             </div>
@@ -1933,10 +1978,10 @@ export const InteractiveSolverGraph: React.FC<Props> = ({
 
         {/* Legend Overlay at Top Right of Canvas */}
         <div className="absolute top-3 right-3 bg-[#18181BE6] backdrop-blur-md border border-[#27272A] rounded-xl px-3 py-2 text-[11px] font-mono space-y-1 shadow-lg pointer-events-none">
-          {graph.curves.map((c) => (
-            <div key={c.id} className="flex items-center space-x-2">
+          {safeCurves.map((c, idx) => (
+            <div key={c.id || idx} className="flex items-center space-x-2">
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color || '#22C55E' }} />
-              <span className="text-white font-semibold">{c.label}</span>
+              <span className="text-white font-semibold">{c.label || `Curve ${idx + 1}`}</span>
               {c.equationText && <span className="text-[#A1A1AA]">({c.equationText})</span>}
             </div>
           ))}
