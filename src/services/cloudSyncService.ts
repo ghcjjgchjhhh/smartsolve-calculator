@@ -1,6 +1,5 @@
-import { User } from 'firebase/auth';
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { type AuthUser } from '../contexts/AuthContext';
+import { buildApiUrl } from '../lib/apiClient';
 import { getHistory } from './historyStorage';
 import { getProgressSummary, loadTutorProgress } from './tutorProgressService';
 import { HistoryItem } from '../types';
@@ -123,10 +122,7 @@ export function getLastSyncTimestamp(): number | null {
   }
 }
 
-export async function syncWorkspaceToCloud(user: User): Promise<SyncedWorkspaceSummary> {
-  const path = `user_workspaces/${user.uid}`;
-  const ref = doc(db, 'user_workspaces', user.uid);
-
+export async function syncWorkspaceToCloud(user: AuthUser): Promise<SyncedWorkspaceSummary> {
   const pinnedFormulas = getPinnedFormulas()
     .slice(0, 40)
     .map((p) => ({
@@ -169,127 +165,117 @@ export async function syncWorkspaceToCloud(user: User): Promise<SyncedWorkspaceS
     streak: Number(progress.streak) || 0,
   };
 
-  const displayName = (user.displayName || 'Student').slice(0, 90);
+  const displayName = (user.displayName || user.email || 'Student').slice(0, 90);
 
-  try {
-    const existingSnap = await getDoc(ref);
-    if (!existingSnap.exists()) {
-      await setDoc(ref, {
-        ownerId: user.uid,
-        displayName,
-        pinnedFormulas,
-        examGoals,
-        recentHistory,
-        tutorStats,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      await updateDoc(ref, {
-        displayName,
-        pinnedFormulas,
-        examGoals,
-        recentHistory,
-        tutorStats,
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    const now = Date.now();
-    localStorage.setItem(LAST_SYNC_KEY, String(now));
-    emitWorkspaceEvent();
-
-    return {
+  const resp = await fetch(buildApiUrl('/api/user-data'), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'save_workspace',
       displayName,
-      pinnedCount: pinnedFormulas.length,
-      examGoalsCount: examGoals.length,
-      historyCount: recentHistory.length,
+      pinnedFormulas,
+      examGoals,
+      recentHistory,
       tutorStats,
-      syncedAt: now,
-    };
-  } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, path);
-    throw err;
+    }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(data?.error || 'Failed to sync workspace.');
   }
+
+  const now = Number(data?.workspace?.syncedAt) || Date.now();
+  localStorage.setItem(LAST_SYNC_KEY, String(now));
+  emitWorkspaceEvent();
+
+  return {
+    displayName,
+    pinnedCount: pinnedFormulas.length,
+    examGoalsCount: examGoals.length,
+    historyCount: recentHistory.length,
+    tutorStats,
+    syncedAt: now,
+  };
 }
 
-export async function restoreWorkspaceFromCloud(user: User): Promise<{
+export async function restoreWorkspaceFromCloud(_user: AuthUser): Promise<{
   found: boolean;
   pinnedCount: number;
   examGoalsCount: number;
   historyCount: number;
 }> {
-  const path = `user_workspaces/${user.uid}`;
-  const ref = doc(db, 'user_workspaces', user.uid);
-
-  try {
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      return { found: false, pinnedCount: 0, examGoalsCount: 0, historyCount: 0 };
-    }
-    const data = snap.data() as any;
-
-    if (Array.isArray(data.pinnedFormulas)) {
-      const localPins = getPinnedFormulas();
-      const mergedPins = [...data.pinnedFormulas];
-      localPins.forEach((lp) => {
-        if (!mergedPins.some((mp: any) => mp.title === lp.title && mp.latex === lp.latex)) {
-          mergedPins.push(lp);
-        }
-      });
-      localStorage.setItem(PINNED_KEY, JSON.stringify(mergedPins.slice(0, 40)));
-    }
-
-    if (Array.isArray(data.examGoals)) {
-      const localGoals = getExamGoals();
-      const mergedGoals = [...data.examGoals];
-      localGoals.forEach((lg) => {
-        if (!mergedGoals.some((mg: any) => mg.examName === lg.examName && mg.targetDate === lg.targetDate)) {
-          mergedGoals.push(lg);
-        }
-      });
-      localStorage.setItem(GOALS_KEY, JSON.stringify(mergedGoals.slice(0, 10)));
-    }
-
-    if (Array.isArray(data.recentHistory)) {
-      const localHist = getHistory();
-      const mergedHist: HistoryItem[] = [...localHist];
-      data.recentHistory.forEach((rh: any) => {
-        if (
-          !mergedHist.some(
-            (lh) => lh.problemStatement === rh.problemStatement && lh.finalAnswer === rh.finalAnswer
-          )
-        ) {
-          mergedHist.push({
-            id: rh.id || `hist_${Date.now()}`,
-            title: rh.title || rh.problemStatement || 'Synced Calculation',
-            problemStatement: rh.problemStatement || '',
-            formula: rh.formula || '',
-            substitution: rh.substitution || '',
-            finalAnswer: rh.finalAnswer || '',
-            category: rh.category || 'Math',
-            steps: [],
-            timestamp: Number(rh.timestamp) || Date.now(),
-          });
-        }
-      });
-      mergedHist.sort((a, b) => b.timestamp - a.timestamp);
-      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(mergedHist.slice(0, 50)));
-      window.dispatchEvent(new Event('smartsolve_history_changed'));
-    }
-
-    const now = Date.now();
-    localStorage.setItem(LAST_SYNC_KEY, String(now));
-    emitWorkspaceEvent();
-
-    return {
-      found: true,
-      pinnedCount: getPinnedFormulas().length,
-      examGoalsCount: getExamGoals().length,
-      historyCount: getHistory().length,
-    };
-  } catch (err) {
-    handleFirestoreError(err, OperationType.GET, path);
-    throw err;
+  const resp = await fetch(buildApiUrl('/api/user-data'), {
+    method: 'GET',
+    credentials: 'include',
+  });
+  const payload = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(payload?.error || 'Failed to restore workspace.');
   }
+
+  const data = payload?.workspace;
+  if (!data) {
+    return { found: false, pinnedCount: 0, examGoalsCount: 0, historyCount: 0 };
+  }
+
+  if (Array.isArray(data.pinnedFormulas)) {
+    const localPins = getPinnedFormulas();
+    const mergedPins = [...data.pinnedFormulas];
+    localPins.forEach((lp) => {
+      if (!mergedPins.some((mp: any) => mp.title === lp.title && mp.latex === lp.latex)) {
+        mergedPins.push(lp);
+      }
+    });
+    localStorage.setItem(PINNED_KEY, JSON.stringify(mergedPins.slice(0, 40)));
+  }
+
+  if (Array.isArray(data.examGoals)) {
+    const localGoals = getExamGoals();
+    const mergedGoals = [...data.examGoals];
+    localGoals.forEach((lg) => {
+      if (!mergedGoals.some((mg: any) => mg.examName === lg.examName && mg.targetDate === lg.targetDate)) {
+        mergedGoals.push(lg);
+      }
+    });
+    localStorage.setItem(GOALS_KEY, JSON.stringify(mergedGoals.slice(0, 10)));
+  }
+
+  if (Array.isArray(data.recentHistory)) {
+    const localHist = getHistory();
+    const mergedHist: HistoryItem[] = [...localHist];
+    data.recentHistory.forEach((rh: any) => {
+      if (
+        !mergedHist.some(
+          (lh) => lh.problemStatement === rh.problemStatement && lh.finalAnswer === rh.finalAnswer
+        )
+      ) {
+        mergedHist.push({
+          id: rh.id || `hist_${Date.now()}`,
+          title: rh.title || rh.problemStatement || 'Synced Calculation',
+          problemStatement: rh.problemStatement || '',
+          formula: rh.formula || '',
+          substitution: rh.substitution || '',
+          finalAnswer: rh.finalAnswer || '',
+          category: rh.category || 'Math',
+          steps: [],
+          timestamp: Number(rh.timestamp) || Date.now(),
+        });
+      }
+    });
+    mergedHist.sort((a, b) => b.timestamp - a.timestamp);
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(mergedHist.slice(0, 50)));
+    window.dispatchEvent(new Event('smartsolve_history_changed'));
+  }
+
+  const now = Date.now();
+  localStorage.setItem(LAST_SYNC_KEY, String(now));
+  emitWorkspaceEvent();
+
+  return {
+    found: true,
+    pinnedCount: getPinnedFormulas().length,
+    examGoalsCount: getExamGoals().length,
+    historyCount: getHistory().length,
+  };
 }

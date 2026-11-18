@@ -65,7 +65,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
       <div className="space-y-2">
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#22C55E]/15 text-[#22C55E] text-[11px] font-extrabold">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Firebase Google Sign-In</span>
+          <span>Auth.js · Google OAuth</span>
         </div>
         <h2 className="text-lg sm:text-xl font-black tracking-tight">
           Sign in to SmartSolve with Google
@@ -86,7 +86,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
             <div>
               <div className="text-xs font-bold">Private Cloud Vault</div>
               <div className={`text-[11px] ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                Save formulas, notes & goals to Firestore
+                Save formulas, notes & goals securely
               </div>
             </div>
           </div>
@@ -140,7 +140,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
         }`}
       >
         <ShieldCheck className="w-3.5 h-3.5 text-[#22C55E]" />
-        <span>Secured by Firebase Authentication & Firestore Rules</span>
+        <span>Secured by Auth.js & Encrypted HTTP-Only Cookies</span>
       </div>
     </div>
   );

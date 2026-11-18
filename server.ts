@@ -13,21 +13,32 @@ import researchHandler from './api/research';
 import documentTutorHandler from './api/document-tutor';
 import learnHandler from './api/learn';
 import transcribeHandler from './api/transcribe';
+import authHandler from './api/auth';
+import userDataHandler from './api/user-data';
+import studyRoomsHandler from './api/study-rooms';
 
 dotenv.config();
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// CORS middleware for iframe and preview support
-app.use((_req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+// CORS middleware for iframe, credentials cookies, and preview support
+app.use((req, res, next) => {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  } else {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  res.header('Vary', 'Origin');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-gemini-key, *');
-  if (_req.method === 'OPTIONS') {
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-gemini-key');
+  if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
   next();
@@ -844,6 +855,12 @@ app.post('/api/research', (req, res) => researchHandler(req, res));
 app.post('/api/document-tutor', (req, res) => documentTutorHandler(req, res));
 app.post('/api/transcribe', (req, res) => transcribeHandler(req, res));
 app.post('/api/ai/transcribe', (req, res) => transcribeHandler(req, res));
+
+// 6. AUTH.JS GOOGLE OAUTH & PROTECTED USER WORKSPACE / STUDY ROOM ROUTES
+app.all('/api/auth', (req, res) => authHandler(req, res));
+app.all('/api/auth/*', (req, res) => authHandler(req, res));
+app.all('/api/user-data', (req, res) => userDataHandler(req, res));
+app.all('/api/study-rooms', (req, res) => studyRoomsHandler(req, res));
 
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';

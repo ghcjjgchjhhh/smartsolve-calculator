@@ -1,26 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { onAuthStateChanged, updateProfile, type User } from 'firebase/auth';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
-import {
-  auth,
-  db,
-  handleFirestoreError,
-  OperationType,
-  redirectResultPromise,
-  signInWithGoogle as firebaseSignInWithGoogle,
-  signOutUser,
-} from '../firebase';
+import { buildApiUrl } from '../lib/apiClient';
+
+export interface AuthUser {
+  id: string;
+  uid: string;
+  email: string | null;
+  name: string | null;
+  displayName: string | null;
+  image: string | null;
+  photoURL: string | null;
+}
 
 export interface UserProfile {
   ownerId: string;
@@ -47,7 +36,7 @@ interface ActionResult {
 }
 
 interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   profile: UserProfile | null;
   loading: boolean;
   profileLoading: boolean;
@@ -58,6 +47,7 @@ interface AuthContextValue {
   clearPendingRedirectTab: () => void;
   signInWithGoogle: () => Promise<ActionResult>;
   signOut: () => Promise<ActionResult>;
+  refreshSession: () => Promise<AuthUser | null>;
   refreshProfile: () => Promise<void>;
   saveProfile: (
     updates: Partial<Pick<UserProfile, 'fullName' | 'studyLevel' | 'bio'>>
@@ -74,7 +64,26 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function buildFallbackProfile(user: User): UserProfile {
+function normalizeSessionUser(raw: any): AuthUser | null {
+  const u = raw?.user;
+  if (!u) return null;
+  const uid = String(u.id || u.uid || u.email || '').trim();
+  if (!uid) return null;
+  const name = typeof u.name === 'string' ? u.name : typeof u.displayName === 'string' ? u.displayName : null;
+  const email = typeof u.email === 'string' ? u.email : null;
+  const image = typeof u.image === 'string' ? u.image : typeof u.photoURL === 'string' ? u.photoURL : null;
+  return {
+    id: uid,
+    uid,
+    email,
+    name,
+    displayName: name,
+    image,
+    photoURL: image,
+  };
+}
+
+function buildFallbackProfile(user: AuthUser): UserProfile {
   return {
     ownerId: user.uid,
     fullName: (user.displayName || '').slice(0, 100),
@@ -85,7 +94,7 @@ function buildFallbackProfile(user: User): UserProfile {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [profileLoading, setProfileLoading] = useState<boolean>(false);
@@ -93,26 +102,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [pendingRedirectTab, setPendingRedirectTab] = useState<string | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    void redirectResultPromise;
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      await redirectResultPromise;
-      if (!mounted) return;
-      setUser(firebaseUser);
-      if (!firebaseUser) {
+  const refreshSession = useCallback(async (): Promise<AuthUser | null> => {
+    try {
+      const resp = await fetch(buildApiUrl('/api/auth/session'), {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      if (!resp.ok) {
+        setUser(null);
+        setProfile(null);
+        return null;
+      }
+      const data = await resp.json().catch(() => null);
+      const normalized = normalizeSessionUser(data);
+      setUser(normalized);
+      if (!normalized) {
         setProfile(null);
       }
+      return normalized;
+    } catch {
+      setUser(null);
+      setProfile(null);
+      return null;
+    } finally {
       setLoading(false);
-    });
-    return () => {
-      mounted = false;
-      unsubscribe();
-    };
+    }
   }, []);
 
-  const loadProfileForUser = useCallback(async (targetUser: User | null) => {
+  useEffect(() => {
+    void refreshSession();
+  }, [refreshSession]);
+
+  const loadProfileForUser = useCallback(async (targetUser: AuthUser | null) => {
     if (!targetUser) {
       setProfile(null);
       setProfileLoading(false);
@@ -123,41 +145,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(fallback);
     setProfileLoading(true);
 
-    const path = `user_profiles/${targetUser.uid}`;
-    const ref = doc(db, 'user_profiles', targetUser.uid);
-
     try {
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const data = snap.data() as Record<string, unknown>;
-        setProfile({
-          ownerId: targetUser.uid,
-          fullName: typeof data.fullName === 'string' ? data.fullName : fallback.fullName,
-          studyLevel: typeof data.studyLevel === 'string' ? data.studyLevel : 'JAMB / WAEC',
-          bio: typeof data.bio === 'string' ? data.bio : '',
-          photoUrl: typeof data.photoUrl === 'string' ? data.photoUrl : fallback.photoUrl,
-        });
-      } else {
-        const payload: Record<string, unknown> = {
-          ownerId: targetUser.uid,
-          fullName: fallback.fullName,
-          studyLevel: fallback.studyLevel,
-          bio: fallback.bio,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        };
-        if (fallback.photoUrl) {
-          payload.photoUrl = fallback.photoUrl;
+      const resp = await fetch(buildApiUrl('/api/user-data'), {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data?.profile) {
+          setProfile({
+            ownerId: targetUser.uid,
+            fullName: typeof data.profile.fullName === 'string' ? data.profile.fullName : fallback.fullName,
+            studyLevel: typeof data.profile.studyLevel === 'string' ? data.profile.studyLevel : 'JAMB / WAEC',
+            bio: typeof data.profile.bio === 'string' ? data.profile.bio : '',
+            photoUrl: typeof data.profile.photoUrl === 'string' ? data.profile.photoUrl : fallback.photoUrl,
+          });
         }
-        await setDoc(ref, payload);
-        setProfile(fallback);
       }
-    } catch (err) {
-      try {
-        handleFirestoreError(err, OperationType.GET, path);
-      } catch {
-        // Keep fallback profile in memory if Firestore check hits transient or permission error
-      }
+    } catch {
+      // Keep fallback profile in memory if transient fetch failure occurs
     } finally {
       setProfileLoading(false);
     }
@@ -184,20 +190,124 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = useCallback(async (): Promise<ActionResult> => {
     try {
-      await firebaseSignInWithGoogle();
-      return { error: null };
-    } catch (err: any) {
-      const code = err?.code || '';
-      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-        return { error: 'Google sign-in popup was closed before completing.' };
+      const cfgResp = await fetch(buildApiUrl('/api/auth/config'), {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (cfgResp.ok) {
+        const cfg = await cfgResp.json().catch(() => null);
+        if (cfg && cfg.configured === false) {
+          return {
+            error:
+              'Google OAuth is not configured on the server yet. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and AUTH_SECRET in environment variables.',
+          };
+        }
       }
-      return { error: err?.message || 'Google Sign-In failed. Please try again.' };
+    } catch {
+      // Proceed and let auth endpoint respond
     }
-  }, []);
+
+    const isEmbeddedIframe = (() => {
+      try {
+        return window.self !== window.top;
+      } catch {
+        return true;
+      }
+    })();
+
+    // Top-level browser tab (e.g. Vercel production): full-page Auth.js OAuth redirect works cleanly with no popup blocker
+    if (!isEmbeddedIframe) {
+      const targetUrl = buildApiUrl(
+        `/api/auth/google-start?mode=redirect&callbackUrl=${encodeURIComponent(window.location.href)}`
+      );
+      window.location.assign(targetUrl);
+      return { error: null };
+    }
+
+    // Embedded iframe (e.g. AI Studio preview): open OAuth in a popup window so Google accounts.google.com is never blocked by X-Frame-Options
+    const popupUrl = buildApiUrl('/api/auth/google-start?mode=popup');
+    const width = 500;
+    const height = 640;
+    const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - width) / 2));
+    const top = Math.max(0, Math.round(window.screenY + (window.outerHeight - height) / 2));
+    const popup = window.open(
+      popupUrl,
+      'smartsolve_google_oauth',
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    );
+
+    if (!popup) {
+      return {
+        error: 'Popup was blocked by your browser. Please allow popups for this site and try again.',
+      };
+    }
+
+    return new Promise<ActionResult>((resolve) => {
+      let settled = false;
+
+      const finish = async (result: ActionResult) => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('message', onMessage);
+        window.clearInterval(pollTimer);
+        window.clearTimeout(timeoutTimer);
+        if (!result.error) {
+          const authed = await refreshSession();
+          if (!authed) {
+            resolve({ error: 'Session cookie could not be verified after sign-in. Please allow third-party cookies for this preview or open in a new tab.' });
+            return;
+          }
+        }
+        resolve(result);
+      };
+
+      const onMessage = (event: MessageEvent) => {
+        const data = event?.data;
+        if (!data || data.type !== 'SMARTSOLVE_AUTH_COMPLETE') return;
+        if (data.ok) {
+          void finish({ error: null });
+        } else {
+          void finish({ error: data.error || 'Google Sign-In failed.' });
+        }
+      };
+
+      window.addEventListener('message', onMessage);
+
+      const pollTimer = window.setInterval(() => {
+        if (popup.closed) {
+          void finish({ error: null }).then(() => undefined);
+        }
+      }, 450);
+
+      const timeoutTimer = window.setTimeout(() => {
+        void finish({ error: 'Google sign-in timed out. Please try again.' });
+      }, 180000);
+    });
+  }, [refreshSession]);
 
   const signOut = useCallback(async (): Promise<ActionResult> => {
     try {
-      await signOutUser();
+      const csrfResp = await fetch(buildApiUrl('/api/auth/csrf'), {
+        method: 'GET',
+        credentials: 'include',
+      });
+      const csrfJson = (await csrfResp.json().catch(() => ({}))) as { csrfToken?: string };
+      const csrfToken = csrfJson?.csrfToken || '';
+
+      await fetch(buildApiUrl('/api/auth/signout'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body: new URLSearchParams({
+          csrfToken,
+          json: 'true',
+          callbackUrl: window.location.origin,
+        }).toString(),
+      });
+
       setUser(null);
       setProfile(null);
       return { error: null };
@@ -218,84 +328,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('You must be signed in with Google to update your profile.');
       }
 
-      const nextProfile: UserProfile = {
-        ownerId: user.uid,
-        fullName: (updates.fullName ?? profile?.fullName ?? user.displayName ?? '').trim().slice(0, 100),
-        studyLevel: (updates.studyLevel ?? profile?.studyLevel ?? 'JAMB / WAEC').trim().slice(0, 60) || 'JAMB / WAEC',
-        bio: (updates.bio ?? profile?.bio ?? '').trim().slice(0, 500),
-        photoUrl: (user.photoURL || profile?.photoUrl || '').slice(0, 500) || undefined,
-      };
-
-      const path = `user_profiles/${user.uid}`;
-      const ref = doc(db, 'user_profiles', user.uid);
-
-      try {
-        const snap = await getDoc(ref);
-        if (!snap.exists()) {
-          const payload: Record<string, unknown> = {
-            ownerId: user.uid,
-            fullName: nextProfile.fullName,
-            studyLevel: nextProfile.studyLevel,
-            bio: nextProfile.bio,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          };
-          if (nextProfile.photoUrl) {
-            payload.photoUrl = nextProfile.photoUrl;
-          }
-          await setDoc(ref, payload);
-        } else {
-          const updatePayload: Record<string, unknown> = {
-            fullName: nextProfile.fullName,
-            studyLevel: nextProfile.studyLevel,
-            bio: nextProfile.bio,
-            updatedAt: serverTimestamp(),
-          };
-          if (nextProfile.photoUrl) {
-            updatePayload.photoUrl = nextProfile.photoUrl;
-          }
-          await updateDoc(ref, updatePayload);
-        }
-
-        if (nextProfile.fullName && nextProfile.fullName !== user.displayName) {
-          await updateProfile(user, { displayName: nextProfile.fullName }).catch(() => undefined);
-        }
-
-        setProfile(nextProfile);
-        return nextProfile;
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, path);
+      const resp = await fetch(buildApiUrl('/api/user-data'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_profile',
+          fullName: updates.fullName ?? profile?.fullName ?? user.displayName ?? '',
+          studyLevel: updates.studyLevel ?? profile?.studyLevel ?? 'JAMB / WAEC',
+          bio: updates.bio ?? profile?.bio ?? '',
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.profile) {
+        throw new Error(data?.error || 'Failed to save profile.');
       }
+
+      const savedProfile = data.profile as UserProfile;
+      setProfile(savedProfile);
+      return savedProfile;
     },
     [user, profile]
   );
 
   const listVaultItems = useCallback(async (): Promise<UserSavedItem[]> => {
     if (!user) return [];
-    const path = `user_profiles/${user.uid}/vault_items`;
-    try {
-      const q = query(
-        collection(db, 'user_profiles', user.uid, 'vault_items'),
-        where('ownerId', '==', user.uid)
-      );
-      const snap = await getDocs(q);
-      const items = snap.docs.map((d) => {
-        const data = d.data() as Record<string, any>;
-        const createdTs = data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now();
-        return {
-          id: String(data.id || d.id),
-          ownerId: String(data.ownerId || user.uid),
-          itemType: (data.itemType || 'note') as SavedItemType,
-          title: String(data.title || ''),
-          content: String(data.content || ''),
-          subject: String(data.subject || 'General'),
-          createdAtMs: createdTs,
-        };
-      });
-      return items.sort((a, b) => b.createdAtMs - a.createdAtMs);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.LIST, path);
+    const resp = await fetch(buildApiUrl('/api/user-data'), {
+      method: 'GET',
+      credentials: 'include',
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      throw new Error(data?.error || 'Unable to load vault items.');
     }
+    return Array.isArray(data?.vaultItems) ? data.vaultItems : [];
   }, [user]);
 
   const createVaultItem = useCallback(
@@ -308,36 +374,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!user) {
         throw new Error('Sign in with Google to save study vault items.');
       }
-
-      const itemId = `vault_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const path = `user_profiles/${user.uid}/vault_items/${itemId}`;
-      const cleanTitle = item.title.trim().slice(0, 140);
-      const cleanContent = item.content.trim().slice(0, 2000);
-      const cleanSubject = (item.subject.trim() || 'General').slice(0, 60);
-
-      try {
-        await setDoc(doc(db, 'user_profiles', user.uid, 'vault_items', itemId), {
-          id: itemId,
-          ownerId: user.uid,
-          itemType: item.itemType,
-          title: cleanTitle,
-          content: cleanContent,
-          subject: cleanSubject,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-        return {
-          id: itemId,
-          ownerId: user.uid,
-          itemType: item.itemType,
-          title: cleanTitle,
-          content: cleanContent,
-          subject: cleanSubject,
-          createdAtMs: Date.now(),
-        };
-      } catch (err) {
-        handleFirestoreError(err, OperationType.CREATE, path);
+      const resp = await fetch(buildApiUrl('/api/user-data'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_vault_item',
+          ...item,
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.item) {
+        throw new Error(data?.error || 'Failed to save vault item.');
       }
+      return data.item as UserSavedItem;
     },
     [user]
   );
@@ -347,11 +397,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!user) {
         throw new Error('Sign in with Google to manage study vault items.');
       }
-      const path = `user_profiles/${user.uid}/vault_items/${itemId}`;
-      try {
-        await deleteDoc(doc(db, 'user_profiles', user.uid, 'vault_items', itemId));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, path);
+      const resp = await fetch(buildApiUrl('/api/user-data'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_vault_item',
+          itemId,
+        }),
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data?.error || 'Failed to delete vault item.');
       }
     },
     [user]
@@ -371,6 +428,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearPendingRedirectTab,
         signInWithGoogle,
         signOut,
+        refreshSession,
         refreshProfile,
         saveProfile,
         listVaultItems,

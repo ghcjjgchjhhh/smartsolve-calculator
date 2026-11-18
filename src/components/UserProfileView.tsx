@@ -50,7 +50,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onNavigateTab 
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
-  // Firestore-Protected Personal Study Vault Items
+  // Auth.js-Protected Personal Study Vault Items
   const [savedItems, setSavedItems] = useState<UserSavedItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
   const [itemsError, setItemsError] = useState<string | null>(null);
@@ -117,7 +117,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onNavigateTab 
         studyLevel,
         bio: bio.trim(),
       });
-      setProfileMessage({ type: 'ok', text: 'Profile saved securely to Firestore.' });
+      setProfileMessage({ type: 'ok', text: 'Profile saved securely to your account.' });
     } catch (err) {
       setProfileMessage({
         type: 'err',
@@ -327,7 +327,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onNavigateTab 
           </form>
         </div>
 
-        {/* Column 2: Firestore Private Cloud Study Vault */}
+        {/* Column 2: Private Cloud Study Vault */}
         <div className={`lg:col-span-3 ${cardClass} space-y-4`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -337,7 +337,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onNavigateTab 
                   Private Cloud Study Vault
                 </h2>
                 <p className={`text-[11px] ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                  Secured by Firebase Authentication & Firestore rules — only your Google account can read or write these items.
+                  Secured by Auth.js HTTP-only sessions — only your Google account can read or write these items.
                 </p>
               </div>
             </div>
@@ -420,7 +420,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onNavigateTab 
             {loadingItems ? (
               <div className="py-8 flex items-center justify-center gap-2 text-xs text-zinc-400">
                 <Loader2 className="w-4 h-4 animate-spin text-[#22C55E]" />
-                <span>Loading your private Firestore vault...</span>
+                <span>Loading your private study vault...</span>
               </div>
             ) : savedItems.length === 0 ? (
               <div

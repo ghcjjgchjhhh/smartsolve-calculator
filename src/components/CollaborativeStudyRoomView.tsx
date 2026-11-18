@@ -1,21 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { buildApiUrl } from '../lib/apiClient';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-  writeBatch,
-  limit,
-} from 'firebase/firestore';
 import {
   Users,
   Lock,
@@ -39,7 +23,7 @@ import {
   Swords,
   Clock,
 } from 'lucide-react';
-import { auth, db, handleFirestoreError, OperationType, signInWithGoogle, signOutUser } from '../firebase';
+import { useAuth } from '../contexts/AuthContext';
 import { generateProceduralQuestion } from '../services/proceduralExamGenerator';
 import { MathRenderer } from './MathRenderer';
 
@@ -115,20 +99,8 @@ interface QuizSubmission {
   answers: string[];
 }
 
-function generateRoomCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let out = '';
-  for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
-}
-
-function generateDocId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8).replace(/[^a-zA-Z0-9]/g, 'x')}`;
-}
-
 export const CollaborativeStudyRoomView: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [authReady, setAuthReady] = useState<boolean>(false);
+  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
   const [authError, setAuthError] = useState<string>('');
 
   // Lobby state
@@ -175,211 +147,94 @@ export const CollaborativeStudyRoomView: React.FC = () => {
   const [wbTool, setWbTool] = useState<'pen' | 'eraser'>('pen');
   const [wbColor, setWbColor] = useState<string>('#22C55E');
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setAuthReady(true);
-    });
-    return () => unsub();
-  }, []);
+  const fetchLobby = useCallback(async () => {
+    if (!user) return;
+    try {
+      const resp = await fetch(buildApiUrl('/api/study-rooms'), {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!resp.ok) {
+        if (resp.status === 401) return;
+        const data = await resp.json().catch(() => ({}));
+        setLobbyError(data?.error || 'Unable to load public study rooms.');
+        return;
+      }
+      const data = await resp.json();
+      setPublicRooms(Array.isArray(data?.publicRooms) ? data.publicRooms : []);
+      setMyRooms(Array.isArray(data?.myRooms) ? data.myRooms : []);
+    } catch {
+      setLobbyError('Unable to load public study rooms.');
+    }
+  }, [user]);
 
-  // Lobby listeners (gated strictly on authReady && user)
+  const fetchActiveRoom = useCallback(async () => {
+    if (!user || !activeRoomId) return;
+    try {
+      const resp = await fetch(
+        buildApiUrl(`/api/study-rooms?roomId=${encodeURIComponent(activeRoomId)}`),
+        {
+          method: 'GET',
+          credentials: 'include',
+        }
+      );
+      if (!resp.ok) {
+        if (resp.status === 404 || resp.status === 403) {
+          setRoomError('Access to room was denied or room no longer exists.');
+          setActiveRoomId(null);
+        }
+        return;
+      }
+      const data = await resp.json();
+      setActiveRoom(data.room || null);
+      setMembers(Array.isArray(data.members) ? data.members : []);
+      setMessages(Array.isArray(data.messages) ? data.messages : []);
+      setStrokes(Array.isArray(data.strokes) ? data.strokes : []);
+      setQuizzes(Array.isArray(data.quizzes) ? data.quizzes : []);
+      setSubmissions(Array.isArray(data.submissions) ? data.submissions : []);
+    } catch {
+      // ignore transient poll errors
+    }
+  }, [user, activeRoomId]);
+
   useEffect(() => {
-    if (!authReady || !user) {
+    if (authLoading || !user) {
       setPublicRooms([]);
       setMyRooms([]);
       return;
     }
+    void fetchLobby();
+    const timer = window.setInterval(() => {
+      if (!activeRoomId) void fetchLobby();
+    }, 6000);
+    return () => window.clearInterval(timer);
+  }, [authLoading, user, activeRoomId, fetchLobby]);
 
-    const qPublic = query(
-      collection(db, 'study_rooms'),
-      where('visibility', '==', 'public'),
-      limit(20)
-    );
-    const unsubPub = onSnapshot(
-      qPublic,
-      (snap) => {
-        const list = snap.docs
-          .map((d) => d.data() as StudyRoom)
-          .filter((r) => r.status === 'active');
-        setPublicRooms(list);
-      },
-      (err) => {
-        try {
-          handleFirestoreError(err, OperationType.LIST, 'study_rooms');
-        } catch (e: any) {
-          setLobbyError('Unable to load public study rooms.');
-        }
-      }
-    );
-
-    const qMine = query(
-      collection(db, 'study_rooms'),
-      where('ownerId', '==', user.uid),
-      limit(20)
-    );
-    const unsubMine = onSnapshot(
-      qMine,
-      (snap) => {
-        setMyRooms(snap.docs.map((d) => d.data() as StudyRoom));
-      },
-      (err) => {
-        try {
-          handleFirestoreError(err, OperationType.LIST, 'study_rooms');
-        } catch {
-          // handled above
-        }
-      }
-    );
-
-    return () => {
-      unsubPub();
-      unsubMine();
-    };
-  }, [authReady, user]);
-
-  // Active Room Listeners
   useEffect(() => {
-    if (!authReady || !user || !activeRoomId) {
+    if (authLoading || !user || !activeRoomId) {
       setActiveRoom(null);
       setMembers([]);
       setMessages([]);
       setStrokes([]);
-      return;
-    }
-
-    const roomPath = `study_rooms/${activeRoomId}`;
-    const unsubRoom = onSnapshot(
-      doc(db, 'study_rooms', activeRoomId),
-      (snap) => {
-        if (!snap.exists()) {
-          setActiveRoomId(null);
-          return;
-        }
-        setActiveRoom(snap.data() as StudyRoom);
-      },
-      (err) => {
-        try {
-          handleFirestoreError(err, OperationType.GET, roomPath);
-        } catch {
-          setRoomError('Access to room was denied or room no longer exists.');
-          setActiveRoomId(null);
-        }
-      }
-    );
-
-    const unsubMembers = onSnapshot(
-      collection(db, 'study_rooms', activeRoomId, 'members'),
-      (snap) => {
-        setMembers(snap.docs.map((d) => d.data() as RoomMember));
-      },
-      (err) => {
-        try {
-          handleFirestoreError(err, OperationType.LIST, `${roomPath}/members`);
-        } catch {
-          // ignore
-        }
-      }
-    );
-
-    const qMsgs = query(
-      collection(db, 'study_rooms', activeRoomId, 'messages'),
-      orderBy('createdAt', 'asc'),
-      limit(80)
-    );
-    const unsubMsgs = onSnapshot(
-      qMsgs,
-      (snap) => {
-        setMessages(snap.docs.map((d) => d.data() as RoomMessage));
-      },
-      (err) => {
-        try {
-          handleFirestoreError(err, OperationType.LIST, `${roomPath}/messages`);
-        } catch {
-          // ignore
-        }
-      }
-    );
-
-    const qStrokes = query(
-      collection(db, 'study_rooms', activeRoomId, 'strokes'),
-      orderBy('createdAt', 'asc'),
-      limit(180)
-    );
-    const unsubStrokes = onSnapshot(
-      qStrokes,
-      (snap) => {
-        setStrokes(snap.docs.map((d) => d.data() as WhiteboardStroke));
-      },
-      (err) => {
-        try {
-          handleFirestoreError(err, OperationType.LIST, `${roomPath}/strokes`);
-        } catch {
-          // ignore
-        }
-      }
-    );
-
-    const qQuizzes = query(
-      collection(db, 'study_rooms', activeRoomId, 'quizzes'),
-      orderBy('createdAt', 'desc'),
-      limit(5)
-    );
-    const unsubQuizzes = onSnapshot(
-      qQuizzes,
-      (snap) => {
-        setQuizzes(snap.docs.map((d) => d.data() as RoomQuiz));
-      },
-      (err) => {
-        try {
-          handleFirestoreError(err, OperationType.LIST, `${roomPath}/quizzes`);
-        } catch {
-          // ignore
-        }
-      }
-    );
-
-    return () => {
-      unsubRoom();
-      unsubMembers();
-      unsubMsgs();
-      unsubStrokes();
-      unsubQuizzes();
-    };
-  }, [authReady, user, activeRoomId]);
-
-  const latestQuiz = quizzes[0] || null;
-
-  // Listen to submissions on the latest Quiz Battle
-  useEffect(() => {
-    if (!authReady || !user || !activeRoomId || !latestQuiz) {
+      setQuizzes([]);
       setSubmissions([]);
       return;
     }
+    void fetchActiveRoom();
+    const timer = window.setInterval(() => {
+      void fetchActiveRoom();
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [authLoading, user, activeRoomId, fetchActiveRoom]);
+
+  const latestQuiz = quizzes[0] || null;
+
+  useEffect(() => {
+    if (!latestQuiz) return;
     setQuizAnswers({});
     setQuizStartedAt(Date.now());
     setQuizElapsedSec(0);
-
-    const subPath = `study_rooms/${activeRoomId}/quizzes/${latestQuiz.id}/submissions`;
-    const unsubSubs = onSnapshot(
-      collection(db, 'study_rooms', activeRoomId, 'quizzes', latestQuiz.id, 'submissions'),
-      (snap) => {
-        const list = snap.docs
-          .map((d) => d.data() as QuizSubmission)
-          .sort((a, b) => b.score - a.score || a.timeTakenSec - b.timeTakenSec);
-        setSubmissions(list);
-      },
-      (err) => {
-        try {
-          handleFirestoreError(err, OperationType.LIST, subPath);
-        } catch {
-          // ignore
-        }
-      }
-    );
-
-    return () => unsubSubs();
-  }, [authReady, user, activeRoomId, latestQuiz?.id]);
+  }, [latestQuiz?.id]);
 
   // Quiz Battle live elapsed timer while user hasn't submitted yet
   const mySubmission = submissions.find((s) => s.uid === user?.uid) || null;
@@ -433,12 +288,25 @@ export const CollaborativeStudyRoomView: React.FC = () => {
     });
   }, [strokes, activeRoomId]);
 
+  const postRoomAction = async (payload: Record<string, any>) => {
+    const resp = await fetch(buildApiUrl('/api/study-rooms'), {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      throw new Error(data?.error || 'Study room request failed.');
+    }
+    return data;
+  };
+
   const handleGoogleLogin = async () => {
     setAuthError('');
-    try {
-      await signInWithGoogle();
-    } catch (err: any) {
-      setAuthError(err?.message || 'Sign-in was cancelled or failed.');
+    const { error } = await signInWithGoogle();
+    if (error) {
+      setAuthError(error);
     }
   };
 
@@ -448,55 +316,22 @@ export const CollaborativeStudyRoomView: React.FC = () => {
     setLobbyBusy(true);
     setLobbyError('');
 
-    const roomId = generateDocId('room');
-    const code = generateRoomCode();
-    const cleanName = (user.displayName || 'Student').slice(0, 90);
-
     try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'study_rooms', roomId), {
-        id: roomId,
-        title: roomTitle.trim().slice(0, 120),
-        subject: roomSubject.trim().slice(0, 60),
-        description: roomDesc.trim().slice(0, 400),
+      const data = await postRoomAction({
+        action: 'create_room',
+        title: roomTitle.trim(),
+        subject: roomSubject.trim(),
+        description: roomDesc.trim(),
         visibility: roomVisibility,
-        ownerId: user.uid,
-        ownerName: cleanName,
-        roomCode: code,
-        whiteboardLocked: false,
-        status: 'active',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
       });
-      batch.set(doc(db, 'room_invites', code), {
-        roomId,
-        ownerId: user.uid,
-        visibility: roomVisibility,
-        title: roomTitle.trim().slice(0, 120),
-        subject: roomSubject.trim().slice(0, 60),
-        createdAt: serverTimestamp(),
-      });
-      await batch.commit();
-
-      // Step 2: Create owner member doc after room doc commits so exists(roomPath) succeeds
-      await setDoc(doc(db, 'study_rooms', roomId, 'members', user.uid), {
-        uid: user.uid,
-        displayName: cleanName,
-        role: 'owner',
-        muted: false,
-        joinedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
       setRoomTitle('');
       setRoomDesc('');
-      setActiveRoomId(roomId);
-    } catch (err: any) {
-      try {
-        handleFirestoreError(err, OperationType.CREATE, `study_rooms/${roomId}`);
-      } catch {
-        setLobbyError(err?.message || 'Failed to create study room.');
+      if (data?.room?.id) {
+        setActiveRoomId(data.room.id);
       }
+      void fetchLobby();
+    } catch (err: any) {
+      setLobbyError(err?.message || 'Failed to create study room.');
     } finally {
       setLobbyBusy(false);
     }
@@ -508,19 +343,7 @@ export const CollaborativeStudyRoomView: React.FC = () => {
     setLobbyError('');
 
     try {
-      const memberRef = doc(db, 'study_rooms', room.id, 'members', user.uid);
-      const existingMem = await getDoc(memberRef);
-      if (!existingMem.exists()) {
-        const cleanName = (user.displayName || 'Student').slice(0, 90);
-        await setDoc(memberRef, {
-          uid: user.uid,
-          displayName: cleanName,
-          role: room.ownerId === user.uid ? 'owner' : 'member',
-          muted: false,
-          joinedAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
+      await postRoomAction({ action: 'join_room', roomId: room.id });
       setActiveRoomId(room.id);
     } catch (err: any) {
       setLobbyError(err?.message || 'Could not join room.');
@@ -537,28 +360,9 @@ export const CollaborativeStudyRoomView: React.FC = () => {
     setLobbyBusy(true);
     setLobbyError('');
     try {
-      const inviteSnap = await getDoc(doc(db, 'room_invites', code));
-      if (!inviteSnap.exists()) {
-        setLobbyError('Invalid or expired room invite code.');
-        setLobbyBusy(false);
-        return;
-      }
-      const { roomId, ownerId } = inviteSnap.data() as { roomId: string; ownerId: string };
-      const memberRef = doc(db, 'study_rooms', roomId, 'members', user.uid);
-      const memSnap = await getDoc(memberRef);
-      if (!memSnap.exists()) {
-        await setDoc(memberRef, {
-          uid: user.uid,
-          displayName: (user.displayName || 'Student').slice(0, 90),
-          role: ownerId === user.uid ? 'owner' : 'member',
-          muted: false,
-          inviteCode: code,
-          joinedAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
+      const data = await postRoomAction({ action: 'join_by_code', code });
       setJoinCodeInput('');
-      setActiveRoomId(roomId);
+      setActiveRoomId(data.roomId || data.room?.id || null);
     } catch (err: any) {
       setLobbyError(err?.message || 'Unable to join room with that code.');
     } finally {
@@ -576,36 +380,27 @@ export const CollaborativeStudyRoomView: React.FC = () => {
     e.preventDefault();
     if (!user || !activeRoom || !msgText.trim() || isMuted || activeRoom.status === 'closed') return;
     setRoomError('');
-    const msgId = generateDocId('msg');
-    const cleanName = (user.displayName || 'Student').slice(0, 90);
     try {
-      const payload: any = {
-        id: msgId,
+      await postRoomAction({
+        action: 'post_message',
         roomId: activeRoom.id,
-        authorId: user.uid,
-        authorName: cleanName,
         type: msgType,
-        content: msgText.trim().slice(0, 2000),
-        createdAt: serverTimestamp(),
-      };
-      if (msgLatex.trim()) {
-        payload.latex = msgLatex.trim().slice(0, 1000);
-      }
-      await setDoc(doc(db, 'study_rooms', activeRoom.id, 'messages', msgId), payload);
+        content: msgText.trim(),
+        latex: msgLatex.trim() || undefined,
+      });
       setMsgText('');
       setMsgLatex('');
+      void fetchActiveRoom();
     } catch (err: any) {
-      setRoomError(err?.message || 'Unable to post message (check permissions or mute state).');
+      setRoomError(err?.message || 'Unable to post message.');
     }
   };
 
   const handleToggleLockBoard = async () => {
     if (!activeRoom || !isMod) return;
     try {
-      await updateDoc(doc(db, 'study_rooms', activeRoom.id), {
-        whiteboardLocked: !activeRoom.whiteboardLocked,
-        updatedAt: serverTimestamp(),
-      });
+      await postRoomAction({ action: 'toggle_lock_board', roomId: activeRoom.id });
+      void fetchActiveRoom();
     } catch (err: any) {
       setRoomError(err?.message || 'Failed to toggle whiteboard lock.');
     }
@@ -614,10 +409,12 @@ export const CollaborativeStudyRoomView: React.FC = () => {
   const handleToggleMuteMember = async (member: RoomMember) => {
     if (!activeRoom || !isMod || member.role === 'owner') return;
     try {
-      await updateDoc(doc(db, 'study_rooms', activeRoom.id, 'members', member.uid), {
-        muted: !member.muted,
-        updatedAt: serverTimestamp(),
+      await postRoomAction({
+        action: 'toggle_mute_member',
+        roomId: activeRoom.id,
+        targetUid: member.uid,
       });
+      void fetchActiveRoom();
     } catch (err: any) {
       setRoomError(err?.message || 'Failed to update mute status.');
     }
@@ -626,10 +423,12 @@ export const CollaborativeStudyRoomView: React.FC = () => {
   const handleToggleModerator = async (member: RoomMember) => {
     if (!activeRoom || !isOwner || member.role === 'owner') return;
     try {
-      await updateDoc(doc(db, 'study_rooms', activeRoom.id, 'members', member.uid), {
-        role: member.role === 'moderator' ? 'member' : 'moderator',
-        updatedAt: serverTimestamp(),
+      await postRoomAction({
+        action: 'toggle_moderator',
+        roomId: activeRoom.id,
+        targetUid: member.uid,
       });
+      void fetchActiveRoom();
     } catch (err: any) {
       setRoomError(err?.message || 'Failed to change member role.');
     }
@@ -638,7 +437,12 @@ export const CollaborativeStudyRoomView: React.FC = () => {
   const handleKickMember = async (member: RoomMember) => {
     if (!activeRoom || !isMod || member.role === 'owner') return;
     try {
-      await deleteDoc(doc(db, 'study_rooms', activeRoom.id, 'members', member.uid));
+      await postRoomAction({
+        action: 'kick_member',
+        roomId: activeRoom.id,
+        targetUid: member.uid,
+      });
+      void fetchActiveRoom();
     } catch (err: any) {
       setRoomError(err?.message || 'Failed to remove participant.');
     }
@@ -647,7 +451,12 @@ export const CollaborativeStudyRoomView: React.FC = () => {
   const handleDeleteMessage = async (msgId: string) => {
     if (!activeRoom) return;
     try {
-      await deleteDoc(doc(db, 'study_rooms', activeRoom.id, 'messages', msgId));
+      await postRoomAction({
+        action: 'delete_message',
+        roomId: activeRoom.id,
+        msgId,
+      });
+      void fetchActiveRoom();
     } catch (err: any) {
       setRoomError(err?.message || 'Failed to delete message.');
     }
@@ -656,16 +465,13 @@ export const CollaborativeStudyRoomView: React.FC = () => {
   const handleCloseRoom = async () => {
     if (!activeRoom || !isOwner) return;
     try {
-      await updateDoc(doc(db, 'study_rooms', activeRoom.id), {
-        status: 'closed',
-        updatedAt: serverTimestamp(),
-      });
+      await postRoomAction({ action: 'close_room', roomId: activeRoom.id });
+      void fetchActiveRoom();
     } catch (err: any) {
       setRoomError(err?.message || 'Failed to close room.');
     }
   };
 
-  // Board drawing handlers synced to Firestore
   const getBoardPt = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const c = boardRef.current!;
     const rect = c.getBoundingClientRect();
@@ -689,7 +495,7 @@ export const CollaborativeStudyRoomView: React.FC = () => {
     if (!ctx) return;
     const [x, y] = getBoardPt(e);
     const pts = currentPtsRef.current;
-    if (pts.length >= 380) return; // stay under rule bound <= 400 numbers
+    if (pts.length >= 380) return;
 
     const px = pts[pts.length - 2];
     const py = pts[pts.length - 1];
@@ -717,19 +523,15 @@ export const CollaborativeStudyRoomView: React.FC = () => {
     currentPtsRef.current = [];
     if (!user || !activeRoom || pts.length < 2 || boardBlocked) return;
 
-    const strokeId = generateDocId('stk');
     try {
-      await setDoc(doc(db, 'study_rooms', activeRoom.id, 'strokes', strokeId), {
-        id: strokeId,
+      await postRoomAction({
+        action: 'add_stroke',
         roomId: activeRoom.id,
-        authorId: user.uid,
-        authorName: (user.displayName || 'Student').slice(0, 90),
         tool: wbTool,
         color: wbColor,
-        width: wbTool === 'eraser' ? 18 : 3,
         points: pts.slice(0, 400),
-        createdAt: serverTimestamp(),
       });
+      void fetchActiveRoom();
     } catch (err: any) {
       setRoomError(err?.message || 'Unable to sync whiteboard stroke.');
     }
@@ -738,11 +540,8 @@ export const CollaborativeStudyRoomView: React.FC = () => {
   const handleClearSyncedBoard = async () => {
     if (!activeRoom || !isMod) return;
     try {
-      const batch = writeBatch(db);
-      strokes.forEach((s) => {
-        batch.delete(doc(db, 'study_rooms', activeRoom.id, 'strokes', s.id));
-      });
-      await batch.commit();
+      await postRoomAction({ action: 'clear_board', roomId: activeRoom.id });
+      void fetchActiveRoom();
     } catch (err: any) {
       setRoomError(err?.message || 'Unable to clear synced board strokes.');
     }
@@ -787,7 +586,7 @@ export const CollaborativeStudyRoomView: React.FC = () => {
         }));
       }
     } catch {
-      // Fallback to instant procedural generator below
+      // Fallback to deterministic generator below
     }
 
     if (normalizedQuestions.length === 0) {
@@ -813,27 +612,18 @@ export const CollaborativeStudyRoomView: React.FC = () => {
       });
     }
 
-    const quizId = generateDocId('quiz');
     try {
-      await setDoc(doc(db, 'study_rooms', activeRoom.id, 'quizzes', quizId), {
-        id: quizId,
+      await postRoomAction({
+        action: 'launch_quiz',
         roomId: activeRoom.id,
-        authorId: user.uid,
-        authorName: (user.displayName || 'Host').slice(0, 90),
-        subject: quizSubject.slice(0, 60),
-        topic: (quizTopic.trim() || quizSubject).slice(0, 120),
-        status: 'active',
+        subject: quizSubject,
+        topic: quizTopic.trim() || quizSubject,
         questions: normalizedQuestions,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
       });
       setRoomStageTab('quiz');
+      void fetchActiveRoom();
     } catch (err: any) {
-      try {
-        handleFirestoreError(err, OperationType.CREATE, `study_rooms/${activeRoom.id}/quizzes/${quizId}`);
-      } catch {
-        setRoomError(err?.message || 'Unable to launch Quiz Battle.');
-      }
+      setRoomError(err?.message || 'Unable to launch Quiz Battle.');
     } finally {
       setQuizBusy(false);
     }
@@ -842,24 +632,18 @@ export const CollaborativeStudyRoomView: React.FC = () => {
   const handleSubmitQuizBattle = async () => {
     if (!user || !activeRoom || !latestQuiz || latestQuiz.status !== 'active' || isMuted || mySubmission) return;
     setRoomError('');
-    const totalQuestions = latestQuiz.questions.length;
     const answers = latestQuiz.questions.map((_, idx) => (quizAnswers[idx] || '-').slice(0, 2));
-    const score = latestQuiz.questions.reduce(
-      (acc, q, idx) => acc + (answers[idx] === q.correctAnswer ? 1 : 0),
-      0
-    );
     const timeTakenSec = Math.max(1, Math.round((Date.now() - quizStartedAt) / 1000));
 
     try {
-      await setDoc(doc(db, 'study_rooms', activeRoom.id, 'quizzes', latestQuiz.id, 'submissions', user.uid), {
-        uid: user.uid,
-        displayName: (user.displayName || 'Student').slice(0, 90),
-        score,
-        totalQuestions,
-        timeTakenSec,
+      await postRoomAction({
+        action: 'submit_quiz',
+        roomId: activeRoom.id,
+        quizId: latestQuiz.id,
         answers,
-        submittedAt: serverTimestamp(),
+        timeTakenSec,
       });
+      void fetchActiveRoom();
     } catch (err: any) {
       setRoomError(err?.message || 'Failed to submit quiz answers.');
     }
@@ -868,16 +652,18 @@ export const CollaborativeStudyRoomView: React.FC = () => {
   const handleFinishQuizBattle = async () => {
     if (!activeRoom || !latestQuiz || !isMod) return;
     try {
-      await updateDoc(doc(db, 'study_rooms', activeRoom.id, 'quizzes', latestQuiz.id), {
-        status: 'finished',
-        updatedAt: serverTimestamp(),
+      await postRoomAction({
+        action: 'finish_quiz',
+        roomId: activeRoom.id,
+        quizId: latestQuiz.id,
       });
+      void fetchActiveRoom();
     } catch (err: any) {
       setRoomError(err?.message || 'Failed to end Quiz Battle.');
     }
   };
 
-  if (!authReady) {
+  if (authLoading) {
     return (
       <div className="rounded-2xl border border-slate-200 dark:border-[#27272A] bg-white dark:bg-[#0A0A0A] p-12 flex items-center justify-center gap-2 text-sm text-slate-500">
         <Loader2 className="w-5 h-5 animate-spin text-[#22C55E]" />
@@ -895,7 +681,7 @@ export const CollaborativeStudyRoomView: React.FC = () => {
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Collaborative Study Rooms</h2>
           <p className="text-sm text-slate-500 dark:text-[#A1A1AA]">
-            Sign in with your Google account to create public or private study rooms, share formatted math questions, draw on a real-time synchronized whiteboard, and manage room moderation.
+            Sign in with your Google account to create public or private study rooms, share formatted math questions, draw on a synchronized whiteboard, and manage room moderation.
           </p>
         </div>
         {authError && (
@@ -1099,7 +885,6 @@ export const CollaborativeStudyRoomView: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Moderator Launch Quiz Controls */}
                 {isMod && activeRoom.status === 'active' && (
                   <form
                     onSubmit={handleLaunchQuizBattle}
@@ -1174,58 +959,66 @@ export const CollaborativeStudyRoomView: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Questions Sheet */}
                     <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
                       {latestQuiz.questions.map((q, idx) => {
                         const chosen = mySubmission ? mySubmission.answers[idx] : quizAnswers[idx];
                         const reveal = Boolean(mySubmission || latestQuiz.status === 'finished');
                         return (
                           <div
-                            key={q.id}
-                            className="rounded-xl border border-slate-200 dark:border-[#27272A] bg-slate-50 dark:bg-[#121216] p-3.5 space-y-2.5 text-xs"
+                            key={q.id || idx}
+                            className="rounded-xl border border-slate-200 dark:border-[#27272A] bg-slate-50 dark:bg-[#121216] p-3 space-y-2 text-xs"
                           >
-                            <div className="font-semibold text-slate-900 dark:text-white">
-                              <span className="text-[#22C55E] font-bold mr-1.5">Q{idx + 1}.</span>
-                              <MathRenderer content={q.question} />
+                            <div className="font-semibold text-slate-900 dark:text-white flex gap-1.5">
+                              <span className="font-mono text-[#22C55E]">Q{idx + 1}.</span>
+                              <div className="min-w-0 flex-1">
+                                <MathRenderer content={q.question} />
+                              </div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {(['A', 'B', 'C', 'D'] as const).map((optKey) => {
-                                const optText =
-                                  optKey === 'A'
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                              {(['A', 'B', 'C', 'D'] as const).map((letter) => {
+                                const text =
+                                  letter === 'A'
                                     ? q.optionA
-                                    : optKey === 'B'
+                                    : letter === 'B'
                                     ? q.optionB
-                                    : optKey === 'C'
+                                    : letter === 'C'
                                     ? q.optionC
                                     : q.optionD;
-                                const isPicked = chosen === optKey;
-                                const isCorrect = q.correctAnswer === optKey;
-                                let styleCls =
-                                  'border-slate-200 dark:border-[#27272A] hover:border-[#22C55E] text-slate-700 dark:text-zinc-300';
-                                if (reveal) {
-                                  if (isCorrect) styleCls = 'border-[#22C55E] bg-[#22C55E]/15 text-slate-900 dark:text-white font-bold';
-                                  else if (isPicked) styleCls = 'border-rose-500 bg-rose-500/15 text-rose-500';
-                                } else if (isPicked) {
-                                  styleCls = 'border-[#22C55E] bg-[#22C55E]/20 text-slate-900 dark:text-white font-bold';
-                                }
-
+                                const isPicked = chosen === letter;
+                                const isCorrect = reveal && q.correctAnswer === letter;
+                                const isWrongPick = reveal && isPicked && !isCorrect;
                                 return (
                                   <button
-                                    key={optKey}
+                                    key={letter}
                                     type="button"
-                                    disabled={reveal || isMuted || latestQuiz.status !== 'active'}
-                                    onClick={() => setQuizAnswers((prev) => ({ ...prev, [idx]: optKey }))}
-                                    className={`text-left px-3 py-2 rounded-lg border transition-colors cursor-pointer disabled:cursor-default ${styleCls}`}
+                                    disabled={Boolean(mySubmission) || latestQuiz.status !== 'active' || isMuted}
+                                    onClick={() =>
+                                      setQuizAnswers((prev) => ({
+                                        ...prev,
+                                        [idx]: letter,
+                                      }))
+                                    }
+                                    className={`text-left px-2.5 py-2 rounded-lg border transition-colors cursor-pointer flex items-start gap-1.5 ${
+                                      isCorrect
+                                        ? 'border-[#22C55E] bg-[#22C55E]/15 text-slate-900 dark:text-white font-semibold'
+                                        : isWrongPick
+                                        ? 'border-rose-500 bg-rose-500/15 text-rose-600 dark:text-rose-300'
+                                        : isPicked
+                                        ? 'border-[#22C55E] bg-[#22C55E]/10 text-slate-900 dark:text-white font-semibold'
+                                        : 'border-slate-200 dark:border-[#27272A] hover:border-slate-400'
+                                    }`}
                                   >
-                                    <span className="font-mono font-bold mr-1.5">{optKey}.</span>
-                                    <MathRenderer content={optText} />
+                                    <span className="font-mono font-bold shrink-0">{letter}.</span>
+                                    <span className="min-w-0 flex-1">
+                                      <MathRenderer content={text} />
+                                    </span>
                                   </button>
                                 );
                               })}
                             </div>
                             {reveal && q.explanation && (
-                              <div className="text-[11px] text-slate-600 dark:text-zinc-400 pt-1 border-t border-slate-200 dark:border-[#27272A]">
-                                <strong>Answer {q.correctAnswer}:</strong> <MathRenderer content={q.explanation} />
+                              <div className="text-[11px] text-slate-600 dark:text-zinc-400 pt-1">
+                                <MathRenderer content={q.explanation} />
                               </div>
                             )}
                           </div>
@@ -1243,7 +1036,6 @@ export const CollaborativeStudyRoomView: React.FC = () => {
                       </button>
                     )}
 
-                    {/* Live Leaderboard */}
                     {submissions.length > 0 && (
                       <div className="rounded-xl border border-slate-200 dark:border-[#27272A] p-3.5 space-y-2">
                         <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -1276,7 +1068,6 @@ export const CollaborativeStudyRoomView: React.FC = () => {
 
           {/* Right: Shared Questions, Chat & Participants Moderation */}
           <div className="xl:col-span-5 space-y-5">
-            {/* Messages & Questions Stream */}
             <div className="rounded-2xl border border-slate-200 dark:border-[#27272A] bg-white dark:bg-[#0A0A0A] p-4 space-y-3">
               <div className="text-xs font-bold text-slate-900 dark:text-white">
                 Shared Questions & Discussion ({messages.length})
@@ -1363,7 +1154,6 @@ export const CollaborativeStudyRoomView: React.FC = () => {
               )}
             </div>
 
-            {/* Participants & Moderation */}
             <div className="rounded-2xl border border-slate-200 dark:border-[#27272A] bg-white dark:bg-[#0A0A0A] p-4 space-y-3">
               <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-[#22C55E]" />
@@ -1432,12 +1222,12 @@ export const CollaborativeStudyRoomView: React.FC = () => {
             Collaborative Study Rooms
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-[#A1A1AA] mt-0.5">
-            Signed in as <strong>{user.displayName || 'Student'}</strong> · Create private or public rooms with synchronized whiteboards and moderation.
+            Signed in as <strong>{user.displayName || user.email || 'Student'}</strong> · Create private or public rooms with synchronized whiteboards and moderation.
           </p>
         </div>
         <button
           type="button"
-          onClick={() => signOutUser()}
+          onClick={() => void signOut()}
           className="px-4 py-2 rounded-xl border border-slate-200 dark:border-[#27272A] text-xs font-semibold flex items-center gap-1.5 cursor-pointer self-start"
         >
           <LogOut className="w-3.5 h-3.5" />
@@ -1453,7 +1243,6 @@ export const CollaborativeStudyRoomView: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Create Room & Join by Invite Code */}
         <div className="lg:col-span-5 space-y-5">
           <form onSubmit={handleCreateRoom} className="rounded-2xl border border-slate-200 dark:border-[#27272A] bg-white dark:bg-[#0A0A0A] p-5 space-y-3.5">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -1529,7 +1318,6 @@ export const CollaborativeStudyRoomView: React.FC = () => {
           </form>
         </div>
 
-        {/* Public & My Rooms Directory */}
         <div className="lg:col-span-7 space-y-5">
           {myRooms.length > 0 && (
             <div className="rounded-2xl border border-slate-200 dark:border-[#27272A] bg-white dark:bg-[#0A0A0A] p-5 space-y-3">

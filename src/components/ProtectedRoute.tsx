@@ -14,7 +14,7 @@ interface ProtectedRouteProps {
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   routeTitle = 'Protected Student Workspace',
-  routeDescription = 'Sign in with Google to access your persistent student profile, saved study vault, and Firebase cloud workspace.',
+  routeDescription = 'Sign in with Google to access your persistent student profile, saved study vault, and encrypted cloud workspace.',
   onBackToCalculator,
 }) => {
   const { user, loading } = useAuth();
@@ -32,7 +32,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         <Loader2 className="w-7 h-7 animate-spin text-[#22C55E]" />
         <p className="text-sm font-bold">Restoring your Google session...</p>
         <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-          Checking Firebase Authentication state
+          Verifying Auth.js HTTP-only session cookie
         </p>
       </div>
     );
@@ -73,11 +73,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               <ul className={`space-y-2.5 text-xs pt-2 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                 <li className="flex items-start gap-2">
                   <ShieldCheck className="w-4 h-4 text-[#22C55E] shrink-0 mt-0.5" />
-                  <span>Single Firebase Google login across Profile, Cloud Sync & Study Rooms</span>
+                  <span>Single Google login across Profile, Cloud Sync & Study Rooms</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <ShieldCheck className="w-4 h-4 text-[#22C55E] shrink-0 mt-0.5" />
-                  <span>Private Firestore rules scoped exclusively to your UID</span>
+                  <span>Encrypted HTTP-only session cookies scoped exclusively to your account</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <ShieldCheck className="w-4 h-4 text-[#22C55E] shrink-0 mt-0.5" />

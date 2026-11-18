@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
 import {
   Cloud,
   CloudUpload,
@@ -15,7 +14,7 @@ import {
   Loader2,
   Plus,
 } from 'lucide-react';
-import { auth, signInWithGoogle, signOutUser } from '../firebase';
+import { useAuth } from '../contexts/AuthContext';
 import {
   addExamGoal,
   ExamGoalItem,
@@ -45,7 +44,7 @@ function getDaysRemaining(targetDate: string): number {
 }
 
 export const CloudSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, signInWithGoogle, signOut } = useAuth();
   const [pinned, setPinned] = useState<PinnedFormulaItem[]>(() => getPinnedFormulas());
   const [goals, setGoals] = useState<ExamGoalItem[]>(() => getExamGoals());
   const [lastSync, setLastSync] = useState<number | null>(() => getLastSyncTimestamp());
@@ -65,11 +64,9 @@ export const CloudSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     const onWorkspace = () => refreshLocal();
     window.addEventListener('smartsolve_workspace_changed', onWorkspace);
     return () => {
-      unsub();
       window.removeEventListener('smartsolve_workspace_changed', onWorkspace);
     };
   }, []);
@@ -81,10 +78,9 @@ export const CloudSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const handleSignIn = async () => {
     setErrorMsg('');
-    try {
-      await signInWithGoogle();
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Google Sign-In failed or was cancelled.');
+    const { error } = await signInWithGoogle();
+    if (error) {
+      setErrorMsg(error);
     }
   };
 
@@ -169,7 +165,7 @@ export const CloudSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {!user ? (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="text-xs text-slate-600 dark:text-zinc-300">
-                  Sign in with Google to encrypt & sync your formulas, history, and exam countdowns privately to Firestore.
+                  Sign in with Google to encrypt & sync your formulas, history, and exam countdowns securely via Auth.js.
                 </div>
                 <button
                   type="button"
@@ -185,7 +181,7 @@ export const CloudSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-xs">
                     <span className="text-slate-500 dark:text-zinc-400">Signed in as </span>
-                    <strong className="text-slate-900 dark:text-white">{user.displayName || 'Student'}</strong>
+                    <strong className="text-slate-900 dark:text-white">{user.displayName || user.email || 'Student'}</strong>
                     {lastSync && (
                       <span className="ml-2 text-[11px] text-[#22C55E]">
                         · Last synced {new Date(lastSync).toLocaleTimeString()}
@@ -194,7 +190,7 @@ export const CloudSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => signOutUser()}
+                    onClick={() => void signOut()}
                     className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-[#27272A] text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
                   >
                     <LogOut className="w-3 h-3" />

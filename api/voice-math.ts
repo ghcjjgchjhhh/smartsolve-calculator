@@ -2,30 +2,20 @@ import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
 function applyCors(req: any, res: any): boolean {
   const origin = typeof req?.headers?.origin === 'string' ? req.headers.origin : '';
-  const allowedStatic = new Set([
-    'https://smart-solve-40fb3.web.app',
-    'https://smart-solve-40fb3.firebaseapp.com',
-  ]);
   let allowed = false;
   if (origin) {
-    if (allowedStatic.has(origin)) allowed = true;
-    else {
-      try {
-        const parsed = new URL(origin);
-        const host = parsed.hostname.toLowerCase();
-        if (host === 'localhost' || host === '127.0.0.1') allowed = true;
-        else if (
-          parsed.protocol === 'https:' &&
-          (host.endsWith('.vercel.app') ||
-            host.endsWith('.run.app') ||
-            ((host.endsWith('.web.app') || host.endsWith('.firebaseapp.com')) &&
-              host.startsWith('smart-solve-40fb3')))
-        ) {
-          allowed = true;
-        }
-      } catch {
-        allowed = false;
+    try {
+      const parsed = new URL(origin);
+      const host = parsed.hostname.toLowerCase();
+      if (host === 'localhost' || host === '127.0.0.1') allowed = true;
+      else if (
+        parsed.protocol === 'https:' &&
+        (host.endsWith('.vercel.app') || host.endsWith('.run.app'))
+      ) {
+        allowed = true;
       }
+    } catch {
+      allowed = false;
     }
   }
 
@@ -33,7 +23,7 @@ function applyCors(req: any, res: any): boolean {
   if (origin && allowed) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   } else if (!origin) {
-    res.setHeader('Access-Control-Allow-Origin', 'https://smart-solve-40fb3.web.app');
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-gemini-key');

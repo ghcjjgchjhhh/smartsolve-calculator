@@ -76,7 +76,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthenticated }) => {
             <div>
               <h2 className="text-sm font-extrabold">SmartSolve Account</h2>
               <p className={`text-[11px] ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                Firebase Google Sign-In
+                Auth.js · Google Sign-In
               </p>
             </div>
           </div>

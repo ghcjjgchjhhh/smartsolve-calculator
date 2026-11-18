@@ -828,7 +828,7 @@ function MainApp() {
           <div className={activeTab === 'profile' ? 'block animate-tabEnter' : 'hidden'}>
             <ProtectedRoute
               routeTitle="Student Profile & Private Vault"
-              routeDescription="Sign in with your Google account to sync your academic profile and store private study vault notes secured by Firebase Authentication & Firestore Security Rules."
+              routeDescription="Sign in with your Google account to sync your academic profile and store private study vault notes secured by Auth.js and encrypted HTTP-only cookie sessions."
               onBackToCalculator={() => navigateTab('scientific')}
             >
               <UserProfileView onNavigateTab={navigateTab} />
